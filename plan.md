@@ -1,6 +1,7 @@
 # CS25 Transformers United — Learning Notes  ✅ COMPLETE (50/50)
 
 Canonical folder: C:\Code\Self\cs25-notes  (open notes\index.html)
+Live site: https://starkaritra.github.io/cs25-notes/  (GitHub Pages, deploys notes/ on push to main)
 All 50 CS25 talks (V1–V6) as self-contained HTML notes. Built via ~/.copilot/skills/lecture-notes.
 
 ## Status: 50/50 notes, 10 batches — every note render-validated (0 diagram errors) and spec-complete
