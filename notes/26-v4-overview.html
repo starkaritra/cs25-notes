@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 26 — Overview of Transformers (V4)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why an overview now?</a>
+  <a href="#s1a" class="sub">1.1 The field consolidated</a>
+  <a href="#s1b" class="sub">1.2 What this lecture updates</a>
+  <a href="#s2">2 · Mechanics recap</a>
+  <a href="#s2a" class="sub">2.1 Attention as routing</a>
+  <a href="#s2b" class="sub">2.2 Blocks and families</a>
+  <a href="#s3">3 · The 2024 landscape</a>
+  <a href="#s3a" class="sub">3.1 Decoder-only dominance</a>
+  <a href="#s3b" class="sub">3.2 Tuning, modalities, efficiency</a>
+  <a href="#s4">4 · Open problems</a>
+  <a href="#s4a" class="sub">4.1 Agents expose the edge</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 6 · Note 1 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Overview of Transformers (CS25 V4, 2024)</h1>
+  <p class="lead">The V4 opener resets the map: transformers are no longer only an NLP architecture, but the shared substrate for language models, multimodal systems, and tool-using agents in 2024.</p>
+  <div class="meta">
+    <span class="pill">🎓 Div, Steven, Emily, and Seonghee (CS25 V4 instructors)</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=fKMB5UlVY1E" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why"><span class="lbl">Why this matters</span>
+<p>Earlier CS25 overviews could ask whether attention would generalize. By 2024 the answer is everywhere: GPT-style assistants, Gemini, Sora-like video, Med-PaLM, open-weight models, and agents all reuse transformer ideas or orbit them. The useful question is now: what does this architecture make easy, what does it make expensive, and where is the frontier moving?</p></div>
+<div class="box analogy"><span class="lbl">Running analogy</span>
+<p>Think of a transformer as a <strong>busy research lab</strong>. Each token is a researcher. <strong>Attention</strong> is who each researcher asks for context; <strong>multi-head attention</strong> is several committees asking different questions; the <strong>MLP</strong> is private thinking; the <strong>residual stream</strong> is the shared notebook. In 2024 that lab has become a company with tools, memory, sensors, and agents around the same meeting protocol.</p></div>
+</section>
+
+<div class="box prereq" id="prereq"><span class="lbl">Prerequisites — 30-second refresher</span>
+<p>This note keeps mechanics tight. For the historical arc, see <a class="ref" href="P127jhj-8-Y.html">Note 1</a>; for the deep mechanics pass, see <a class="ref" href="XfpMkf4rD6E.html">Note 2</a>.</p>
+<ul>
+  <li><strong>Embedding / token</strong> — text is split into tokens, then each token becomes a vector; transformers operate on vectors.</li>
+  <li><strong>Dot product</strong> — measures vector alignment; here it scores query-key similarity.</li>
+  <li><strong>Softmax</strong> — turns scores into nonnegative weights that sum to 1, so attention becomes a weighted average.</li>
+  <li><strong>Matrix multiply shapes</strong> — a sequence matrix \(T\times d\) can be projected into compatible \(Q,K,V\) matrices.</li>
+</ul></div>
+
+<h2 id="s1"><span class="num">1.</span>Why an overview now?</h2>
+<p>The lecture opens with the course mission: bring the latest transformer and LLM research directly to students. That matters because transformers have crossed from “paper to understand” into “infrastructure to design around.”</p>
+<h3 id="s1a">1.1 The field consolidated</h3>
+<p>The transcript begins before transformers: rule-based NLP, parsing, RNNs, LSTMs, and early attention. The 2017 <em>Attention Is All You Need</em> paper made attention a full architecture. BERT and GPT pushed it through NLP; then the same recipe spread to vision, protein folding, audio, code, video, robotics, and agent systems.</p>
+<p>The claim is not that every modern model is vanilla transformer. It is that the <strong>token + attention + scale</strong> interface became standard: tokenize a modality, let tokens communicate by attention, train at scale, then adapt using prompts, fine-tuning, retrieval, tools, or preferences.</p>
+<figure><div class="mermaid">
+flowchart LR
+    A["Rules / parsing"] --> B["RNNs + LSTMs"]
+    B --> C["Attention mechanisms<br/>(2014 era)"]
+    C --> D["Transformer<br/>(2017)"]
+    D --> E["BERT + GPT<br/>(NLP)"]
+    E --> F["Vision, code, biology,<br/>audio, video"]
+    F --> G["2024 frontier:<br/>multimodal agents"]
+</div><figcaption>The V4 overview frames transformers as a convergence point, not one NLP trick.</figcaption></figure>
+<h3 id="s1b">1.2 What this lecture updates</h3>
+<p>Since Note 2 covers attention mechanics in depth, V4 spends its depth on the current map: decoder-only LLMs, scaling and emergence, RLHF/DPO, multimodality, long context, efficiency, open versus closed ecosystems, and agents with memory, tools, planning, communication, and reliability problems.</p>
+<div class="box pitfall"><span class="lbl">Common misconception</span><p><strong>“Transformers won because attention is biologically like human attention.”</strong> The engineering win is more concrete: attention gives content-based routing among tokens and trains in parallel far better than recurrent sequence models.</p></div>
+<details class="check"><summary>✓ Check yourself — why did recurrence limit older sequence models?</summary><p>RNNs process tokens step by step and compress history into a hidden state. That hurts long-range dependencies, limits parallel training, and can create vanishing/exploding-gradient problems.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Mechanics recap: tokens ask each other for help</h2>
+<p>For a phrase like “the trophy did not fit in the suitcase because it was too large,” the token “it” needs relevant context from earlier tokens. A transformer learns how each token should query the others.</p>
+<h3 id="s2a">2.1 Self-attention as content-based routing</h3>
+<p>Each token creates three learned views. A <strong>query</strong> says “what am I looking for?”, a <strong>key</strong> says “what information do I offer?”, and a <strong>value</strong> is the information copied if the match is useful. The softmax makes routing soft rather than one-book retrieval.</p>
+<div class="box eqn"><span class="lbl">Key equation — scaled dot-product attention</span>
+<p>$$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\tfrac{QK^\top}{\sqrt{d_k}}\right)V$$</p>
+<p>\(Q\) are queries, \(K\) keys, \(V\) values, and \(d_k\) the key/query width. \(QK^\top\) gives all match scores; \(\sqrt{d_k}\) stabilizes scale; multiplying by \(V\) mixes retrieved content.</p></div>
+<figure><div class="mermaid">
+flowchart TB
+    X["Input tokens<br/>(T × d)"] --> E["Embeddings + positions"]
+    E --> Q["Queries Q"]
+    E --> K["Keys K"]
+    E --> V["Values V"]
+    Q --> S["Scores: QKᵀ / √d_k"]
+    K --> S
+    S --> M["Causal mask<br/>(decoder-only)"]
+    M --> W["Softmax weights"]
+    W --> O["Weighted value mix"]
+    V --> O
+</div><figcaption>Self-attention is content-based routing: each token decides which token values to read.</figcaption></figure>
+<details class="check"><summary>✓ Check yourself — in the lab analogy, what is the query and what is the key?</summary><p>The query is a researcher's question: “who has information I need?” The key is each colleague's label: “what information do I contain?” The score measures how well question and label match.</p></details>
+
+<h3 id="s2b">2.2 Blocks and families</h3>
+<p>A transformer block alternates <strong>communication</strong> and <strong>computation</strong>. Attention lets tokens exchange information. The MLP processes each token locally. Residual connections preserve the shared notebook; normalization keeps signals stable. Multi-head attention repeats routing in parallel so different heads can track syntax, names, positions, or long-range references.</p>
+<figure><div class="svgcard"><svg viewBox="0 0 760 300" role="img" aria-label="Transformer block" width="100%" height="auto"><rect x="0" y="0" width="760" height="300" rx="16" fill="#f7f2e6"/><text x="380" y="36" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="23" font-weight="700" fill="#2b2721">One block: communicate, then think</text><rect x="50" y="95" width="145" height="66" rx="12" fill="#eef4ff" stroke="#2f6df6" stroke-width="3"/><text x="122" y="135" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="17" fill="#2b2721">Residual stream</text><path d="M195 128 H270" stroke="#2b2721" stroke-width="3" marker-end="url(#a)"/><rect x="270" y="82" width="165" height="92" rx="12" fill="#fff8df" stroke="#c28a00" stroke-width="3"/><text x="352" y="120" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" font-weight="700" fill="#2b2721">Attention</text><text x="352" y="145" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="15" fill="#2b2721">tokens exchange</text><path d="M435 128 H505" stroke="#2b2721" stroke-width="3" marker-end="url(#a)"/><rect x="505" y="82" width="165" height="92" rx="12" fill="#f0e8ff" stroke="#7b4ed6" stroke-width="3"/><text x="588" y="120" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" font-weight="700" fill="#2b2721">MLP</text><text x="588" y="145" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="15" fill="#2b2721">each token thinks</text><path d="M122 161 C122 225 588 225 588 174" fill="none" stroke="#418a59" stroke-width="3" stroke-dasharray="8 8"/><text x="380" y="252" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="17" fill="#2b2721">Residuals + norms keep the notebook readable across many layers</text><defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2b2721"/></marker></defs></svg></div><figcaption>The compact block: attention + MLP, wrapped by residual connections and normalization.</figcaption></figure>
+<table><tr><th>Family</th><th>What can attend to what?</th><th>Typical use</th></tr><tr><td>Encoder-only</td><td>Bidirectional attention over input tokens.</td><td>BERT-style representation, classification, retrieval encoders.</td></tr><tr><td>Decoder-only</td><td>Causal attention: previous tokens only.</td><td>GPT-style next-token prediction, chat models, agents.</td></tr><tr><td>Encoder-decoder</td><td>Encoder reads source; decoder self-attends and cross-attends.</td><td>Translation, summarization, T5/BART-style seq2seq.</td></tr></table>
+<details class="check"><summary>✓ Check yourself — what does the MLP add if attention already mixed tokens?</summary><p>Attention moves information between tokens. The MLP transforms each token's updated vector locally, adding nonlinear computation after communication.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The 2024 landscape: what changed around the block</h2>
+<p>The block is recognizable; the ecosystem around it changed. V4 emphasizes models that are larger, more instruction-following, more multimodal, more tool-connected, and split between closed frontier labs and open-weight communities.</p>
+<h3 id="s3a">3.1 Decoder-only dominance, scaling, and emergence</h3>
+<p>The lecture's LLM story centers on autoregressive next-token prediction: train a decoder-only transformer on massive text, then adapt it into an assistant. This objective scales cleanly, uses one interface for prompts and outputs, and can be adapted without task-specific heads.</p>
+<div class="box eqn"><span class="lbl">Key equation — autoregressive language modeling</span>
+<p>$$p_\theta(x_1,\ldots,x_T)=\prod_{t=1}^{T}p_\theta(x_t\mid x_{&lt;t})$$</p>
+<p>The model predicts token \(x_t\) from earlier tokens \(x_{&lt;t}\). In chat, instructions, retrieved documents, tool outputs, and conversation history are all placed into this same token stream.</p></div>
+<p>Scaling laws make part of progress predictable: more compute, parameters, and data usually reduce loss. The lecture also highlights <strong>emergent abilities</strong>—task-level jumps such as arithmetic, transliteration, or reasoning that appear in larger models. Emily gives the honest 2024 caveat: some cliffs may reflect nonlinear metrics, but small-model curves still cannot safely bound frontier capabilities.</p>
+<details class="check"><summary>✓ Check yourself — how can emergence and smooth scaling both be true?</summary><p>Token-level loss can improve smoothly while an all-or-nothing benchmark stays near zero until a threshold is crossed. The underlying barometer is smooth; the public score can look sudden.</p></details>
+
+<h3 id="s3b">3.2 Tuning, modalities, long context, and efficiency</h3>
+<ul>
+  <li><strong>Instruction tuning + RLHF/DPO.</strong> Supervised examples teach the assistant format; preference optimization pushes outputs toward what humans prefer. The lecture contrasts RLHF's complex reward/policy loop with DPO's direct chosen-versus-rejected training.</li>
+  <li><strong>Multimodality.</strong> Transformers moved beyond text into images, audio, biology, robotics, and video. The common move is tokenization: represent patches, frames, actions, or latent video chunks as sequences.</li>
+  <li><strong>Long context + memory.</strong> Gemini-style long contexts are useful, but agents also need persistent memory: store embeddings externally, retrieve relevant memories, and place them into the prompt.</li>
+  <li><strong>Efficiency.</strong> FlashAttention makes exact attention faster by improving GPU memory use; KV-cache avoids recomputing old keys/values during generation; Mixture-of-Experts activates only a few expert MLPs per token.</li>
+  <li><strong>Open vs closed.</strong> Closed systems push frontier capability and product polish; open models such as LLaMA, Mistral, and Mixtral enable local deployment, auditing, fine-tuning, and broader research.</li>
+  <li><strong>Agents.</strong> The lecture's 2024 emphasis is models connected to tools, browsers, memory, planning, reflection, communication, and human-like computer interfaces.</li>
+</ul>
+<figure><div class="mermaid">
+flowchart TB
+    A["Decoder-only base LM"] --> B["Instruction tuning<br/>+ preference optimization"]
+    B --> C["Chat assistant"]
+    C --> D["Tools / APIs / browser"]
+    C --> E["External memory<br/>(RAG + embeddings)"]
+    C --> F["Multimodal inputs<br/>(image, audio, video)"]
+    C --> G["Agent loop<br/>(plan → act → verify)"]
+    H["Efficiency layer"] --> C
+    H --> I["FlashAttention"]
+    H --> J["KV-cache"]
+    H --> K["Mixture-of-Experts"]
+</div><figcaption>The 2024 story is an expanded system around the transformer core.</figcaption></figure>
+<div class="box intuition"><span class="lbl">Unifying frame</span><p>Many 2024 improvements decide <strong>what enters the lab</strong> and <strong>what tools the lab can use</strong>: instructions, retrieved memories, images, code outputs, browser observations, user preferences, and other agents' messages.</p></div>
+
+<h2 id="s4"><span class="num">4.</span>Open problems: where the lab still breaks</h2>
+<p>The overview is optimistic, but not a victory lap. The more transformer systems act in the world, the more visible their failure modes become.</p>
+<h3 id="s4a">4.1 Agents expose the hard edge</h3>
+<p>Div frames an LLM as a compute chip for natural-language tokens: context length is RAM, retrieval is a disk, tools are peripherals, and agents are the operating system around the chip. That analogy is powerful because it also exposes what is missing: deterministic reliability, testing, permissions, security, and recovery when a plan drifts.</p>
+<table><tr><th>Open problem</th><th>Why it matters in 2024</th><th>Typical mitigation</th></tr><tr><td>Quadratic attention</td><td>Full attention over \(T\) tokens costs roughly \(O(T^2)\) score interactions.</td><td>FlashAttention, sparse/windowed attention, retrieval, compression.</td></tr><tr><td>Context length</td><td>A long prompt is not stable, updateable memory across conversations.</td><td>RAG, vector databases, memory summarization, personalization.</td></tr><tr><td>Reasoning</td><td>Chain-of-thought helps, but models can skip steps or misunderstand semantics.</td><td>Verifiers, tool use, self-consistency, decomposition.</td></tr><tr><td>Hallucination</td><td>Next-token likelihood is not truth; false text can sound confident.</td><td>Retrieval, calibration, citations, verification.</td></tr><tr><td>Alignment</td><td>Systems that act for users must respect intent, privacy, safety, and values.</td><td>RLHF/DPO, permissions, audits, human fallback.</td></tr><tr><td>Efficiency</td><td>Frontier training costs concentrate access in large companies.</td><td>Open models, MoE, distillation, synthetic/textbook data.</td></tr></table>
+<div class="box pitfall"><span class="lbl">Common misconception</span><p><strong>“More autonomy automatically means more usefulness.”</strong> The agent section says the opposite: autonomy without error correction, observability, sandboxing, and user permissions can amplify small stochastic mistakes into real-world failures.</p></div>
+<details class="check"><summary>✓ Check yourself — why is an agent harder to trust than a one-shot chatbot?</summary><p>A chatbot returns text you inspect. An agent takes multi-step actions, observes consequences, calls tools, and can drift after an early mistake. Reliability, rollback, permissions, and monitoring become part of the model problem.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked example — scaled dot-product attention with two tokens</h2>
+<p>Use the smallest honest attention calculation: two tokens, one head, \(d_k=2\). Compute the output for token 1.</p>
+<div class="box eqn"><span class="lbl">Step-by-step with real numbers</span>
+<p>Let token 1 have query \(q_1=[1,1]\). The keys and values are:</p>
+<p>$$k_1=[1,0],\quad k_2=[0,1],\qquad v_1=[10,0],\quad v_2=[0,4].$$</p>
+<p>Raw dot products:</p>
+<p>$$q_1\cdot k_1 = 1\cdot1+1\cdot0=1,\qquad q_1\cdot k_2 = 1\cdot0+1\cdot1=1.$$</p>
+<p>Scale by \(\sqrt{d_k}=\sqrt{2}\):</p>
+<p>$$s=\left[\tfrac{1}{\sqrt{2}},\tfrac{1}{\sqrt{2}}\right]\approx[0.707,0.707].$$</p>
+<p>Softmax of equal scores gives equal weights, \(\alpha=[0.5,0.5]\). Mix the values:</p>
+<p>$$o_1=0.5\,[10,0]+0.5\,[0,4]=[5,2].$$</p>
+<p>Token 1 returns \([5,2]\): half of token 1's value and half of token 2's value.</p></div>
+<details class="check"><summary>✓ Check yourself — what is the role of \(\sqrt{d_k}\)?</summary><p>Without scaling, dot products grow as vector width grows. Large scores make softmax too peaky and gradients less useful. Dividing by \(\sqrt{d_k}\) keeps score variance roughly controlled.</p></details>
+<details class="check"><summary>✓ Check yourself — redo the last step if the weights were [0.8, 0.2]</summary><p>The output is \(0.8[10,0]+0.2[0,4]=[8,0.8]\). More attention to token 1 means more of token 1's value appears.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one decoder-only block</h2>
+<p>Trace a mini-GPT block with \(T=4\) tokens, model width \(d=8\), two heads, and per-head width \(d_k=4\). Example tokens: <code>The cat sat &lt;next&gt;</code>.</p>
+<table><tr><th>Step</th><th>What happens</th><th>Shape</th></tr><tr><td>0 · tokens+pos</td><td>Token embeddings are added to positional encodings.</td><td class="tt">T×d = 4×8</td></tr><tr><td>1 · QKV</td><td>Learned projections produce queries, keys, and values; split into 2 heads.</td><td class="tt">Q,K,V: 4×8 → 2×4×4</td></tr><tr><td>2 · causal scores</td><td>Each head computes \(QK^\top/\sqrt{d_k}\); future positions are masked.</td><td class="tt">per head: 4×4</td></tr><tr><td>3 · softmax</td><td>Rows become distributions over allowed earlier tokens.</td><td class="tt">per head: 4×4 weights</td></tr><tr><td>4 · attn out</td><td>Weights multiply values; heads concatenate and project back.</td><td class="tt">2×4×4 → 4×8</td></tr><tr><td>5 · +residual</td><td>Attention output is added to the residual stream.</td><td class="tt">4×8</td></tr><tr><td>6 · norm</td><td>Layer norm stabilizes vector scale.</td><td class="tt">4×8</td></tr><tr><td>7 · MLP</td><td>Each token independently expands and contracts through a feed-forward network.</td><td class="tt">4×8 → 4×32 → 4×8</td></tr><tr><td>8 · +residual</td><td>The block hands an updated residual stream to the next block.</td><td class="tt">4×8</td></tr></table>
+<div class="box intuition"><span class="lbl">Communication vs computation</span><p><strong>Attention is communication:</strong> token desks exchange notes under a causal rule. <strong>MLP is computation:</strong> each desk privately processes its updated note. Stacking blocks alternates these two moves until the final token has enough context to predict the next token.</p></div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check"><span class="lbl">Reconstruct the chain</span><ol><li>Why does V4 need a fresh overview even though the attention equation did not change? <a class="ref" href="#s1">(§1)</a></li><li>Explain self-attention using query/key/value and the lab analogy. <a class="ref" href="#s2a">(§2.1)</a></li><li>What differs between encoder-only, decoder-only, and encoder-decoder transformers? <a class="ref" href="#s2b">(§2.2)</a></li><li>List four 2024 landscape shifts named in the lecture. <a class="ref" href="#s3">(§3)</a></li><li>Why are FlashAttention, KV-cache, and MoE efficiency moves? <a class="ref" href="#s3b">(§3.2)</a></li><li>Teach it back: explain the transformer block to a beginner in three sentences, then name one open problem.</li></ol></div>
+
+<h2 id="glossary">Glossary</h2>
+<table><tr><th>Term</th><th>Plain meaning</th></tr><tr><td>Transformer</td><td>A neural sequence architecture built from attention, MLPs, residual connections, and normalization.</td></tr><tr><td>Self-attention</td><td>Tokens choose weighted information from other tokens in the same sequence.</td></tr><tr><td>Query / key / value</td><td>Learned vector views used to ask for information, advertise matchability, and provide retrieved content.</td></tr><tr><td>Multi-head attention</td><td>Several attention operations run in parallel in different learned subspaces.</td></tr><tr><td>Positional encoding</td><td>Information added to token vectors so order is visible.</td></tr><tr><td>Decoder-only model</td><td>A causal transformer trained to predict the next token; dominant for chat LLMs.</td></tr><tr><td>RLHF</td><td>Reinforcement learning from human feedback: training toward outputs humans prefer.</td></tr><tr><td>DPO</td><td>Direct Preference Optimization: preference training from chosen/rejected pairs.</td></tr><tr><td>KV-cache</td><td>Stored keys and values reused during generation.</td></tr><tr><td>Mixture-of-Experts</td><td>Sparse model that routes each token to a few expert networks.</td></tr><tr><td>Agent</td><td>A model-based system that plans, uses tools, observes results, and acts over multiple steps.</td></tr><tr><td>Hallucination</td><td>A fluent but false or unsupported model output.</td></tr></table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly echoed in the lecture</h4>
+<ol class="refs"><li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">link</a> — the original transformer paper.</li><li>Jay Alammar. <strong>The Illustrated Transformer.</strong> <a class="ref" href="https://jalammar.github.io/illustrated-transformer/">link</a> — visual self-attention explainer.</li><li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">link</a> — predictable scaling backdrop.</li><li>Hoffmann et al. (2022). <strong>Training Compute-Optimal Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.15556">link</a> — Chinchilla scaling correction.</li><li>Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682">link</a> — emergent abilities highlighted in the talk.</li><li>Schaeffer, Miranda, and Koyejo (2023). <strong>Are Emergent Abilities of Large Language Models a Mirage?</strong> <a class="ref" href="https://arxiv.org/abs/2304.15004">link</a> — metric-artifact counterpoint.</li><li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">link</a> — RLHF/InstructGPT.</li><li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290">link</a> — DPO.</li><li>Google Gemini Team (2023). <strong>Gemini: A Family of Highly Capable Multimodal Models.</strong> <a class="ref" href="https://arxiv.org/abs/2312.11805">link</a> — multimodal frontier model.</li><li>Lilian Weng (2023). <strong>LLM Powered Autonomous Agents.</strong> <a class="ref" href="https://lilianweng.github.io/posts/2023-06-23-agent/">link</a> — agent components reference.</li></ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs"><li><a class="ref" href="XfpMkf4rD6E.html">CS25 Note 2 — Introduction to Transformers (Andrej Karpathy)</a> — deep mechanics.</li><li>Dao et al. (2022). <strong>FlashAttention.</strong> <a class="ref" href="https://arxiv.org/abs/2205.14135">link</a> — exact attention made hardware-aware.</li><li>Jiang et al. (2024). <strong>Mixtral of Experts.</strong> <a class="ref" href="https://arxiv.org/abs/2401.04088">link</a> — open sparse MoE example.</li><li>Touvron et al. (2023). <strong>Llama 2.</strong> <a class="ref" href="https://arxiv.org/abs/2307.09288">link</a> — representative open-weight ecosystem paper.</li></ol>
+
+<div class="navbtns"><a href="index.html">◀ Index</a><a class="r" href="27-wei-chung-openai.html">Next: Jason Wei &amp; Hyung Won Chung ▶</a></div>
+<div class="foot">CS25 Transformers United — study notes · Note 26 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Rendering requires internet for CDN fonts, Mermaid, and MathJax.</div>
+</article>
+</div>
+</body>
+</html>

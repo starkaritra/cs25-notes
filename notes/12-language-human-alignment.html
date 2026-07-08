@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 12 — Language & Human Alignment</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The alignment gap</a>
+  <a href="#s1a" class="sub">1.1 Explicit and implicit intent</a>
+  <a href="#s2">2 · RLHF: the recipe</a>
+  <a href="#s2a" class="sub">2.1 Reward model from comparisons</a>
+  <a href="#s2b" class="sub">2.2 PPO with a KL leash</a>
+  <a href="#s3">3 · What worked, what did not</a>
+  <a href="#s3a" class="sub">3.1 Evaluation beats generation</a>
+  <a href="#worked">4 · Worked micro-example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Scalable oversight</a>
+  <a href="#s7">7 · Extensions and failure modes</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 3 · Note 2 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Language &amp; Human Alignment</h1>
+  <p class="lead">Jan Leike frames alignment as recruiting increasingly capable AI systems onto Team Human: pretraining gives a language model abilities, but human feedback is what teaches it to use those abilities in ways people actually intend.</p>
+  <div class="meta">
+    <span class="pill">🎓 Jan Leike</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=DJ1Yy6Aquug" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A pretrained language model has learned an astonishing skill: continue text that looks likely on the internet. But a user does not ask, “what text usually comes next?” The user asks, “help me, tell the truth, avoid harm, and ask when you are unsure.” Those are different targets.</p>
+  <p>Leike’s lecture starts from a strategic picture: Team AI keeps sending stronger players into the game. Team Human’s special advantage is that, for now, we choose which AI players are deployed and how they are trained. <strong>Alignment</strong> is the attempt to recruit those players to play on Team Human.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — recruiting a star player</span>
+  <p>Imagine a brilliant new athlete joining your team. Raw talent is pretraining: speed, memory, language, tactics. Alignment is coaching: learning the playbook, listening to the captain, not fouling, and knowing when to pass instead of showing off. A bigger athlete is not automatically a better teammate.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>These are the tiny tools the lecture assumes; keep them active as we build the pipeline.</p>
+  <ul>
+    <li><strong>Language modeling objective</strong> — pretraining minimizes next-token loss, e.g. \(-\sum_t \log p_\theta(x_t\mid x_{&lt;t})\); this teaches prediction, not obedience or values.</li>
+    <li><strong>Policy and reward in RL</strong> — a policy \(\pi(y\mid x)\) chooses an output \(y\) for prompt \(x\), while a reward \(r(x,y)\) scores how desirable that output is.</li>
+    <li><strong>Logistic sigmoid</strong> — \(\sigma(z)=1/(1+e^{-z})\) turns a score difference into a probability; we use it for pairwise preferences.</li>
+    <li><strong>KL divergence</strong> — \(D_{\mathrm{KL}}(p\|q)\) measures how far one distribution has drifted from another; RLHF uses it as a leash to the supervised model.</li>
+    <li><strong>Fine-tuning</strong> — continue training a pretrained model on a smaller targeted dataset; here, demonstrations and preferences steer behavior without redoing pretraining.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The alignment gap: prediction is not intent-following</h2>
+<p>Start with a plain prompt: <em>“Help me write a safe chemistry study plan.”</em> A raw pretrained model may produce a plausible web-like continuation. That continuation might be verbose, false, unsafe, or oddly formatted. The issue is not lack of language ability; it is that the training target did not say “be a helpful assistant.”</p>
+
+<h3 id="s1a">1.1 Explicit and implicit intent</h3>
+<p>Leike separates two things users want. <strong>Explicit intent</strong> is the instruction on the page: summarize this, solve that, answer in Spanish. <strong>Implicit intent</strong> is the unstated contract: do not invent citations, do not enable harm, ask clarifying questions, respect the user’s actual meaning rather than the most literal reading.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“A bigger LM automatically wants to help you.”</strong> Bigger pretraining can produce more knowledge and more latent capability, but the objective remains text prediction. Leike’s InstructGPT example is the counterpunch: a much smaller instruction-tuned model was preferred by humans over a much larger GPT-3 model because it was actually trying to follow the user’s intent.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — pretraining target versus human target</span>
+  <p>$$
+  \underbrace{\min_\theta\; \mathbb{E}_{x\sim\mathcal{D}_{\text{text}}}[-\log p_\theta(x_t\mid x_{&lt;t})]}_{\text{predict likely text}}
+  \quad \neq \quad
+  \underbrace{\max_\pi\; \mathbb{E}_{x\sim\mathcal{D}_{\text{users}},\;y\sim\pi(\cdot\mid x)}[U_{\text{human}}(x,y)]}_{\text{satisfy human intent}}
+  $$</p>
+  <p>The left side rewards matching a text distribution. The right side asks for utility to humans: helpfulness, honesty, harmlessness, and context-sensitive preference.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Pretraining<br/>predict likely text"] --> B["Capabilities<br/>facts, languages, styles"]
+    B --> C["Raw continuation<br/>plausible but uncoached"]
+    D["Human intent<br/>helpful, honest, harmless"] --> E["Aligned assistant behavior"]
+    C -. "alignment gap" .-> E
+</div>
+<figcaption>The gap is between what pretraining optimizes and what people actually want from an assistant.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why can a more capable model be less useful?</summary>
+<p>Because capability and objective are different. A model can know many facts yet still optimize for a continuation style that is evasive, fabricated, unsafe, or unresponsive to the user’s instruction.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>RLHF: the canonical three-stage recipe</h2>
+<p>The lecture describes the core trick behind InstructGPT and early ChatGPT: instead of writing every value as a rule, collect human judgments about model behavior, train a model of those judgments, and then optimize the assistant against that learned reward.</p>
+
+<h3 id="s2a">2.1 Stage 1 and 2: demonstrations, then comparisons</h3>
+<p>First, humans write demonstrations of good assistant behavior. Supervised fine-tuning (SFT) turns the pretrained model into a first-pass assistant. Then the SFT model and nearby variants generate several answers to the same prompt; human labelers rank or compare them. This is easier than writing the perfect answer from scratch, which becomes a major theme of the talk.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — supervised fine-tuning</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{SFT}}(\theta)=-\mathbb{E}_{(x,y^*)\sim\mathcal{D}_{\mathrm{demo}}}\log \pi_\theta(y^*\mid x)
+  $$</p>
+  <p>Here \(x\) is a prompt, \(y^*\) is a human demonstration, and \(\pi_\theta\) is the assistant policy being trained to imitate the demonstrated response.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — Bradley–Terry reward-model loss</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{RM}} = -\log \sigma\big(r_\phi(x,y_w)-r_\phi(x,y_l)\big)
+  $$</p>
+  <p>The reward model \(r_\phi\) assigns a scalar score to a prompt-response pair. The human-preferred response is \(y_w\); the less-preferred response is \(y_l\). The loss is small when the preferred answer receives the higher score.</p>
+</div>
+
+<h3 id="s2b">2.2 Stage 3: optimize, but keep the model on a leash</h3>
+<p>Once the reward model exists, RL can search for responses that score well. OpenAI used PPO in InstructGPT; Leike notes PPO was not sacred, but it worked. The critical guardrail is a KL penalty to the SFT model, which discourages the policy from drifting into strange reward-exploiting language.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — RLHF objective with KL penalty</span>
+  <p>$$
+  \max_\pi\; \mathbb{E}_{x\sim\mathcal{D},\;y\sim\pi(\cdot\mid x)}\left[
+  r_\phi(x,y) - \beta\,D_{\mathrm{KL}}\!\left(\pi(\cdot\mid x)\,\|\,\pi_{\mathrm{SFT}}(\cdot\mid x)\right)
+  \right]
+  $$</p>
+  <p>The first term says “get high human-preference reward.” The second says “do not move too far from the supervised assistant.” \(\beta\) controls the leash strength.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    P["Pretrained LM<br/>predicts text"] --> S["1. SFT<br/>human demonstrations"]
+    S --> R["2. Reward model<br/>human preference comparisons"]
+    S --> O["3. PPO policy optimization<br/>maximize RM score"]
+    R --> O
+    S -. "KL penalty<br/>stay near SFT" .-> O
+    O --> A["Aligned assistant<br/>better follows intent"]
+</div>
+<figcaption>The RLHF loop: demonstrations make the model coachable, preferences define the reward, PPO optimizes under a KL leash.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why not ask humans to label every PPO sample directly?</summary>
+<p>You could, but it is data-inefficient and slow. The reward model amortizes human judgment: once trained, it can score many candidate outputs, while humans only provide a smaller set of comparisons.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>What worked in InstructGPT and ChatGPT</h2>
+<p>Leike emphasizes how surprising the first result felt: human preference curves showed even the largest GPT-3 model being dispreferred to the smallest InstructGPT variant. Alignment tuning did not add most capabilities; it <strong>unlocked</strong> capabilities already latent in pretraining by making the model try to help.</p>
+
+<h3 id="s3a">3.1 Evaluation is easier than generation</h3>
+<p>Why can preference data work so well? Because judging two answers is often easier than writing the better answer yourself. You may not be a professional e-sports player, phone designer, or paper author, but you can often tell who is winning, which phone you prefer, or what is wrong with a draft.</p>
+
+<div class="box intuition">
+  <span class="lbl">The lecture’s central lever</span>
+  <p>If humans can reliably evaluate outputs slightly above their own generation ability, then models can learn behavior that exceeds what the labeler could personally produce. RLHF depends on that gap. Scalable oversight tries to widen it with AI assistance.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    H["Human generation<br/>write the answer"] --> C["Human comparison<br/>choose better answer"]
+    C --> R["Reward signal"]
+    R --> M["Model improves<br/>beyond imitation"]
+    M --> C
+    X["Harder tasks"] -. "need assistance" .-> C
+</div>
+<figcaption>RLHF gains power from comparison being easier than generation, but this advantage has a ceiling.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Subtle limitation</span>
+  <p>SFT imitates humans. That can be good when humans are better than the model, but it can also constrain the model to human ways of doing a task. RLHF lets the model find its own way to satisfy the preference signal. The danger is that it may also find unintended ways to satisfy an imperfect signal.</p>
+</div>
+
+<p>ChatGPT, in Leike’s telling, improved the interface: dialogue lets users ask follow-up questions, request refinements, and steer the assistant more naturally. It also got better at refusing harmful tasks. But he names two persistent signs of misalignment: hallucination and sensitivity to prompt phrasing.</p>
+
+<details class="check"><summary>✓ Check yourself — what does hallucination reveal about the objective?</summary>
+<p>It reveals that sounding plausible and being true are not the same objective. A model can be fluent and helpful-looking while fabricating facts, so honesty has to be trained, evaluated, and stress-tested separately.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked micro-example — one reward-model comparison</h2>
+<p>Take one prompt and two candidate answers. A human prefers answer \(y_w\) over answer \(y_l\). The reward model currently scores them as \(r_w=1.8\) and \(r_l=0.9\).</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Compute the score gap:</p>
+  <p>$$
+  \Delta = r_w-r_l = 1.8-0.9=0.9
+  $$</p>
+  <p>Turn that gap into a Bradley–Terry preference probability:</p>
+  <p>$$
+  P(y_w\succ y_l)=\sigma(0.9)=\frac{1}{1+e^{-0.9}}\approx\frac{1}{1+0.4066}\approx0.7109
+  $$</p>
+  <p>Now compute the loss:</p>
+  <p>$$
+  \mathcal{L}=-\log(0.7109)\approx0.341
+  $$</p>
+  <p>Gradient-sign intuition: \(\frac{d\mathcal{L}}{d\Delta}=\sigma(\Delta)-1\approx-0.289\). Gradient descent therefore increases \(\Delta\): push \(r_w\) up relative to \(r_l\), or push \(r_l\) down relative to \(r_w\).</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what if the two scores were equal?</summary>
+<p>If \(r_w=r_l\), then \(\Delta=0\), \(\sigma(0)=0.5\), and \(\mathcal{L}=-\log 0.5=\log 2\approx0.693\). The gradient with respect to \(\Delta\) is \(-0.5\), so training strongly pushes the preferred response above the loser.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one prompt through RLHF</h2>
+<p>Follow a single user prompt through the full pipeline. The important thing to track is not only the text, but also who supplies the learning signal at each stage.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / value</th></tr>
+  <tr><td>0 · prompt</td><td>User asks for help in a safety-sensitive domain.</td><td class="tt">x = “Make me a chemistry study plan without unsafe experiments.”</td></tr>
+  <tr><td>1 · SFT draft</td><td>The SFT model imitates demonstration data and writes a cautious answer.</td><td class="tt">π_SFT(y|x) → draft: concepts, schedule, safety caveat</td></tr>
+  <tr><td>2 · k sampled responses</td><td>Several policies or samples produce alternatives with different tone, detail, and safety.</td><td class="tt">{y₁, y₂, y₃, y₄}; y₂ is concise, y₃ over-refuses, y₄ fabricates</td></tr>
+  <tr><td>3 · human preference</td><td>Labeler ranks responses by usefulness, truthfulness, and safety.</td><td class="tt">winner y₂; loser y₄; maybe y₃ below y₂ for over-refusal</td></tr>
+  <tr><td>4 · reward model</td><td>RM learns to score prompt-response pairs in the direction of those comparisons.</td><td class="tt">r(x,y₂)=1.8, r(x,y₄)=0.9, loss≈0.341</td></tr>
+  <tr><td>5 · PPO update</td><td>Policy is nudged toward high-RM answers while penalized for drifting from SFT.</td><td class="tt">maximize r(x,y) − β KL(π || π_SFT)</td></tr>
+  <tr><td>6 · aligned response</td><td>New assistant answer is more useful than imitation alone and less likely to fabricate or enable harm.</td><td class="tt">final: structured study plan + safe resources + clarifying offer</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>RLHF is not “humans write the final answer.” It is a pipeline for converting sparse human judgments into a reusable reward signal, then using RL search while preventing the policy from wandering too far from normal assistant behavior.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where can bias enter this trace?</summary>
+<p>At many points: the prompt distribution, who writes demonstrations, which outputs are sampled, which labelers are hired, how guidelines define “helpful” or “harmful,” and whether the reward model generalizes outside the labeled distribution.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Scalable oversight: when humans cannot evaluate unaided</h2>
+<p>The second half of the lecture asks what happens as AI tasks outgrow unaided human evaluation. Leike draws a conceptual graph: AI capability rises with progress, but the level of task humans can reliably evaluate does not automatically rise. Once the model operates above that line, naive RLHF can reward what merely looks good to humans.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Failure mode — Goodharting and deception</span>
+  <p>When a proxy becomes the optimization target, the system can learn the proxy rather than the thing we meant. In RLHF, the proxy is human preference feedback or a reward model trained from it. A sufficiently capable model might learn to tell evaluators what they want to hear, hide flaws, or exploit blind spots.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["Hard model output<br/>codebase, research plan, summary"] --> B["Unaided human evaluator"]
+    B --> C["May miss subtle flaw"]
+    A --> D["AI assistant<br/>critique, fact-check, quote, calculation"]
+    D --> E["Human + AI evaluator"]
+    E --> F["Better preference signal"]
+    F --> G["Train stronger aligned model"]
+    G -. "future oversight loop" .-> D
+</div>
+<figcaption>Scalable oversight tries to keep human judgment in charge while outsourcing cognitive labor to AI assistants.</figcaption>
+</figure>
+
+<h3 id="s6a">6.1 Critiques and targeted perturbations</h3>
+<p>Leike’s concrete example is AI-written critiques for summaries. The hard part is measuring whether assistance works, because real hard tasks lack obvious ground truth. The trick he describes is <strong>targeted perturbation</strong>: start with a response, have a human insert a subtle but real flaw, then test whether assisted evaluators catch it more often.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — an oversight evaluation metric</span>
+  <p>$$
+  \text{assist gain}=P(\text{catch flaw}\mid\text{human+AI})-P(\text{catch flaw}\mid\text{human alone})
+  $$</p>
+  <p>In the critique work Leike cites, AI assistance helped humans find about 50% more planted flaws in summaries. The point is not that current critiques are perfect; it is that we can empirically test whether assistance improves evaluation.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why are many bad critiques still useful?</summary>
+<p>Because the human remains the judge. A critique assistant can be noisy, but if even some critiques point to flaws the human would miss, the evaluator can discard the irrelevant ones and inspect the useful ones.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>Extensions, alternatives, and open failure modes</h2>
+<p>The lecture centers on RLHF and scalable oversight, but the same alignment problem has spawned related methods. <strong>Instruction tuning</strong> scales the SFT idea across many tasks. <strong>Constitutional AI / RLAIF</strong> replaces some direct human comparisons with AI feedback guided by written principles. <strong>Direct Preference Optimization (DPO)</strong>, developed after this talk, optimizes a policy directly from preferences without separately training and then optimizing a reward model.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — DPO in one line</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{DPO}}=-\log\sigma\left(\beta\left[\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right]\right)
+  $$</p>
+  <p>DPO keeps the same preference-pair spirit but folds the reward/KL tradeoff into a supervised-looking loss against a reference policy \(\pi_{\mathrm{ref}}\).</p>
+</div>
+
+<table>
+  <tr><th>Risk</th><th>Plain meaning</th><th>Lecture connection</th></tr>
+  <tr><td>Reward hacking / Goodharting</td><td>Optimizing the score while missing the real goal.</td><td>The RM may reward answers that look good but are wrong.</td></tr>
+  <tr><td>Sycophancy</td><td>Telling users what they want to hear.</td><td>Leike worries models could optimize preference feedback by agreeing or deceiving.</td></tr>
+  <tr><td>Over-refusal</td><td>Declining safe requests because refusal is rewarded as safe.</td><td>ChatGPT improved harmful-task refusal, but useful refusal boundaries remain hard.</td></tr>
+  <tr><td>Distribution shift</td><td>Behavior changes on tasks unlike the feedback data.</td><td>He discusses inner optimizers and what happens off-distribution.</td></tr>
+  <tr><td>Annotator disagreement</td><td>Labelers have different preferences and backgrounds.</td><td>He notes disagreement gets averaged, but representative preference collection is unresolved.</td></tr>
+  <tr><td>Alignment tax</td><td>Safety/alignment work can reduce some benchmark or task performance.</td><td>PPO-ptx mixed pretraining data to mitigate regressions during fine-tuning.</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Outer versus inner alignment</span>
+  <p><strong>Outer alignment</strong> asks whether the training signal captures what we actually want. <strong>Inner alignment</strong> asks whether the learned model internally pursues that intended objective, especially under distribution shift. Leike’s stance in the Q&amp;A is pragmatic: build a reliable outer signal first, then use it to train and test behavior on new distributions.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is “use AI to judge AI” not a complete answer?</summary>
+<p>Because the assistant can bias the human, miss the key flaw, or itself be misaligned. The scalable-oversight plan needs experiments with ground truth, red-teaming, interpretability where useful, diverse preference input, and deployment monitoring.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read yet. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is next-token prediction not the same as being helpful, honest, and harmless? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What does each RLHF stage consume and produce? <a class="ref" href="#s2">(§2)</a></li>
+    <li>In the Bradley–Terry loss, what happens when the winner and loser get equal reward scores? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why does Leike call “evaluation is easier than generation” a lever for alignment? <a class="ref" href="#s3a">(§3.1)</a></li>
+    <li>What problem is scalable oversight trying to solve, and why are targeted perturbations useful? <a class="ref" href="#s6a">(§6.1)</a></li>
+    <li>Teach it back: explain RLHF to a beginner using the “recruiting a star player” analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Alignment</td><td>Training and deploying AI systems so their behavior follows human intent and preferences.</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement Learning from Human Feedback: SFT, reward modeling from preferences, then RL optimization.</td></tr>
+  <tr><td>SFT</td><td>Supervised fine-tuning on human-written demonstrations of desired behavior.</td></tr>
+  <tr><td>Reward model</td><td>A learned scorer that predicts which outputs humans would prefer.</td></tr>
+  <tr><td>PPO</td><td>Proximal Policy Optimization, an RL algorithm used to update the policy while limiting overly large changes.</td></tr>
+  <tr><td>KL penalty</td><td>A cost for moving the policy too far from a reference model, usually the SFT model.</td></tr>
+  <tr><td>Goodharting</td><td>Optimizing a proxy so hard that it stops measuring the real goal.</td></tr>
+  <tr><td>Sycophancy</td><td>Over-agreeing with the user or evaluator to gain approval rather than tell the truth.</td></tr>
+  <tr><td>Scalable oversight</td><td>Methods that help humans evaluate model behavior even when tasks become too hard to judge unaided.</td></tr>
+  <tr><td>Targeted perturbation</td><td>Creating ground truth by deliberately inserting a subtle flaw, then measuring whether evaluators catch it.</td></tr>
+  <tr><td>DPO</td><td>Direct Preference Optimization, a later preference-training method that avoids a separate reward-model RL step.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly reflected in the lecture</h4>
+<ol class="refs">
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155" target="_blank">arXiv</a> — InstructGPT, the main RLHF result discussed in the lecture.</li>
+  <li>Stiennon et al. (2020). <strong>Learning to summarize with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2009.01325" target="_blank">arXiv</a> — earlier OpenAI preference-learning work on summarization.</li>
+  <li>Saunders et al. (2022). <strong>Self-critiquing models for assisting human evaluators.</strong> <a class="ref" href="https://arxiv.org/abs/2206.05802" target="_blank">arXiv</a> — critique assistance and planted-flaw evaluation.</li>
+  <li>Nakano et al. (2021). <strong>WebGPT: Browser-assisted question-answering with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2112.09332" target="_blank">arXiv</a> — the browsing/sensor direction mentioned in Q&amp;A.</li>
+  <li>Schulman et al. (2017). <strong>Proximal Policy Optimization Algorithms.</strong> <a class="ref" href="https://arxiv.org/abs/1707.06347" target="_blank">arXiv</a> — the PPO optimizer used in the canonical RLHF recipe.</li>
+</ol>
+<h4>Best next things to read</h4>
+<ol class="refs">
+  <li>Christiano et al. (2017). <strong>Deep reinforcement learning from human preferences.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03741" target="_blank">arXiv</a> — the general preference-learning setup before LLM RLHF.</li>
+  <li>Bai et al. (2022). <strong>Constitutional AI: Harmlessness from AI Feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2212.08073" target="_blank">arXiv</a> — RLAIF-style extension using written principles and model feedback.</li>
+  <li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290" target="_blank">arXiv</a> — a later RM-free alternative to PPO-style RLHF.</li>
+  <li>OpenAI. <strong>Introducing ChatGPT.</strong> <a class="ref" href="https://openai.com/index/chatgpt/" target="_blank">OpenAI</a> — deployment context for the dialogue interface discussed in the lecture.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="10-part-whole-hierarchies.html">◀ Previous note</a>
+  <a class="r" href="13-emergent-abilities-scaling.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  STANFORD CS25 — study notes · Note 12 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. This self-contained HTML uses CDN fonts, Mermaid, and MathJax, so full rendering needs internet access.
+</div>
+
+</article>
+</div>
+</body>
+</html>
+

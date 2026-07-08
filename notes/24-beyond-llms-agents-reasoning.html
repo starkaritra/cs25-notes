@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 24 — Beyond LLMs: Agents & Guided Reasoning</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Four ways beyond scale</a>
+  <a href="#s1a" class="sub">1.1 The single control room</a>
+  <a href="#s2">2 · Emergent abilities</a>
+  <a href="#s2a" class="sub">2.1 Phase transitions and mirages</a>
+  <a href="#s3">3 · Intermediate-guided reasoning</a>
+  <a href="#s3a" class="sub">3.1 From chains to trees</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#s4">5 · BabyLM</a>
+  <a href="#s4a" class="sub">5.1 Small data as a research frontier</a>
+  <a href="#s5">6 · LLM agents</a>
+  <a href="#s5a" class="sub">6.1 ReAct, tools, memory, autonomy</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 5 · Note 4 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>Beyond LLMs: Agents, Emergent Abilities, Intermediate-Guided Reasoning &amp; BabyLM</h1>
+  <p class="lead">A survey of four frontiers where the field moves past “make the language model bigger”: acting, scaling surprises, explicit reasoning, and data-efficient learning.</p>
+  <div class="meta">
+    <span class="pill">🎓 Steven &amp; Div · CS25 guest lecture</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=ylEk1TE1uBo" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A vanilla LLM call is like asking a brilliant intern to answer from memory, in one breath, without a calculator, browser, notebook, or chance to revise. This lecture asks: what happens when we give the model a notebook, tools, memory, search over possible thoughts, and a smaller-but-better learning diet?</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — the model as a control room</span>
+  <p>Keep one image in mind: an LLM is the <strong>operator inside a control room</strong>. Scaling upgrades the operator’s raw competence; reasoning methods give it a whiteboard; agents connect it to buttons, tools, sensors, and memory; BabyLM asks whether a smaller operator can learn well from a child-sized training library.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the tour; each term becomes a knob in the control room.</p>
+  <ul>
+    <li><strong>LLM &amp; prompting</strong> — a transformer language model predicts next tokens from a context; prompts steer which behavior is elicited.</li>
+    <li><strong>Few-shot / in-context learning</strong> — examples placed in the prompt can make the model imitate a task without updating weights.</li>
+    <li><strong>Chain-of-thought</strong> — prompting for intermediate steps can improve multi-step reasoning because the answer is not forced into one jump.</li>
+    <li><strong>Tool use / agents</strong> — an agent is an LLM-driven loop that can choose actions, observe results, and keep working toward a goal.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The talk’s map: four ways beyond “bigger LLM”</h2>
+<p>Start with a concrete failure. Ask a model, “Book the cheapest acceptable flight for my preferences, and explain why.” A one-shot answer is not enough: it needs to search, remember preferences, compare options, maybe ask for approval, and avoid unsafe purchases. The lecture’s four topics are four different upgrades to the control room.</p>
+
+<h3 id="s1a">1.1 One system, four frontiers</h3>
+<p>The first speaker surveys <strong>emergent abilities</strong>, <strong>intermediate-guided reasoning</strong>, and <strong>BabyLM</strong>. Div then turns to <strong>agents</strong>: systems that wrap the LLM in tools, memory, planning, personalization, and multi-agent coordination.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    L["Vanilla LLM<br/>one prompt, one completion"] --> E["Emergent abilities<br/>new skills appear with scale"]
+    L --> R["Intermediate-guided reasoning<br/>write, branch, verify steps"]
+    L --> B["BabyLM<br/>learn from much less data"]
+    L --> A["Agents<br/>act through tools and environments"]
+    A --> T["Beyond answering<br/>do tasks safely"]
+</div>
+<figcaption>The lecture is not one paper; it is a frontier map of what gets added around or before the LLM.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the control-room view</span>
+  <p>$$
+  \text{useful system} \approx \text{LLM}_{\theta}
+  + \text{prompting}
+  + \text{memory}
+  + \text{tools}
+  + \text{feedback}
+  + \text{safety rules}.
+  $$</p>
+  <p>Here \(\text{LLM}_{\theta}\) is the trained model; everything after it is system design. The lecture’s thesis is that future progress will come from both model scale and these surrounding loops.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if the control-room operator gets a web browser but no memory, which lecture topic did you add and which did you still miss?</summary>
+<p>You added an <strong>agent/tool-use</strong> component. You still missed persistent <strong>memory/personalization</strong>: the operator can search the web but cannot reliably remember your long-term preferences.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Emergent abilities: the scale surprise</h2>
+<p>Concrete picture first: a small model guesses nearly randomly on modular arithmetic or word-unscrambling; a much larger model suddenly becomes competent. The 2022 “Emergent Abilities” paper names this pattern: an ability is <strong>emergent</strong> if it is present in larger models but not smaller ones, and if extrapolating from the smaller models would not have predicted it. For the deeper version, cross-link back to <a class="ref" href="13-emergent-abilities-scaling.html">Note 13 on emergent abilities and scaling</a>.</p>
+
+<h3 id="s2a">2.1 Phase transition, then caveat: some emergence may be metric-shaped</h3>
+<p>The lecture emphasizes the phase-transition mental model: performance stays near-random until a critical scale, often discussed around \(10^{22}\) to \(10^{23}\) training FLOPs for some tasks, then jumps. It also flags a modern caveat: a sharp-looking jump can partly come from the <em>metric</em>. If a smooth underlying ability is measured by an all-or-nothing score, the curve can look more discontinuous than the model’s internal competence really is.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    S["Small models<br/>near random"] --> C["Critical scale<br/>threshold region"]
+    C --> G["Large models<br/>usable ability"]
+    M["Metric choice<br/>can sharpen or smooth curve"] --> C
+</div>
+<figcaption>Emergence is useful as a warning label: do not trust small-scale extrapolation blindly, but also inspect the measurement.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — emergence as a threshold pattern</span>
+  <p>$$
+  \text{ability}(N) =
+  \begin{cases}
+  \approx \text{chance}, & N &lt; N_c,\\
+  \gg \text{chance}, & N \ge N_c,
+  \end{cases}
+  $$</p>
+  <p>\(N\) is scale, \(N_c\) is a critical threshold, and “chance” is task-dependent. The caveat is that the reported score may be \(g(\text{ability}(N))\), where \(g\) can be a nonlinear metric such as exact match.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Emergent” does not mean “magic appeared from nowhere.” It means the observed capability was not predictable from the small-model curve. Architecture, data quality, training procedure, prompting, and the evaluation metric all still matter.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can exact-match scoring make a smooth improvement look like a sudden jump?</summary>
+<p>If the model moves from “almost right” to “fully right,” exact match gives 0 until the final answer is exact. A continuous improvement in latent reasoning can therefore be recorded as a discontinuous score jump.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Intermediate-guided reasoning: give the operator a whiteboard</h2>
+<p>Suppose a math word problem needs three transformations. A one-shot completion must compress all hidden work into the final token sequence. Intermediate-guided reasoning asks the model to externalize part of that work: steps, scratchpads, code, subproblems, or branches.</p>
+
+<h3 id="s3a">3.1 From chain-of-thought to trees, programs, and divide-and-conquer</h3>
+<p>The lecture starts from <strong>chain-of-thought</strong>: a sequence of intermediate reasoning steps, useful especially for arithmetic and symbolic tasks. It then broadens the idea: <strong>scratchpads</strong> are flexible working memory; <strong>least-to-most</strong> solves simpler subproblems before the full task; <strong>tree-of-thoughts</strong> searches over branches and can backtrack; <strong>program-aided</strong> methods offload precise computation to a runtime such as Python.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    X["Question"] --> C["Chain-of-thought<br/>one path"]
+    X --> L["Least-to-most<br/>subproblem sequence"]
+    X --> P["Program-aided reasoning<br/>generate code, execute tool"]
+    X --> T["Tree-of-thoughts<br/>branch, score, backtrack"]
+    C --> Y["Answer"]
+    L --> Y
+    P --> Y
+    T --> Y
+</div>
+<figcaption>“Intermediate-guided” is broader than one chain: the intermediate object can be text, code, a subproblem list, or a search tree.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — marginalize over reasoning paths</span>
+  <p>$$
+  p(y \mid x) = \sum_z p(y, z \mid x)
+  = \sum_z p(y \mid z,x)\,p(z \mid x).
+  $$</p>
+  <p>\(x\) is the question, \(z\) is an intermediate path, and \(y\) is the final answer. Chain-of-thought samples or constructs \(z\); self-consistency approximates the sum by sampling many \(z\)'s.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Why the whiteboard helps</span>
+  <p>External steps create more places for useful structure to appear. The model can map symbols, hold partial results, call a calculator, or abandon a bad branch instead of committing to the first fluent answer.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which method is best matched to “try three possible solution strategies, score them, then continue the best one”?</summary>
+<p><strong>Tree-of-thoughts</strong>. It treats reasoning as search over branches rather than a single left-to-right chain.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked example — self-consistency voting by hand</h2>
+<p>Now compute the smallest honest version of self-consistency. One question is sampled five times. The sampled final answers are \([42, 42, 7, 42, 7]\).</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["Question"] --> P1["Path 1<br/>answer 42"]
+    Q --> P2["Path 2<br/>answer 42"]
+    Q --> P3["Path 3<br/>answer 7"]
+    Q --> P4["Path 4<br/>answer 42"]
+    Q --> P5["Path 5<br/>answer 7"]
+    P1 --> V["Vote<br/>count answers"]
+    P2 --> V
+    P3 --> V
+    P4 --> V
+    P5 --> V
+    V --> A["Final answer<br/>42"]
+</div>
+<figcaption>Self-consistency does not trust one path; it samples several whiteboard attempts and votes on the final answer.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Counts:</p>
+  <p>$$
+  c(42)=3,\qquad c(7)=2,\qquad K=5.
+  $$</p>
+  <p>The majority-vote estimator is:</p>
+  <p>$$
+  \hat y=\arg\max_y \sum_{i=1}^{K}\mathbf{1}[y_i=y]
+  =\arg\max_y c(y)=42.
+  $$</p>
+  <p>As a probability estimate from sampled paths:</p>
+  <p>$$
+  \hat p(42\mid x)=\frac{3}{5}=0.6,\qquad
+  \hat p(7\mid x)=\frac{2}{5}=0.4.
+  $$</p>
+  <p>A greedy single sample might have returned \(7\) if it followed path 3. Self-consistency spends extra compute to reduce that single-path accident.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does self-consistency cost, and when is it most worth paying?</summary>
+<p>It costs roughly \(K\) model generations instead of one, so latency and dollars increase. It helps most when errors vary across reasoning paths and the right answer is more stable than any one sampled chain.</p></details>
+
+<details class="check"><summary>✓ Check yourself — if the samples were [42, 7, 7, 42, 7], what answer wins?</summary>
+<p>\(7\) wins: \(c(7)=3\), \(c(42)=2\). The estimator follows the majority, not the answer you hoped for.</p></details>
+
+<h2 id="s4"><span class="num">5.</span>BabyLM: the sample-efficiency frontier</h2>
+<p>The transcript’s motivating contrast is stark: web-scale models may train on trillions of words, while a child hears only tens of millions. The <strong>BabyLM</strong> challenge asks whether language models can learn from a developmentally plausible corpus: roughly \(10\)–\(100\) million words, much of it transcribed speech, child-directed language, simple books, subtitles, and some Wikipedia-like text.</p>
+
+<h3 id="s4a">5.1 Why small-data pretraining matters</h3>
+<p>BabyLM is not nostalgia for tiny models. It targets three practical bottlenecks: cognitive plausibility, low-resource accessibility, and greener AI. If we learn better pretraining recipes under severe data limits, the same ideas may transfer upward to larger systems while making research possible outside the largest labs.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — sample efficiency</span>
+  <p>$$
+  \eta = \frac{\text{evaluation score}}{\text{training words}}
+  \qquad\text{or}\qquad
+  \eta_{\Delta} = \frac{\Delta\text{score}}{\Delta\text{words}}.
+  $$</p>
+  <p>\(\eta\) is not a universal benchmark by itself, but it captures the BabyLM question: how much linguistic competence do we get per word?</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    C["Child-scale input<br/>about 10M to 100M words"] --> D["Developmentally plausible mix<br/>speech, stories, subtitles"]
+    D --> M["Small language model"]
+    M --> E["Evaluate linguistic competence<br/>syntax, meaning, reasoning"]
+    W["Web-scale input<br/>trillions of words"] -. "contrast" .-> M
+</div>
+<figcaption>BabyLM changes the bottleneck from “how much data can we scrape?” to “how efficiently can a learner use limited evidence?”</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>BabyLM is not claiming children and transformers learn identically. It is a controlled pressure test: if models need \(10{,}000\) web words for every word a child hears, something about the objective, architecture, data curriculum, or inductive bias is inefficient.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one scientific and one engineering reason BabyLM matters.</summary>
+<p>Scientific: it probes how language can be learned from child-scale input. Engineering: data-efficient models reduce cost, energy, and dependence on giant proprietary training runs.</p></details>
+
+<h2 id="s5"><span class="num">6.</span>LLM agents: connect the control room to the world</h2>
+<p>Div’s part begins with the agent thesis: humans will communicate with AI in natural language, while AI operates machines and software. A single model call is a component; an agent is a <strong>system</strong> that chains calls, uses tools, reads observations, stores memory, plans, and acts. This connects naturally to <a class="ref" href="20-generalist-agents-open-worlds.html">Note 20 on generalist agents in open-ended worlds</a>.</p>
+
+<h3 id="s5a">6.1 ReAct, tools, memory, autonomy, and multi-agent systems</h3>
+<p>The cleanest loop is <strong>ReAct</strong>: interleave reasoning and acting. The agent writes a Thought, chooses an Action such as search, calculator, browser click, code interpreter, or API call, receives an Observation, then repeats until it can answer or complete the task.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    U["User goal"] --> T["Thought<br/>plan next move"]
+    T --> A["Action<br/>call tool or environment"]
+    A --> O["Observation<br/>tool result or feedback"]
+    O --> D{"Enough evidence?"}
+    D -- "No" --> T
+    D -- "Yes" --> F["Final answer<br/>or completed task"]
+</div>
+<figcaption>The ReAct loop turns a language model from a one-shot answerer into an observe-act-revise system.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — an agent as a policy over actions</span>
+  <p>$$
+  a_t \sim \pi_{\theta}\!\left(a \mid q,\; h_t,\; m_t,\; \mathcal{T}\right),
+  \qquad
+  h_{t+1}=h_t \oplus (a_t,o_t).
+  $$</p>
+  <p>\(q\) is the user goal, \(h_t\) is the current trajectory, \(m_t\) is memory, \(\mathcal{T}\) is the available tool set, \(a_t\) is the chosen action, \(o_t\) is the observation, and \(\oplus\) means “append to the working history.”</p>
+</div>
+
+<h3>6.2 What gets added around the LLM</h3>
+<ul>
+  <li><strong>Tools / function calling</strong> — calculators, calendars, search, code interpreters, browser controllers, APIs, or computer-use actions like clicking and typing.</li>
+  <li><strong>Planning</strong> — decomposing a task into subgoals, often with chain-of-thought, tree-of-thoughts, or manager-worker hierarchies.</li>
+  <li><strong>Memory</strong> — short-term context plus long-term storage retrieved by embeddings or structured indexes.</li>
+  <li><strong>Personalization</strong> — user-agent alignment: learning preferences explicitly from instructions and implicitly from behavior.</li>
+  <li><strong>Multi-agent coordination</strong> — specialized workers, parallel execution, verification agents, communication protocols, and managers.</li>
+  <li><strong>Safety and observability</strong> — permissions, sandboxing, kill switches, logs, benchmarks, and feedback loops to prevent divergence.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Agent” does not automatically mean “reliable autonomous employee.” The transcript repeatedly points to hard unsolved problems: looping, stochastic failure, prompt injection, privacy, permissions, benchmarking, and deployment monitoring.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why might direct browser control be more general but riskier than API calls?</summary>
+<p>Browser control can operate any website like a human, even without a formal API. But the action space is messier: clicks can misfire, pages can contain prompt injections, and irreversible actions may require stronger permissions and human approval.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one question through a ReAct agent</h2>
+<p>Follow one concrete multi-hop factual question through the loop: <strong>“Which is farther north: the capital of Canada or the capital of Australia?”</strong></p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+  <tr><td>0 · question</td><td>User asks the comparison question.</td><td class="tt">Need two capitals + latitudes</td></tr>
+  <tr><td>1 · Thought</td><td>Agent plans to identify each country’s capital, then compare latitude.</td><td class="tt">Plan: Canada → capital; Australia → capital; compare</td></tr>
+  <tr><td>2 · Action</td><td>Agent calls search/tool: “capital of Canada latitude.”</td><td class="tt">Search query issued</td></tr>
+  <tr><td>3 · Observation</td><td>Tool returns Ottawa and latitude about \(45.4^\circ\) N.</td><td class="tt">Ottawa ≈ 45.4° N</td></tr>
+  <tr><td>4 · Thought</td><td>Agent records first result and needs the second capital.</td><td class="tt">Need Canberra latitude</td></tr>
+  <tr><td>5 · Action</td><td>Agent calls search/tool: “capital of Australia latitude.”</td><td class="tt">Search query issued</td></tr>
+  <tr><td>6 · Observation</td><td>Tool returns Canberra and latitude about \(35.3^\circ\) S.</td><td class="tt">Canberra ≈ 35.3° S</td></tr>
+  <tr><td>7 · Thought</td><td>Agent compares signed latitudes: north is positive, south is negative.</td><td class="tt">45.4 &gt; -35.3</td></tr>
+  <tr><td>8 · Final answer</td><td>Agent answers with evidence and minimal explanation.</td><td class="tt">Ottawa is farther north than Canberra.</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Externalizing reasoning/actions beats one-shot answering because each step creates a checkpoint. The agent can fetch facts instead of guessing them, store observations, and compare explicit state before committing to the final answer.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where would a verification agent fit in this trace?</summary>
+<p>After steps 3 and 6, a verifier could independently check the retrieved capitals/latitudes. After step 7, it could verify the sign convention before the final answer is returned.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; jump back only when a link feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What are the four “beyond vanilla LLM” frontiers in this lecture? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why can emergent abilities be both real engineering phenomena and partly metric-shaped? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How do chain-of-thought, least-to-most, program-aided reasoning, and tree-of-thoughts differ? <a class="ref" href="#s3">(§3)</a></li>
+    <li>For samples \([42,42,7,42,7]\), why does self-consistency return \(42\)? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why is BabyLM a data-efficiency challenge rather than merely a “small model” challenge? <a class="ref" href="#s4">(§5)</a></li>
+    <li>Write the ReAct loop from memory: Thought → ? → ? → repeat. <a class="ref" href="#s5">(§6)</a></li>
+    <li>Teach it back: explain to a beginner why agents need tools, memory, and verification in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Agent</td><td>An LLM-centered system that can choose actions, use tools, observe results, and continue working toward a goal.</td></tr>
+  <tr><td>ReAct</td><td>A prompting/control pattern that alternates reasoning traces with external actions and observations.</td></tr>
+  <tr><td>Function calling</td><td>Letting a model select a structured tool/API call instead of only emitting free-form text.</td></tr>
+  <tr><td>Emergent ability</td><td>A capability observed in larger models but absent or unpredictable from smaller-model scaling curves.</td></tr>
+  <tr><td>Metric mirage</td><td>A sharp capability jump caused or exaggerated by the evaluation metric rather than a truly discontinuous internal change.</td></tr>
+  <tr><td>Chain-of-thought</td><td>Intermediate natural-language reasoning steps before the final answer.</td></tr>
+  <tr><td>Scratchpad</td><td>External working space where a model writes partial computations, facts, or plans.</td></tr>
+  <tr><td>Self-consistency</td><td>Sampling multiple reasoning paths and majority-voting the final answer.</td></tr>
+  <tr><td>Least-to-most</td><td>Solving simpler subproblems first, then using them to solve the full problem.</td></tr>
+  <tr><td>Tree-of-thoughts</td><td>Search over multiple reasoning branches, with scoring and possible backtracking.</td></tr>
+  <tr><td>BabyLM</td><td>A challenge focused on training language models with developmentally plausible, small-scale corpora.</td></tr>
+  <tr><td>User-agent alignment</td><td>Making an agent’s actions match a particular user’s preferences, permissions, and safety expectations.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly reflected in the lecture</h4>
+<ol class="refs">
+  <li>Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682">arXiv</a> — the phase-transition framing used in the opening section.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">arXiv</a> — the central intermediate-step prompting paper discussed in the lecture.</li>
+  <li>Wang et al. (2022). <strong>Self-Consistency Improves Chain of Thought Reasoning in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.11171">arXiv</a> — sample many paths, then vote.</li>
+  <li>Zhou et al. (2022). <strong>Least-to-Most Prompting Enables Complex Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2205.10625">arXiv</a> — decompose before solving.</li>
+  <li>Yao et al. (2023). <strong>Tree of Thoughts: Deliberate Problem Solving with Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2305.10601">arXiv</a> — search over reasoning branches.</li>
+  <li>Gao et al. (2022). <strong>PAL: Program-aided Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2211.10435">arXiv</a> — offload exact computation to code execution.</li>
+  <li>Warstadt et al. (2023). <strong>Findings of the BabyLM Challenge.</strong> <a class="ref" href="https://arxiv.org/abs/2301.11796">arXiv</a> — the developmentally plausible small-corpus challenge.</li>
+  <li>Yao et al. (2022). <strong>ReAct: Synergizing Reasoning and Acting in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2210.03629">arXiv</a> — the Thought → Action → Observation loop.</li>
+  <li>Schick et al. (2023). <strong>Toolformer: Language Models Can Teach Themselves to Use Tools.</strong> <a class="ref" href="https://arxiv.org/abs/2302.04761">arXiv</a> — tool-use training as a model capability.</li>
+  <li>Lilian Weng (2023). <strong>LLM Powered Autonomous Agents.</strong> <a class="ref" href="https://lilianweng.github.io/posts/2023-06-23-agent/">blog</a> — planning, memory, and tools in agent architectures.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="13-emergent-abilities-scaling.html">CS25 Note 13</a> — deeper background on emergence, scaling curves, and measurement.</li>
+  <li><a class="ref" href="20-generalist-agents-open-worlds.html">CS25 Note 20</a> — generalist agents and open-ended environments.</li>
+  <li>Patil et al. (2023). <strong>Gorilla: Large Language Model Connected with Massive APIs.</strong> <a class="ref" href="https://arxiv.org/abs/2305.15334">arXiv</a> — API/tool selection at large scale.</li>
+  <li>OpenAI. <strong>Function calling and tools.</strong> <a class="ref" href="https://platform.openai.com/docs/guides/function-calling">docs</a> — practical tool-call interface design.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="23-no-language-left-behind.html">◀ Previous: No Language Left Behind</a>
+  <a class="r" href="25-retrieval-augmented-lms.html">Next: Retrieval-Augmented LMs ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 24 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

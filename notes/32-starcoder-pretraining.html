@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 32 — Behind the Scenes of LLM Pre-training (StarCoder)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The real bottleneck is the data pipeline</a>
+  <a href="#s1a" class="sub">1.1 The Stack: code, but governable</a>
+  <a href="#s1b" class="sub">1.2 Cleaning beats wishful scale</a>
+  <a href="#s2">2 · Tokenizing code as code</a>
+  <a href="#s2a" class="sub">2.1 Identifiers, whitespace, and metadata</a>
+  <a href="#s3">3 · Training StarCoder</a>
+  <a href="#s3a" class="sub">3.1 Decoder-only, MQA, and long context</a>
+  <a href="#s3b" class="sub">3.2 Fill-in-the-Middle as an IDE skill</a>
+  <a href="#s4">4 · Evaluation and contamination</a>
+  <a href="#s4a" class="sub">4.1 pass@k, HumanEval, MBPP, MultiPL-E</a>
+  <a href="#s5">5 · Openness is part of the method</a>
+  <a href="#s5a" class="sub">5.1 Weights, data, process, license</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 7 · Note 2 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Behind the Scenes of LLM Pre-training: The StarCoder Use Case</h1>
+  <p class="lead">Loubna Ben Allal uses StarCoder and BigCode to show that strong LLMs are not built by architecture alone: the hidden craft is collecting, governing, filtering, tokenizing, training, and evaluating the data pipeline end to end.</p>
+  <div class="meta">
+    <span class="pill">🎓 Loubna Ben Allal · Hugging Face / BigCode</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=jm2hyJLFfN8" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Most public conversations about LLMs point at the transformer block, parameter count, or GPU cluster. Loubna's central message is sharper: once many teams use similar decoder-only transformers, <strong>data quality becomes the lever that separates a useful model from an expensive memorizer</strong>. StarCoder is valuable because BigCode documented the unglamorous parts: license filtering, near-deduplication, PII redaction, benchmark decontamination, token formatting, evaluation, and governance.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of pre-training a code LLM like preparing a city-scale public library for an apprentice programmer. The transformer is the reading brain, but the library staff decides what enters the shelves, removes duplicate photocopies, redacts private notes, labels every aisle, and tests whether the apprentice can solve new exercises rather than recite old answer keys.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the tour. Each one will reappear in the StarCoder pipeline.</p>
+  <ul>
+    <li><strong>Language-model pre-training</strong> — train on raw token sequences by predicting missing or next tokens; here, the raw text is mostly source code.</li>
+    <li><strong>Next-token objective</strong> — maximize \\(p_\\theta(x_t \mid x_{&lt;t})\\), so the model learns regularities that make the next token likely.</li>
+    <li><strong>Tokenization</strong> — convert characters into model tokens; code cares about indentation, identifiers, punctuation, and file metadata.</li>
+    <li><strong>Deduplication</strong> — remove exact or near copies so training is not dominated by repeated files and evaluation leakage.</li>
+    <li><strong>Decoder-only transformer</strong> — a causal transformer that reads left-to-right; StarCoder adds tricks so it can also learn infilling.</li>
+    <li><strong>HumanEval / pass@k</strong> — sample \\(k\\) candidate programs, run unit tests, and ask whether at least one passes.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The real bottleneck is the data pipeline</h2>
+<p>Suppose two teams both train a transformer-like code model. Team A scrapes everything it can find; Team B starts with public code, removes legally risky sources, deletes near-duplicates, redacts secrets, filters junk, and removes benchmark lookalikes. Loubna's argument is that Team B often wins even before changing the architecture, because its model spends gradient updates on useful programming patterns rather than repeated boilerplate, passwords, generated trash, or evaluation answers.</p>
+
+<h3 id="s1a">1.1 The Stack: code, but governable</h3>
+<p>BigCode's training story begins with <strong>The Stack</strong>, a large corpus of permissively licensed GitHub code. The lecture describes cloning public repositories, filtering file extensions, keeping permissive licenses such as MIT or Apache-2.0, deduplicating, and supporting an opt-out tool so repository owners could inspect and request removal. The Stack v2 later used the Software Heritage archive and grew to hundreds of billions of training tokens.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Raw public repositories<br/>(GitHub / Software Heritage)"] --> B["File and language selection"]
+    B --> C["License filter<br/>(permissive only)"]
+    C --> D["Near-duplicate removal"]
+    D --> E["PII and secret redaction"]
+    E --> F["Quality and benchmark filters"]
+    F --> G["Tokenized StarCoder corpus"]
+</div>
+</figure>
+<figcaption>The library-staff view: each stage removes a different failure mode before the model ever sees a token.</figcaption>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — training data as weighted evidence</span>
+  <p>$$
+  \mathcal{L}(\theta) = -\sum_{d \in \mathcal{D}_{\text{clean}}}\sum_{t=1}^{|d|} \log p_\theta(x_t \mid x_{&lt;t})
+  $$</p>
+  <p>Here \\(d\\) is one cleaned document, \\(x_t\\) is token \\(t\\), and \\(\mathcal{D}_{\text{clean}}\\) is not "the internet"; it is the curated corpus after license, deduplication, PII, quality, and decontamination filters. Change \\(\mathcal{D}_{\text{clean}}\\), and every gradient step changes.</p>
+</div>
+
+<h3 id="s1b">1.2 Cleaning beats wishful scale</h3>
+<p>The lecture makes deduplication concrete: removing similar files can produce a large benchmark bump because the model no longer over-spends compute on repeated templates. PII redaction is another non-negotiable stage. BigCode annotated examples of names, emails, keys, and passwords, trained a StarPII named-entity model, and ran it over the StarCoder training data. Decontamination then removes benchmark and test-set content so evaluation is not inflated.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"More raw tokens always means a better model."</strong> Not if many tokens are duplicate files, generated sludge, leaked secrets, or benchmark answers. In the library analogy, adding ten million photocopies of the same manual does not make the apprentice ten million times wiser; it crowds out shelf space and practice time.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which filter protects which stakeholder?</summary>
+<p>License filtering protects creators and downstream users from unclear rights; PII redaction protects people whose secrets or personal identifiers appeared in code; deduplication protects training efficiency and benchmark validity; opt-out protects contributor agency; benchmark decontamination protects scientific claims.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Tokenizing code as code</h2>
+<p>A text tokenizer that works for prose can still waste capacity on code. In code, a missing space can change a block, an identifier like <code>parse_http_response</code> carries compressed meaning, punctuation is syntax, and filenames can tell the model which language it should write. StarCoder used a BPE-style tokenizer trained on its code mixture, plus formatting tokens that expose metadata such as repository name, filename, and stars.</p>
+
+<h3 id="s2a">2.1 Identifiers, whitespace, and metadata</h3>
+<p>In the library analogy, tokenization is the cataloging system. If the catalog splits useful identifiers poorly or hides the filename, the apprentice sees a stream of fragments without aisle labels. BigCode added special formatting so an IDE use case can say, in effect, "this is <code>src/model.py</code> from this repository" before the code begins.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Code file"] --> B["Metadata tokens<br/>repo, filename, stars"]
+    A --> C["Code-aware BPE tokens<br/>identifiers, whitespace, punctuation"]
+    B --> D["Model input sequence"]
+    C --> D
+    D --> E["Better prompts for IDE completion"]
+</div>
+</figure>
+<figcaption>Code tokenization is not only splitting text; it can preserve useful context that an IDE would naturally know.</figcaption>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — sequence length after tokenization</span>
+  <p>$$
+  n = n_{\text{metadata}} + n_{\text{code}} \leq 8192
+  $$</p>
+  <p>For StarCoder, \\(n\\) is the number of tokens placed in the context window, \\(n_{\text{metadata}}\\) covers tokens such as filename or repository labels, and \\(n_{\text{code}}\\) covers the code itself. The engineering question is how much useful project context fits before the model must predict.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why might a filename token help?</summary>
+<p><code>utils/math_ops.py</code>, <code>package.json</code>, and <code>Dockerfile</code> imply different languages, libraries, and conventions. A filename token gives the model a cheap prior before it reads the body of the file.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Training StarCoder</h2>
+<p>After curation and tokenization, the model choice is intentionally familiar: StarCoderBase is a decoder-only transformer with roughly 15B parameters, trained on about 1T code tokens from The Stack, then StarCoder is further trained on Python. The interesting parts for a code assistant are not a magical new block; they are <strong>long context</strong>, <strong>cheap inference</strong>, and <strong>infilling</strong>.</p>
+
+<h3 id="s3a">3.1 Decoder-only, MQA, and long context</h3>
+<p>A code assistant inside VS Code may need the current file plus neighboring files. That makes an 8k-token context useful. But serving long contexts is expensive, so StarCoder uses <strong>Multi-Query Attention</strong> (MQA): many query heads, but shared key/value heads. The model can keep expressive query projections while reducing key-value cache memory during inference.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — attention and the MQA memory idea</span>
+  <p>$$
+  \operatorname{Attn}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V
+  $$</p>
+  <p>Standard multi-head attention stores separate \\(K,V\\) caches per head. With MQA, \\(Q_h\\) can vary by head \\(h\\), while \\(K\\) and \\(V\\) are shared, reducing inference cache from roughly \\(H \cdot L \cdot d_k\\) to \\(L \cdot d_k\\) per layer for keys and values, where \\(H\\) is head count and \\(L\\) is context length.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Prefix and project files<br/>(up to ~8k tokens)"] --> B["Decoder-only transformer"]
+    B --> C["MQA shares K/V cache<br/>across query heads"]
+    C --> D["Faster IDE inference"]
+    B --> E["Next-token and FIM losses"]
+    E --> F["StarCoder completion / infilling"]
+</div>
+</figure>
+<figcaption>StarCoder's model-side choices are aimed at the real serving setting: long context, many completions, and interactive latency.</figcaption>
+
+<h3 id="s3b">3.2 Fill-in-the-Middle as an IDE skill</h3>
+<p>Plain causal training teaches "given the left side, write what comes next." IDE users often need something harder: "given the code before and after a cursor gap, fill the missing function body." Fill-in-the-Middle (FIM) trains that use case by splitting a document into prefix \\(P\\), middle \\(M\\), and suffix \\(S\\), then rearranging tokens so the model sees both sides before generating the missing middle.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — FIM rearrangement</span>
+  <p>$$
+  [P, M, S] \quad\longrightarrow\quad [\texttt{&lt;PRE&gt;}, P, \texttt{&lt;SUF&gt;}, S, \texttt{&lt;MID&gt;}, M]
+  $$</p>
+  <p>\\(P\\) is the code before the gap, \\(S\\) is the code after the gap, and \\(M\\) is the missing span. During training, the model predicts the tokens of \\(M\\) after it has read both \\(P\\) and \\(S\\).</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is FIM especially natural for code?</summary>
+<p>Code is full of constraints from both sides: a function body must match its signature above and its callers, return type, indentation, imports, and tests below. FIM lets the model condition on those right-side constraints instead of pretending completion always happens at the end of a file.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Evaluation and contamination</h2>
+<p>For code models, evaluation can be executable: ask the model to complete a function, then run unit tests. The lecture highlights HumanEval as a common benchmark, MBPP as another Python benchmark, and MultiPL-E as a multilingual translation of HumanEval-style problems. This is stronger than judging fluency, but it is also fragile: if benchmark solutions or near copies are in the training data, the score becomes a memory test.</p>
+
+<h3 id="s4a">4.1 pass@k, HumanEval, MBPP, MultiPL-E</h3>
+<p>The basic metric samples \\(k\\) candidate programs for each problem. If at least one passes the tests, the problem counts as solved for pass@\\(k\\). pass@1 is the strict single-shot version; larger \\(k\\) measures whether the model can produce a correct answer somewhere in a batch of attempts.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — pass@k intuition</span>
+  <p>$$
+  \operatorname{pass@}k \approx \frac{\#\{\text{problems with at least one passing sample among }k\}}{\#\{\text{problems}\}}
+  $$</p>
+  <p>The exact unbiased estimator adjusts for the number of generated samples, but the intuition is this: generate candidates, run tests, and count problems solved at least once.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"A higher HumanEval score always means deeper programming ability."</strong> Maybe, but maybe the training set contained similar exercises, solutions, or synthetic tasks that look too much like HumanEval. That is why BigCode's data decontamination stage matters.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is executable evaluation still not enough?</summary>
+<p>Unit tests can miss edge cases, benchmarks can be contaminated, and a model may overfit to benchmark style. Executable tests are valuable, but the pipeline still needs decontamination, multilingual tests, and qualitative inspection.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Openness is part of the method</h2>
+<p>BigCode's contribution is not only a model; it is a reproducibility package. The StarCoder release includes model weights, data-processing code, evaluation tools, the preprocessed training data, PII resources, attribution tooling, an opt-out process, and an OpenRAIL-style responsible-AI license. That matters because Loubna frames open LLM progress as the community learning the missing details that closed releases often omit.</p>
+
+<h3 id="s5a">5.1 Weights, data, process, license</h3>
+<p>The governance story is part scientific and part social. Openness lets researchers inspect, reproduce, fine-tune, and audit. Responsible release constrains harmful uses, documents data choices, and gives contributors mechanisms such as opt-out. In the library analogy, BigCode is not merely lending out the apprentice; it is publishing the cataloging rules and the library policy.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Open model weights"] --> E["Reproducible code LLM research"]
+    B["Open data process"] --> E
+    C["Opt-out and PII tooling"] --> E
+    D["OpenRAIL-style license"] --> E
+    E --> F["Community audits, fine-tunes, and applications"]
+</div>
+</figure>
+<figcaption>For BigCode, responsible openness is an engineering constraint, not an afterthought.</figcaption>
+
+<details class="check"><summary>✓ Check yourself — what does openness add beyond downloading weights?</summary>
+<p>Weights enable use; process enables trust and reproduction. Data cards, preprocessing code, opt-out tools, PII redaction, checkpoints, and evaluation harnesses let others inspect what happened and build on it responsibly.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — Fill-in-the-Middle by hand</h2>
+<p>Take a tiny Python file and cut out the part an IDE user wants filled. The original code has a prefix \\(P\\), a missing middle \\(M\\), and a suffix \\(S\\).</p>
+
+<pre><code># Original file
+P: def add_tax(price, rate):
+M:     return price * (1 + rate)
+S:
+print(add_tax(100, 0.07))
+</code></pre>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step token rearrangement</span>
+  <p>Define the three spans:</p>
+  <p>$$
+  P=\texttt{"def add\_tax(price, rate):\\n"},\quad
+  M=\texttt{"    return price * (1 + rate)\\n"},\quad
+  S=\texttt{"print(add\_tax(100, 0.07))\\n"}
+  $$</p>
+  <p>FIM rewrites the training sequence as:</p>
+  <p>$$
+  \texttt{&lt;PRE&gt;}\;P\;\texttt{&lt;SUF&gt;}\;S\;\texttt{&lt;MID&gt;}\;M
+  $$</p>
+  <p>Concretely:</p>
+</div>
+
+<pre><code>&lt;PRE&gt;
+def add_tax(price, rate):
+&lt;SUF&gt;
+print(add_tax(100, 0.07))
+&lt;MID&gt;
+    return price * (1 + rate)
+</code></pre>
+
+<p>At inference time, the IDE can provide the same left and right context up to <code>&lt;MID&gt;</code>. The model's next-token predictions are then trained to produce the missing body, not merely the next line after the prefix.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Original document<br/>P + M + S"] --> B["Random split into<br/>prefix, middle, suffix"]
+    B --> C["FIM order<br/>&lt;PRE&gt; P &lt;SUF&gt; S &lt;MID&gt; M"]
+    C --> D["Loss on middle tokens<br/>conditioned on both sides"]
+    D --> E["IDE infilling behavior"]
+</div>
+</figure>
+<figcaption>The apparent token shuffle is really a training contract: learn to fill gaps, not only continue endings.</figcaption>
+
+<details class="check"><summary>✓ Check yourself — change the suffix, predict the effect</summary>
+<p>If the suffix became <code>assert add_tax(100, 0.07) == 107</code>, a good FIM-trained model should be pushed toward a numeric return expression compatible with that assertion. The right context is evidence, not decoration.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one code file becomes StarCoder training signal</h2>
+<p>Follow one permissively licensed Python file from public repository to model behavior. The sizes are scale anchors from the lecture and BigCode releases, not exact counts for this one file.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Data/size</th></tr>
+  <tr><td>0 · raw GitHub</td><td>Public repositories are collected or accessed through Software Heritage.</td><td class="tt">TBs to 100+ TB raw source</td></tr>
+  <tr><td>1 · license filter</td><td>Keep repositories/files with permissive licenses; remove unclear or excluded licenses.</td><td class="tt">The Stack v1: 6TB permissive release</td></tr>
+  <tr><td>2 · dedup</td><td>Remove exact and near-duplicate files so repeated boilerplate does not dominate.</td><td class="tt">v1 near-dedup: ~3TB</td></tr>
+  <tr><td>3 · PII scrub</td><td>Detect and redact names, emails, keys, passwords, and other sensitive spans.</td><td class="tt">StarPII over StarCoder data</td></tr>
+  <tr><td>4 · quality filter</td><td>Drop low-signal files, unwanted extensions, benchmark/test leakage, and noisy samples.</td><td class="tt">cleaner training subset</td></tr>
+  <tr><td>5 · tokenize</td><td>Apply code-trained tokenizer and metadata tokens such as repository and filename.</td><td class="tt">tokens, not raw characters</td></tr>
+  <tr><td>6 · training batches</td><td>Pack sequences, sometimes apply FIM transformation, and optimize next-token loss.</td><td class="tt">~1T StarCoderBase tokens</td></tr>
+  <tr><td>7 · transformer</td><td>Decoder-only model learns with 8k context and MQA for cheaper inference.</td><td class="tt">~15.5B parameters</td></tr>
+  <tr><td>8 · StarCoder</td><td>Release model, evaluation harness, weights, data process, and responsible-use license.</td><td class="tt">code completion + infilling</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The model never trains on "GitHub" in the abstract. It trains on the distribution left after dozens of governance and quality decisions. That is why data curation dominates final model quality: each filter changes what the apprentice practices, what it memorizes, what it is allowed to reveal, and what claims we can make about its benchmarks.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Close the note and answer from memory. If one answer is fuzzy, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does Loubna spend more time on data than architecture? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What problem does each stage of The Stack pipeline remove: license filter, dedup, PII scrub, quality filter? <a class="ref" href="#s1a">(§1.1)</a></li>
+    <li>Why does code need tokenizer and metadata choices beyond prose tokenization? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How does MQA reduce inference cost for long-context code completion? <a class="ref" href="#s3a">(§3.1)</a></li>
+    <li>Rewrite \\(P,M,S\\) into the FIM order and explain why it helps IDE infilling. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why can HumanEval be misleading without decontamination? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Teach it back: explain StarCoder's pre-training pipeline to a beginner using the public-library analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>The Stack</td><td>BigCode's large dataset of permissively licensed source code used for code-LLM pre-training.</td></tr>
+  <tr><td>Permissive license</td><td>A software license such as MIT or Apache-2.0 that generally allows broad reuse under stated conditions.</td></tr>
+  <tr><td>Near-deduplication</td><td>Removing files that are not byte-identical but are similar enough to act like duplicates.</td></tr>
+  <tr><td>PII redaction</td><td>Detecting and removing personal or sensitive information such as names, emails, passwords, and keys.</td></tr>
+  <tr><td>Decontamination</td><td>Removing evaluation benchmark examples or lookalikes from training data to avoid inflated scores.</td></tr>
+  <tr><td>BPE tokenizer</td><td>A tokenizer that learns frequent byte/subword merges; useful for splitting identifiers and code symbols into reusable pieces.</td></tr>
+  <tr><td>Decoder-only transformer</td><td>A causal transformer architecture that predicts future tokens from previous context.</td></tr>
+  <tr><td>MQA</td><td>Multi-Query Attention: multiple query heads share key/value projections to reduce inference cache cost.</td></tr>
+  <tr><td>FIM</td><td>Fill-in-the-Middle: rearrange prefix, suffix, and middle spans so the model learns to fill a gap using both sides.</td></tr>
+  <tr><td>pass@k</td><td>A code-evaluation metric asking whether at least one of \\(k\\) sampled programs passes the tests.</td></tr>
+  <tr><td>OpenRAIL</td><td>Responsible-AI license family used to release models with open access plus usage restrictions.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>BigCode Project. <strong>StarCoder: may the source be with you!</strong> <a class="ref" href="https://arxiv.org/abs/2305.06161">arXiv</a> — technical report for StarCoder, including data curation, PII redaction, training, and evaluation.</li>
+  <li>Kocetkov et al. <strong>The Stack: 3 TB of permissively licensed source code.</strong> <a class="ref" href="https://arxiv.org/abs/2211.15533">arXiv</a> — dataset paper behind BigCode's open code corpus.</li>
+  <li>Hugging Face. <strong>StarCoder: A State-of-the-Art LLM for Code.</strong> <a class="ref" href="https://huggingface.co/blog/starcoder">blog</a> — concise release summary, benchmark table, and governance links.</li>
+  <li>BigCode. <strong>The Stack dataset card.</strong> <a class="ref" href="https://huggingface.co/datasets/bigcode/the-stack">Hugging Face dataset</a> — licenses, languages, fields, opt-out context, and dataset structure.</li>
+  <li>BigCode. <strong>The Stack v2 dataset card.</strong> <a class="ref" href="https://huggingface.co/datasets/bigcode/the-stack-v2">Hugging Face dataset</a> — Software Heritage-based successor with scale anchors for v2.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>OpenAI. <strong>HumanEval benchmark.</strong> <a class="ref" href="https://github.com/openai/human-eval">GitHub</a> — canonical executable Python code-generation benchmark.</li>
+  <li>Google Research. <strong>Mostly Basic Python Problems (MBPP).</strong> <a class="ref" href="https://github.com/google-research/google-research/tree/master/mbpp">GitHub</a> — another Python programming benchmark used for code LLM evaluation.</li>
+  <li>Cassano et al. <strong>MultiPL-E.</strong> <a class="ref" href="https://github.com/nuprl/MultiPL-E">GitHub</a> — multilingual HumanEval-style benchmark for comparing code models across languages.</li>
+  <li>Hugging Face BigCode organization. <strong>Models, data, and tools.</strong> <a class="ref" href="https://huggingface.co/bigcode">hub</a> — StarCoder weights, StarPII, data tools, and related releases.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="31-llms-to-multimodal.html">◀ Previous note</a>
+  <a class="r" href="33-hyung-won-chung.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 32 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

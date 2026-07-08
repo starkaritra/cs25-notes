@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 16 — Common-Sense Reasoning</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Dark matter</a>
+  <a href="#s1a" class="sub">1.1 Benchmarks</a>
+  <a href="#s2">2 · ATOMIC and COMET</a>
+  <a href="#s2a" class="sub">2.1 If-then edges</a>
+  <a href="#s3">3 · Symbolic distillation</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Prompt-time reasoning</a>
+  <a href="#s7">7 · Limits</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 4 · Note 1 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Common-Sense Reasoning in Language Models</h1>
+  <p class="lead">Yejin Choi's lecture shows why fluent transformers still need explicit ways to surface, check, distill, and reason over the unstated everyday knowledge humans use effortlessly.</p>
+  <div class="meta">
+    <span class="pill">🎓 Yejin Choi</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=sTQaJyrI-zg" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A child knows that a dropped glass may break, a fridge left open can spoil food, and one person cannot be in two places at once. Most of this knowledge is rarely written down because it is too obvious to mention. That is why common sense is the <strong>dark matter of intelligence</strong>: mostly invisible in text, yet shaping almost every interpretation and action.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of language as the visible script of a play and common sense as the backstage crew. The script contains the lines; the crew silently checks props, entrances, timing, and what would be impossible. A language model trained on scripts can sound convincing while missing the backstage directions everyone assumed.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before we ask what the model really knows.</p>
+  <ul>
+    <li><strong>Language model and next-token generation</strong> — a transformer estimates the next token from context; here that mechanism can also emit explanations or commonsense inferences.</li>
+    <li><strong>Knowledge graph</strong> — knowledge as nodes plus labeled edges; ATOMIC connects events to likely intents, effects, reactions, needs, and blockers.</li>
+    <li><strong>Prompting / few-shot learning</strong> — steer a pretrained model at inference time with instructions or examples; many reasoning methods below are prompt-time algorithms.</li>
+    <li><strong>Softmax</strong> — turns raw scores into probabilities that sum to 1; we use it to rank generated inferences.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The dark matter problem</h2>
+<p>Choi opens with a Winograd-style sentence: <em>"The trophy does not fit in the brown suitcase because it is too big."</em> Humans resolve <em>it</em> as the trophy. But after a small paraphrase, a model may produce a confident contradiction. The lesson is not that LLMs know nothing; it is that fluency is not stable, inspectable world knowledge.</p>
+
+<h3 id="s1a">1.1 Benchmarks and reporting bias</h3>
+<p>Benchmarks probe different parts of the hidden backstage crew. They are difficult because of <strong>reporting bias</strong>: people write "the vase shattered," but rarely state the rule "fragile things can break when dropped."</p>
+<table>
+  <tr><th>Benchmark</th><th>What it probes</th><th>Why it is tricky</th></tr>
+  <tr><td>CommonsenseQA</td><td>Question answering grounded in commonsense relations.</td><td>The ordinary answer is not always the most lexical association.</td></tr>
+  <tr><td>SWAG / HellaSwag</td><td>Likely continuations of everyday situations.</td><td>Wrong endings are grammatical but physically or socially implausible.</td></tr>
+  <tr><td>Winograd Schema</td><td>Pronoun resolution using world knowledge.</td><td>Tiny wording changes can flip the referent.</td></tr>
+  <tr><td>PIQA</td><td>Physical interaction and affordances.</td><td>Needs knowledge about spilling, fitting, cutting, bending, and tool use.</td></tr>
+  <tr><td>Social IQa</td><td>Social intent, reaction, and effect.</td><td>Requires tacit social scripts such as gratitude, embarrassment, apology, and trust.</td></tr>
+</table>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Wrong model:</strong> "A big LLM already has full common sense." <strong>Better model:</strong> it has many fragments of common sense, but those fragments can be brittle under paraphrase, negation, counterfactuals, and new contexts.</p>
+</div>
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 230" role="img" aria-label="Visible language above hidden commonsense layer" width="100%" height="220">
+  <rect x="35" y="28" width="690" height="62" rx="16" fill="#ffffff" stroke="#2b2721" stroke-width="2"/>
+  <text x="380" y="56" text-anchor="middle" font-size="18" fill="#2b2721" font-weight="700">Visible script: words in text</text>
+  <text x="380" y="80" text-anchor="middle" font-size="15" fill="#6d6555">"The trophy did not fit because it was too big."</text>
+  <rect x="70" y="128" width="620" height="70" rx="18" fill="#e8f1ff" stroke="#2b2721" stroke-width="2"/>
+  <text x="380" y="158" text-anchor="middle" font-size="17" fill="#2b2721" font-weight="700">Hidden backstage: size, containment, causality, social norms</text>
+  <text x="380" y="182" text-anchor="middle" font-size="14" fill="#4d5665">unstated, but needed to make the sentence make sense</text>
+</svg>
+</div>
+<figcaption>Common sense is the hidden support layer under fluent text.</figcaption>
+</figure>
+<details class="check"><summary>✓ Check yourself — invent a reporting-bias fact</summary>
+<p>Example: "A full cup spills if tipped over." It is useful for prediction but rarely written unless something unusual happens.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Knowledge graphs: ATOMIC and COMET</h2>
+<p>For the event <em>PersonX gets PersonX's car repaired</em>, humans infer a mechanic, a bill, perhaps needing a ride, and a blocker if the car is totaled. ATOMIC makes these if-then inferences explicit; COMET learns to generate new ones.</p>
+<h3 id="s2a">2.1 ATOMIC-style if-then edges</h3>
+<p><strong>ATOMIC</strong> is a commonsense knowledge graph over typed event relations: intents, effects, reactions, needs, hindrances, affordances, and before/after conditions. It includes social knowledge and physical/entity-centric knowledge.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    E["Event<br/>PersonX gives PersonY a gift"]
+    E --> R1["xIntent<br/>to be kind"]
+    E --> R2["xReact<br/>happy"]
+    E --> R3["oReact<br/>grateful"]
+    E --> R4["xEffect<br/>spends money"]
+    E --> R5["xNeed<br/>has a gift"]
+</div>
+<figcaption>An ATOMIC node fans out into relation-labeled commonsense consequences.</figcaption>
+</figure>
+<p><strong>COMET</strong> is a transformer trained on ATOMIC/ConceptNet-style data. Given an event and a relation type, it generates plausible inference text. That is generation, not merely lookup: it can propose a backstage direction not already stored as an exact edge.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — relation-conditioned generation</span>
+  <p>$$p_\theta(y\mid e,r)=\prod_{t=1}^{T} p_\theta\!\left(y_t\mid y_{&lt;t}, e, r\right)$$</p>
+  <p>Here, \(e\) is the event, \(r\) is a relation such as <code>xIntent</code>, and \(y_1,\ldots,y_T\) are the generated inference tokens.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — which relation answers "How does PersonY feel?"</summary>
+<p>Use an object-side reaction relation such as <code>oReact</code>. For the gift event, plausible outputs include "grateful" or "appreciated."</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Symbolic knowledge distillation</h2>
+<p>Human crowdsourcing built early ATOMIC, but coverage is expensive. West et al.'s move is to use a large LM as a noisy author of symbolic commonsense edges, filter aggressively with a critic, then train a smaller, cleaner commonsense model.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Prompt event and relation"] --> B["Large LM teacher<br/>sample inferences"]
+    B --> C["Machine-authored KG<br/>many noisy edges"]
+    C --> D["Critic model<br/>filter suspicious edges"]
+    D --> E["Cleaned symbolic KG"]
+    E --> F["Student transformer<br/>COMET-style model"]
+    F --> G["Smaller and more reliable<br/>commonsense generator"]
+</div>
+<figcaption>Symbolic knowledge distillation: generate many candidate edges, filter them, then train a compact student.</figcaption>
+</figure>
+<p>The critic need not be perfect. If the teacher can generate millions of candidates, a strict critic can throw away many true edges and still leave a large, cleaner dataset.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — distilling sampled symbolic outputs</span>
+  <p>$$\mathcal{L}_{\text{KD}}(\theta)=-\mathbb{E}_{y\sim q_T(\cdot\mid x)}\left[\log p_\theta(y\mid x)\right]\quad\text{with}\quad c(x,y)\ge\tau$$</p>
+  <p>The input \(x\) is the event-relation prompt, \(q_T\) is the teacher distribution, \(p_\theta\) is the student, and \(c(x,y)\ge\tau\) means the critic accepts the edge.</p>
+</div>
+<div class="box intuition">
+  <span class="lbl">Why a smaller model can improve</span>
+  <p>The student is not copying every habit of the teacher. It studies a curated syllabus of filtered if-then knowledge, so it can become a better backstage crew for this specific job.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why can a noisy teacher help?</summary>
+<p>Because the pipeline changes quantity and quality. The teacher supplies scale; the critic supplies selectivity; the student specializes on the resulting commonsense task.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked example — one ATOMIC inference by hand</h2>
+<p>Event: <code>PersonX gives PersonY a gift</code>. COMET-style relation outputs might be <code>xIntent → to be kind</code>, <code>xReact → happy</code>, <code>oReact → grateful</code>, and <code>xEffect → spends money</code>. For <code>xIntent</code>, suppose candidate scores are:</p>
+<ul>
+  <li><strong>to be kind</strong>: \(2.0\)</li>
+  <li><strong>to apologize</strong>: \(1.0\)</li>
+  <li><strong>to be mean</strong>: \(-1.0\)</li>
+</ul>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers — softmax ranking</span>
+  <p>$$P_i=\frac{e^{s_i}}{\sum_j e^{s_j}}$$</p>
+  <p>The exponentials are \(e^{2.0}=7.39\), \(e^{1.0}=2.72\), and \(e^{-1.0}=0.37\). The denominator is \(7.39+2.72+0.37=10.48\).</p>
+  <p>$$P(\text{kind})=\frac{7.39}{10.48}=0.71,\quad P(\text{apologize})=0.26,\quad P(\text{mean})=0.04$$</p>
+  <p>The likely <code>xIntent</code> is therefore <strong>to be kind</strong>. This is a ranked commonsense guess, not a logical proof.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — new event: PersonX forgets PersonY's birthday</summary>
+<p>Plausible edges: <code>xReact → sorry</code>, <code>oReact → hurt</code>, <code>xEffect → apologizes</code>. If <code>xReact</code> scores are sorry \(1.5\), proud \(-0.5\), confused \(0.0\), softmax is about \(0.74,0.10,0.16\), so "sorry" wins.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one commonsense query</h2>
+<p>Follow one query through a COMET/prompting pipeline. The same event moves from text, to tokens, to hidden states, to ranked candidate knowledge.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+  <tr><td>0 · query event</td><td>Ask for the intent behind <code>PersonX gives PersonY a gift</code>.</td><td class="tt">event = gift-giving; relation = xIntent</td></tr>
+  <tr><td>1 · tokenize</td><td>The event and relation become model tokens.</td><td class="tt">[PersonX, gives, PersonY, a, gift, xIntent]</td></tr>
+  <tr><td>2 · transformer</td><td>The model conditions on who did what to whom and on the requested relation.</td><td class="tt">hidden states encode event + relation</td></tr>
+  <tr><td>3 · generate inference tokens</td><td>Autoregressive decoding proposes "to be kind," "to apologize," and other strings.</td><td class="tt">candidate text + token scores</td></tr>
+  <tr><td>4 · score and rank candidates</td><td>Softmax or beam scores rank outputs; a critic/verifier can filter implausible edges.</td><td class="tt">kind 0.71; apologize 0.26; mean 0.04</td></tr>
+  <tr><td>5 · chosen inference</td><td>The top plausible edge is returned.</td><td class="tt">xIntent(PersonX, to be kind)</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Generation versus retrieval</span>
+  <p>Retrieval asks, "Is this exact edge already in the graph?" Generation asks, "Given this event and relation, what edge should exist?" COMET matters because everyday life has too many possible stage directions to prewrite them all.</p>
+</div>
+
+<h2 id="s6"><span class="num">6.</span>Reasoning at inference time</h2>
+<p>Knowledge graphs improve memory; prompt-time methods try to make the model reason more consistently. Choi's examples show GPT-3 sometimes states a fact correctly, then contradicts it under a true/false or negated version.</p>
+<h3 id="s6a">6.1 Maieutic prompting</h3>
+<p><strong>Maieutic prompting</strong> borrows the Socratic method: ask the model to explain why an answer might be true and why it might be false, recursively test explanations and negations, then choose labels that maximize consistency across the graph.</p>
+<figure>
+<div class="mermaid">
+flowchart TD
+    Q["Question<br/>Can traveling west reach the East Coast?"]
+    Q --> T["Assume true<br/>ask because..."]
+    Q --> F["Assume false<br/>ask because..."]
+    T --> ET["Good explanation<br/>Earth is round"]
+    F --> EF["Weak explanation<br/>cannot reach"]
+    ET --> NT["Negate and recheck<br/>label should flip"]
+    EF --> NF["Negate and recheck<br/>inconsistency exposed"]
+    NT --> S["MAX-SAT style solver<br/>choose consistent labels"]
+    NF --> S
+</div>
+<figcaption>Maieutic prompting converts noisy explanations into a small consistency graph.</figcaption>
+</figure>
+<div class="box eqn">
+  <span class="lbl">Key equation — consistency objective</span>
+  <p>$$\hat{z}=\arg\max_z\left(\sum_i b_i z_i+\sum_{i&lt;j}w_{ij}\mathbf{1}[z_i=z_j]\right)$$</p>
+  <p>\(z_i\) is a truth label for node \(i\), \(b_i\) is its belief score, and \(w_{ij}\) rewards pairwise consistency. A local answer can be overridden by graph-level coherence.</p>
+</div>
+<table>
+  <tr><th>Method</th><th>What it adds</th><th>Failure it targets</th></tr>
+  <tr><td>Chain-of-thought</td><td>Expose intermediate reasoning.</td><td>Hidden leaps in the answer.</td></tr>
+  <tr><td>Self-consistency</td><td>Sample many chains and vote.</td><td>One brittle sampled path.</td></tr>
+  <tr><td>Maieutic prompting</td><td>Explain both sides and enforce consistency.</td><td>Self-contradictory rationales.</td></tr>
+  <tr><td>Verifier / critic</td><td>Filter generated claims with symbolic or learned checks.</td><td>Fluent hallucinated "facts."</td></tr>
+</table>
+<details class="check"><summary>✓ Check yourself — why not trust the first chain-of-thought?</summary>
+<p>A single chain is one sampled story. Self-consistency, critics, and maieutic graphs ask whether the answer survives alternative paths, negation, and contradiction checks.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>What LLMs still get wrong</h2>
+<p>The lecture is not anti-LLM. It is anti-overclaim. Emergent abilities are impressive, but common sense is full of defeasible rules: usually true, context-sensitive, and easy to break under adversarial wording.</p>
+<div class="box pitfall">
+  <span class="lbl">Common failure modes</span>
+  <ul>
+    <li><strong>Brittleness:</strong> small paraphrases can flip an answer.</li>
+    <li><strong>Negation:</strong> a model may know a fact but mishandle its negated form.</li>
+    <li><strong>Physical and temporal reasoning:</strong> fitting, spilling, breaking, before/after, and affordances remain fragile.</li>
+    <li><strong>Hallucinated facts:</strong> plausible-sounding completions are not guaranteed true.</li>
+    <li><strong>Inconsistency:</strong> two outputs from the same model may conflict.</li>
+  </ul>
+</div>
+<p>Choi's later moral/social examples make the point sharper: language systems already make outputs with social consequences. The safer model is not "the system has common sense," but "it has fragments that need elicitation, filtering, and verification."</p>
+<details class="check"><summary>✓ Check yourself — classify the failure</summary>
+<p>If a model says "stabbing someone with a cheeseburger is physically dangerous," it misses physical affordance knowledge. If it says "stabbing someone over a cheeseburger is harmless," it misses linguistic and social context: the default omitted instrument for stabbing is a knife.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read yet. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is common sense called the dark matter of intelligence? <a class="ref" href="#hook">(hook)</a></li>
+    <li>What is reporting bias, and why does it make benchmarks difficult? <a class="ref" href="#s1a">(§1.1)</a></li>
+    <li>In one sentence, distinguish ATOMIC from COMET. <a class="ref" href="#s2">(§2)</a></li>
+    <li>How can symbolic distillation produce a smaller but better commonsense model? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the gift-example softmax if "to apologize" rises from \(1.0\) to \(2.5\). <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain maieutic prompting to a beginner in three sentences. <a class="ref" href="#s6a">(§6.1)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Common sense</td><td>Basic practical knowledge and reasoning about everyday situations, shared by many people but full of contextual exceptions.</td></tr>
+  <tr><td>Reporting bias</td><td>The omission of obvious facts from text because writers assume readers already know them.</td></tr>
+  <tr><td>ATOMIC</td><td>A commonsense knowledge graph of if-then event relations.</td></tr>
+  <tr><td>COMET</td><td>A transformer that generates commonsense graph edges from an event and relation type.</td></tr>
+  <tr><td>Symbolic knowledge distillation</td><td>Using a large LM to generate symbolic knowledge, filtering it, and training a smaller specialized model on the result.</td></tr>
+  <tr><td>Maieutic prompting</td><td>Recursive explanation prompting plus consistency checking over an explanation graph.</td></tr>
+  <tr><td>Neuro-symbolic reasoning</td><td>Combining neural language models with symbolic structures such as graphs, solvers, verifiers, or critics.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Stanford CS25. <strong>Common Sense Reasoning.</strong> <a class="ref" href="https://www.youtube.com/watch?v=sTQaJyrI-zg">video</a> — the lecture summarized here.</li>
+  <li>Jung et al. (2022). <strong>Maieutic Prompting: Logically Consistent Reasoning with Recursive Explanations.</strong> <a class="ref" href="https://arxiv.org/abs/2205.11822">arXiv</a> — recursive explanations plus consistency optimization.</li>
+  <li>Sap et al. (2019). <strong>ATOMIC: An Atlas of Machine Commonsense for If-Then Reasoning.</strong> <a class="ref" href="https://arxiv.org/abs/1811.00146">arXiv</a> — the if-then commonsense graph.</li>
+  <li>Bosselut et al. (2019). <strong>COMET: Commonsense Transformers for Automatic Knowledge Graph Construction.</strong> <a class="ref" href="https://arxiv.org/abs/1906.05317">arXiv</a> — transformer generation of commonsense inferences.</li>
+  <li>West et al. (2021/2022). <strong>Symbolic Knowledge Distillation: from General Language Models to Commonsense Models.</strong> <a class="ref" href="https://arxiv.org/abs/2110.07178">arXiv</a> — machine-authored commonsense knowledge with a critic and student model.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Talmor et al. (2019). <strong>CommonsenseQA.</strong> <a class="ref" href="https://arxiv.org/abs/1811.00937">arXiv</a> — QA targeting commonsense knowledge.</li>
+  <li>Zellers et al. <strong>SWAG</strong> and <strong>HellaSwag.</strong> <a class="ref" href="https://arxiv.org/abs/1808.05326">SWAG</a>, <a class="ref" href="https://arxiv.org/abs/1905.07830">HellaSwag</a> — grounded continuation benchmarks.</li>
+  <li>Bisk et al. (2020). <strong>PIQA.</strong> <a class="ref" href="https://arxiv.org/abs/1911.11641">arXiv</a> — physical affordance reasoning.</li>
+  <li>Sap et al. (2019). <strong>SocialIQA.</strong> <a class="ref" href="https://arxiv.org/abs/1904.09728">arXiv</a> — social intent, reaction, and effect questions.</li>
+  <li>Levesque et al. (2012). <strong>The Winograd Schema Challenge.</strong> <a class="ref" href="https://www.aaai.org/ocs/index.php/WS/AAAIW13/paper/view/6939">AAAI</a> — pronoun resolution as a commonsense test.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ CS25 notes index</a>
+  <a class="r" href="17-biomedical-transformers.html">Next: Biomedical Transformers ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 16 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. External fonts, Mermaid, and MathJax load from CDNs.
+</div>
+
+</article>
+</div>
+</body>
+</html>

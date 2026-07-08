@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 45 — The Ultra-Scale Playbook: Training on Thousands of GPUs</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why scaling becomes a systems problem</a>
+  <a href="#s1a" class="sub">1.1 The two hard constraints</a>
+  <a href="#s2">2 · The memory problem</a>
+  <a href="#s2a" class="sub">2.1 What sits in GPU memory</a>
+  <a href="#s3">3 · Parallelism dimensions</a>
+  <a href="#s3a" class="sub">3.1 Data, ZeRO/FSDP, tensor, pipeline</a>
+  <a href="#s3b" class="sub">3.2 Sequence and expert parallelism</a>
+  <a href="#s4">4 · Keeping GPUs busy</a>
+  <a href="#s4a" class="sub">4.1 Overlap, checkpointing, precision</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 9 · Note 5 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>The Ultra-Scale Playbook: Training Transformers on Thousands of GPUs</h1>
+  <p class="lead">Frontier training is not “buy more GPUs”; it is the art of fitting the model in memory while keeping thousands of accelerators doing useful work.</p>
+  <div class="meta">
+    <span class="pill">🎓 Nouamane Tazi · Hugging Face</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=I5BKi32IEa8" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A modern model can have hundreds of billions to trillions of parameters, train on trillions of tokens, and target million-token contexts. On one GPU, the model states may not fit; even if they did, one training run would take far too long. Ultra-scale training is therefore a systems discipline: <strong>fit the model</strong>, <strong>feed the data</strong>, and <strong>hide communication behind compute</strong>.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a giant restaurant kitchen. Data parallelism gives many cooks the same recipe but different orders. Tensor parallelism splits one huge chopping task across cooks at the same station. Pipeline parallelism puts appetizer, entrée, and dessert on different stations. ZeRO/FSDP assigns pantry shelves so no cook stores the whole inventory. Scaling works only when handoffs are fast enough that cooks are not waiting with empty hands.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Just add more GPUs and training gets linearly faster.”</strong> That picture ignores the handoffs: all-reduce, all-gather, reduce-scatter, send/receive, and all-to-all. At scale, the network often becomes the limiter, so the real goal is high utilization, not merely high GPU count.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the cluster diagrams; each term is used immediately below.</p>
+  <ul>
+    <li><strong>GPU memory</strong> — training stores parameters, gradients, optimizer states, and activations; memory, not FLOPs, is often the first wall.</li>
+    <li><strong>Forward/backward pass</strong> — forward computes activations and loss; backward walks layers in reverse to compute gradients.</li>
+    <li><strong>All-reduce / collective</strong> — a coordinated operation where ranks combine values, such as summing gradients, and every rank receives the result.</li>
+    <li><strong>Mixed precision</strong> — bf16/fp16 weights and activations reduce memory and bandwidth while selected states may remain fp32 for stability.</li>
+    <li><strong>Adam optimizer states</strong> — Adam tracks momentum and variance for each parameter, commonly adding two fp32 tensors plus sometimes fp32 master weights.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why scaling becomes a systems problem</h2>
+<p>The lecture begins with a practical observation: frontier models are trained at scales where a single accelerator is both too small and too slow. A trillion-parameter model, massive token stream, frequent checkpointing, and one-second-ish training-step targets put pressure on storage, networking, CPU scheduling, and GPU kernels at once.</p>
+
+<h3 id="s1a">1.1 The two hard constraints</h3>
+<p>There are two separate reasons to distribute training. First, the <strong>memory constraint</strong>: model states and activations may exceed one GPU. Second, the <strong>time constraint</strong>: processing the global batch sequentially would waste the parallel hardware. Good systems solve both without changing the mathematical training result.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — scaling efficiency</span>
+  <p>$$\text{speedup}(N)=\frac{T_1}{T_N}, \qquad \text{efficiency}(N)=\frac{T_1}{N\,T_N}$$</p>
+  <p>Here, \(T_1\) is one-GPU time, \(T_N\) is time on \(N\) GPUs. Linear scaling would mean efficiency near 1; communication and bubbles push it below 1.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["One GPU<br/>forward + backward + optimizer"] --> B{"Does it fit<br/>and finish in time?"}
+    B -- "no: memory" --> C["Shard states<br/>ZeRO / FSDP / TP"]
+    B -- "no: time" --> D["Shard work<br/>DDP / PP / CP / EP"]
+    C --> E["Overlap comms<br/>with compute"]
+    D --> E
+    E --> F["High MFU<br/>not idle GPUs"]
+</div>
+<figcaption>The lecture’s arc: every parallelism choice is a response to fit, time, or utilization.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why is gradient accumulation alone not enough?</summary>
+<p>It reduces per-forward micro-batch size, but it still assumes the model states fit on one GPU and processes micro-batches sequentially. It helps batch size, not model-state memory or wall-clock scaling.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The memory problem</h2>
+<p>Before choosing a parallelism strategy, write down what consumes memory. During training, the GPU is not holding only weights. It also holds gradients, optimizer state, and saved activations needed by the backward pass. For long contexts, activations can dominate; for huge models, optimizer states can dominate.</p>
+
+<h3 id="s2a">2.1 What sits in GPU memory</h3>
+<p>A rough accounting is:</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — training memory budget</span>
+  <p>$$M_{\text{train}} \approx P\,b_w + P\,b_g + P\,b_{\text{opt}} + M_{\text{act}} + M_{\text{workspace}}$$</p>
+  <p>\(P\) is parameter count. \(b_w\), \(b_g\), and \(b_{\text{opt}}\) are bytes per parameter for weights, gradients, and optimizer states. \(M_{\text{act}}\) is activation memory, which grows with batch, sequence length, hidden size, and layers.</p>
+</div>
+
+<ul>
+  <li><strong>Parameters</strong>: bf16 weights use about 2 bytes per parameter.</li>
+  <li><strong>Gradients</strong>: often bf16/fp16 or fp32, depending on implementation.</li>
+  <li><strong>Adam states</strong>: momentum and variance are often fp32, so 8 bytes/parameter; fp32 master weights can add 4 more bytes/parameter.</li>
+  <li><strong>Activations</strong>: saved layer outputs for backward; checkpointing trades extra recompute for less activation storage.</li>
+</ul>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 270" role="img" aria-label="GPU memory stack for transformer training" width="100%" height="auto">
+  <rect x="35" y="30" width="750" height="205" rx="18" fill="none" stroke="currentColor" stroke-width="3"/>
+  <text x="55" y="62" font-size="22" font-weight="700" fill="currentColor">One GPU memory during training</text>
+  <rect x="60" y="90" width="135" height="105" rx="12" fill="currentColor" opacity="0.10" stroke="currentColor"/>
+  <rect x="210" y="90" width="135" height="105" rx="12" fill="currentColor" opacity="0.16" stroke="currentColor"/>
+  <rect x="360" y="90" width="190" height="105" rx="12" fill="currentColor" opacity="0.22" stroke="currentColor"/>
+  <rect x="565" y="90" width="185" height="105" rx="12" fill="currentColor" opacity="0.28" stroke="currentColor"/>
+  <text x="83" y="135" font-size="18" fill="currentColor">weights</text>
+  <text x="238" y="135" font-size="18" fill="currentColor">grads</text>
+  <text x="383" y="128" font-size="18" fill="currentColor">Adam states</text>
+  <text x="390" y="155" font-size="15" fill="currentColor">m, v, master</text>
+  <text x="596" y="128" font-size="18" fill="currentColor">activations</text>
+  <text x="590" y="155" font-size="15" fill="currentColor">batch × seq × layers</text>
+  <path d="M60 217 L750 217" stroke="currentColor" stroke-width="2"/>
+  <text x="60" y="247" font-size="16" fill="currentColor">If this stack exceeds device VRAM, choose sharding or recomputation before increasing batch.</text>
+</svg>
+</div>
+<figcaption>The “money” memory sketch: training memory is a stack, not a single model-weight tensor.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — which term grows when sequence length grows?</summary>
+<p>Activation memory grows strongly with sequence length; attention-related activations can become especially expensive for long-context training. That is why sequence/context parallelism and activation checkpointing matter.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The parallelism dimensions</h2>
+<p>The lecture’s core taxonomy is that different axes split different things. The right recipe depends on what is scarce: memory, batch budget, intra-node bandwidth, inter-node bandwidth, or implementation simplicity.</p>
+
+<h3 id="s3a">3.1 Data, ZeRO/FSDP, tensor, and pipeline parallelism</h3>
+<ul>
+  <li><strong>Data parallelism (DDP)</strong>: replicate the model, split the batch, compute gradients locally, then all-reduce gradients so every replica applies the same update.</li>
+  <li><strong>ZeRO / FSDP</strong>: keep the data-parallel idea but shard optimizer states, gradients, and eventually parameters. ZeRO-3/FSDP all-gathers layer parameters just in time, computes, then frees them.</li>
+  <li><strong>Tensor parallelism</strong>: split individual matrices or attention heads across GPUs. Megatron-style column/row splits reduce per-GPU compute and memory but require high-bandwidth collectives inside layers.</li>
+  <li><strong>Pipeline parallelism</strong>: split layers into stages. Micro-batches flow through the stages to reduce the pipeline bubble, but activations must be saved or recomputed across many in-flight micro-batches.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — global batch and 3D mesh</span>
+  <p>$$B_{\text{global}} = B_{\text{micro}} \times G_{\text{accum}} \times D$$</p>
+  <p>\(D\) is the data-parallel degree. A common 3D layout has \(N = D \times T \times P\), where \(T\) is tensor-parallel degree and \(P\) is pipeline-parallel stages.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph D0["Data-parallel replica 0"]
+      direction LR
+      A0["Pipeline stage 0<br/>TP group"] --> A1["Pipeline stage 1<br/>TP group"] --> A2["Pipeline stage 2<br/>TP group"]
+    end
+    subgraph D1["Data-parallel replica 1"]
+      direction LR
+      B0["Pipeline stage 0<br/>TP group"] --> B1["Pipeline stage 1<br/>TP group"] --> B2["Pipeline stage 2<br/>TP group"]
+    end
+    A0 -. "gradient sync / ZeRO shards" .- B0
+    A1 -. "gradient sync / ZeRO shards" .- B1
+    A2 -. "gradient sync / ZeRO shards" .- B2
+</div>
+<figcaption>3D parallelism composes orthogonal axes: data replicas, tensor groups inside layers, and pipeline stages across layers.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The “orthogonal axes” idea</span>
+  <p>If batch is split along the data axis, it is usually replicated along tensor groups. If weights are split along tensor groups, each data replica sees the same sharding pattern. This is why frameworks form process groups: a collective should run only along the axis that needs it.</p>
+</div>
+
+<h3 id="s3b">3.2 Sequence/context and expert parallelism</h3>
+<ul>
+  <li><strong>Sequence parallelism</strong>: with tensor parallelism, replace certain all-reduces by reduce-scatter plus all-gather so activations can be sharded along the sequence dimension in non-TP regions.</li>
+  <li><strong>Context parallelism / ring attention</strong>: split very long sequences across ranks; exchange keys and values so attention still covers the full context.</li>
+  <li><strong>Expert parallelism</strong>: for mixture-of-experts models, shard experts across GPUs and route tokens with all-to-all dispatch/combine. Load balancing is essential; otherwise one expert rank becomes the busy kitchen station while others idle.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["Tokens on rank i"] --> R["Router<br/>top-k experts"]
+    R --> D["All-to-all dispatch"]
+    D --> E0["Expert shard 0"]
+    D --> E1["Expert shard 1"]
+    D --> E2["Expert shard 2"]
+    E0 --> C["All-to-all combine"]
+    E1 --> C
+    E2 --> C
+    C --> Y["Tokens restored<br/>original order"]
+</div>
+<figcaption>Expert parallelism: the expensive communication is token routing, not matrix multiplication alone.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why keep tensor parallelism inside a node when possible?</summary>
+<p>Tensor parallelism inserts collectives inside attention and MLP blocks, so it is communication-heavy and latency-sensitive. NVLink/NVSwitch within a node is much faster than inter-node InfiniBand/Ethernet, so intra-node TP hides more communication.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Keeping GPUs busy</h2>
+<p>Once the model fits, the bottleneck moves to utilization. Tazi repeatedly points at profiler timelines: the GPU compute stream should be full, the CPU should schedule kernels ahead of time, and communication should overlap with backward or forward compute where possible.</p>
+
+<h3 id="s4a">4.1 Overlap, checkpointing, precision, topology</h3>
+<ul>
+  <li><strong>Overlap communication with compute</strong>: DDP starts all-reduce on gradient buckets as soon as later-layer gradients are ready; FSDP prefetches the next module’s parameters while computing the current one.</li>
+  <li><strong>Activation recomputation / checkpointing</strong>: save selected activations, recompute the rest in backward. This trades extra FLOPs for lower memory.</li>
+  <li><strong>Mixed precision</strong>: bf16 reduces memory traffic and state size while retaining enough dynamic range for stable large-model training.</li>
+  <li><strong>Pipeline scheduling</strong>: micro-batches fill the pipeline; 1F1B reduces activation pressure, while more advanced schedules such as DualPipe attack the bubble further.</li>
+  <li><strong>Topology-aware placement</strong>: use NVLink/NVSwitch for chatty tensor parallel groups; reserve slower inter-node links for less frequent or better-overlapped collectives.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — MFU as the practical scorecard</span>
+  <p>$$\text{MFU}=\frac{\text{actual model FLOPs per second}}{\text{peak hardware FLOPs per second}}$$</p>
+  <p>MFU, model FLOPs utilization, asks: of the theoretical compute we bought, how much is doing model math rather than waiting on communication, CPU scheduling, data loading, or pipeline bubbles?</p>
+</div>
+
+<figure>
+<div class="mermaid">
+sequenceDiagram
+    participant B as "Backward compute"
+    participant C as "Comm stream"
+    participant O as "Optimizer"
+    B->>C: "bucket L gradients ready"
+    C-->>C: "all-reduce / reduce-scatter"
+    B->>C: "bucket L-1 gradients ready"
+    C-->>C: "overlap next collective"
+    C->>O: "sharded grads ready"
+    O-->>O: "update local shards"
+</div>
+<figcaption>Good distributed training overlaps collectives with useful computation instead of serializing them after all backward work.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what is the cost of activation checkpointing?</summary>
+<p>It lowers memory by not storing every intermediate activation, but backward must recompute some forward activations. You spend extra compute to buy memory headroom.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked example — memory + parallelism math</h2>
+<p>Now compute the small but honest case from the prompt: a 7B-parameter model trained in mixed precision. The point is not that 7B is frontier-scale; it is that even a familiar model size can exceed one 80 GB GPU once optimizer states are included.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Let \(P=7\times 10^9\) parameters.</p>
+  <p>$$\text{bf16 params}=P\times 2\text{ bytes}=14\text{ GB}$$</p>
+  <p>$$\text{bf16 grads}\approx P\times 2\text{ bytes}=14\text{ GB}$$</p>
+  <p>Adam often keeps fp32 momentum, fp32 variance, and fp32 master weights:</p>
+  <p>$$\text{Adam states}\approx P\times(4+4+4)\text{ bytes}=84\text{ GB}$$</p>
+  <p>So model states alone are roughly:</p>
+  <p>$$14+14+84=112\text{ GB}$$</p>
+  <p>That already exceeds an 80 GB GPU before activations, temporary workspaces, fragmentation, and communication buffers. A practical setup must shard states with ZeRO/FSDP, use tensor parallelism, reduce optimizer memory, or combine several methods.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — ZeRO-3 across 8 GPUs: what is the ideal per-GPU model-state memory?</summary>
+<p>ZeRO-3 shards parameters, gradients, and optimizer states, so the rough state memory is \(112/8=14\) GB per GPU, before live all-gathered layer windows, activations, buffers, and framework overhead. This is why FSDP makes the model feasible, but not “free.”</p></details>
+
+<details class="check"><summary>✓ Check yourself — if Adam states omit fp32 master weights, what changes?</summary>
+<p>The optimizer term becomes \(P\times(4+4)=56\) GB instead of 84 GB. The total state estimate becomes \(14+14+56=84\) GB, still above 80 GB before activations.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one training step across a cluster</h2>
+<p>Follow one micro-batch through a 3D-parallel cluster. The exact group sizes vary, but the handoffs are the recurring pattern.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Where/comms</th></tr>
+  <tr><td>0 · load micro-batch</td><td>Each data-parallel rank receives its shard of the global batch; data workers try to stay ahead of GPU kernels.</td><td class="tt">DP shard · no model comm yet</td></tr>
+  <tr><td>1 · forward begins</td><td>Tensor-parallel ranks compute sharded attention/MLP matmuls; activations selected for checkpointing are saved sparsely.</td><td class="tt">TP all-reduce / all-gather inside layers</td></tr>
+  <tr><td>2 · pipeline stages</td><td>Stage 0 sends activations to stage 1, and micro-batches are interleaved to reduce the bubble.</td><td class="tt">send/recv activations between PP stages</td></tr>
+  <tr><td>3 · loss and backward</td><td>Backward runs in reverse; recomputed activations are rebuilt where checkpointing was used.</td><td class="tt">compute + recompute</td></tr>
+  <tr><td>4 · gradient synchronization</td><td>As buckets become ready, gradients are all-reduced or reduce-scattered across data-parallel ranks.</td><td class="tt">DDP all-reduce or ZeRO reduce-scatter</td></tr>
+  <tr><td>5 · optimizer step</td><td>Each ZeRO/FSDP rank updates only its local parameter/optimizer shards.</td><td class="tt">sharded optimizer state</td></tr>
+  <tr><td>6 · prepare next step</td><td>Needed parameters are all-gathered just in time for upcoming FSDP modules; the next micro-batch is already queued.</td><td class="tt">FSDP prefetch + all-gather</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why communication—not FLOPs—usually caps scaling</span>
+  <p>Matrix multiplies are dense, predictable, and extremely fast on tensor cores. Cluster handoffs are less forgiving: they depend on topology, message size, synchronization, CPU launch overhead, and whether communication can be hidden. Once compute is split finely enough, each GPU’s math shrinks but the required coordination does not vanish.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — in the trace, where can idle time appear?</summary>
+<p>Data loading can starve step 0; tensor collectives can stall inside step 1; pipeline bubbles appear in step 2; un-overlapped gradient synchronization stalls step 4; slow all-gathers or CPU scheduling can delay step 6.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory. If one answer is shaky, jump back to the linked section and regenerate it without looking.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why do frontier models need distributed training for both memory and time? <a class="ref" href="#s1">(§1)</a></li>
+    <li>List the four major training-memory categories and explain why Adam is expensive. <a class="ref" href="#s2">(§2)</a></li>
+    <li>When would you prefer DDP, ZeRO/FSDP, tensor parallelism, pipeline parallelism, context parallelism, or expert parallelism? <a class="ref" href="#s3">(§3)</a></li>
+    <li>What does MFU measure, and why can adding GPUs lower it? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Redo the 7B memory calculation and explain why 80 GB is not enough. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain the restaurant-kitchen analogy for 3D parallelism in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>DDP</td><td>Distributed data parallel: each GPU has a model replica, sees different data, then synchronizes gradients.</td></tr>
+  <tr><td>All-reduce</td><td>A collective that combines values across ranks and returns the combined result to all ranks.</td></tr>
+  <tr><td>Reduce-scatter</td><td>A collective that reduces values, then leaves each rank with only its shard of the result.</td></tr>
+  <tr><td>All-gather</td><td>A collective that gathers shards from ranks so each rank can see the assembled tensor.</td></tr>
+  <tr><td>ZeRO</td><td>Zero Redundancy Optimizer: shards optimizer states, gradients, and parameters across data-parallel ranks.</td></tr>
+  <tr><td>FSDP</td><td>Fully Sharded Data Parallel: PyTorch’s ZeRO-3-style sharding of parameters, gradients, and optimizer state.</td></tr>
+  <tr><td>Tensor parallelism</td><td>Splitting individual layer matrices or attention heads across GPUs.</td></tr>
+  <tr><td>Pipeline parallelism</td><td>Placing different model layers on different GPUs and streaming micro-batches through them.</td></tr>
+  <tr><td>Sequence/context parallelism</td><td>Splitting long sequences across ranks to reduce activation/context memory.</td></tr>
+  <tr><td>Expert parallelism</td><td>For MoE models, splitting experts across GPUs and routing tokens to them.</td></tr>
+  <tr><td>Pipeline bubble</td><td>Idle time while pipeline stages wait for enough micro-batches or gradients to arrive.</td></tr>
+  <tr><td>MFU</td><td>Model FLOPs utilization: actual model computation divided by peak available hardware computation.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Hugging Face. <strong>The Ultra-Scale Playbook.</strong> <a class="ref" href="https://huggingface.co/spaces/nanotron/ultrascale-playbook" target="_blank">link</a> — the practical source text for many of the lecture’s scaling recipes and tradeoffs.</li>
+  <li>Hugging Face Nanotron. <strong>Distributed training library.</strong> <a class="ref" href="https://github.com/huggingface/nanotron" target="_blank">link</a> — open-source implementation context for large-scale training ideas.</li>
+  <li>PyTorch. <strong>FullyShardedDataParallel documentation.</strong> <a class="ref" href="https://pytorch.org/docs/stable/fsdp.html" target="_blank">link</a> — practical FSDP API and concepts.</li>
+  <li>Megatron-LM. <strong>Training multi-billion parameter language models.</strong> <a class="ref" href="https://github.com/NVIDIA/Megatron-LM" target="_blank">link</a> — reference implementation lineage for tensor and pipeline parallel transformer training.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Rajbhandari et al. (2020). <strong>ZeRO: Memory Optimizations Toward Training Trillion Parameter Models.</strong> <a class="ref" href="https://arxiv.org/abs/1910.02054" target="_blank">link</a> — the core optimizer/gradient/parameter sharding paper.</li>
+  <li>Narayanan et al. (2021). <strong>Efficient Large-Scale Language Model Training on GPU Clusters.</strong> <a class="ref" href="https://arxiv.org/abs/2104.04473" target="_blank">link</a> — Megatron-LM 3D parallelism and pipeline scheduling.</li>
+  <li>Korthikanti et al. (2022). <strong>Reducing Activation Recomputation in Large Transformer Models.</strong> <a class="ref" href="https://arxiv.org/abs/2205.05198" target="_blank">link</a> — sequence parallelism and activation-memory reduction.</li>
+  <li>Liu et al. (2023). <strong>Ring Attention with Blockwise Transformers for Near-Infinite Context.</strong> <a class="ref" href="https://arxiv.org/abs/2310.01889" target="_blank">link</a> — context/sequence sharding for long-context attention.</li>
+  <li>Google. <strong>JAX Scaling Book.</strong> <a class="ref" href="https://jax-ml.github.io/scaling-book/" target="_blank">link</a> — a topology-aware perspective on scaling, especially for TPU-style meshes.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="44-state-space-models-tradeoffs.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 45 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Diagrams: Mermaid/SVG · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 29 — Demystifying Mixtral of Experts</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The sparse-compute bargain</a>
+  <a href="#s1a" class="sub">1.1 Dense layer, sparse FFN</a>
+  <a href="#s1b" class="sub">1.2 What “8×7B” really means</a>
+  <a href="#s2">2 · Top-2 routing inside a Mixtral layer</a>
+  <a href="#s2a" class="sub">2.1 Router logits to weighted experts</a>
+  <a href="#s2b" class="sub">2.2 Why the FFN is the natural place</a>
+  <a href="#worked">3 · Worked example</a>
+  <a href="#trace">4 · End-to-end trace</a>
+  <a href="#s5">5 · What the experts learn</a>
+  <a href="#s5a" class="sub">5.1 Not clean topics</a>
+  <a href="#s5b" class="sub">5.2 Temporal locality</a>
+  <a href="#s6">6 · Systems and results</a>
+  <a href="#s6a" class="sub">6.1 Memory, communication, batching</a>
+  <a href="#s6b" class="sub">6.2 Benchmarks and open weights</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 6 · Note 4 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Demystifying Mixtral of Experts</h1>
+  <p class="lead">Albert Jiang explains how Mixtral 8×7B turns a transformer’s feed-forward block into a sparse expert marketplace: roughly 47B parameters live in memory, but each token activates only about 13B of them.</p>
+  <div class="meta">
+    <span class="pill">🎓 Albert Jiang / Mistral AI &amp; University of Cambridge</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=RcJ1YXHLv5o" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Dense scaling makes a costly bargain: to give the model more knowledge, every token must pass through more parameters. <strong>Mixtral 8×7B</strong> changes the bargain. It is an open sparse Mixture-of-Experts model that can match or beat much larger dense baselines while doing roughly dense-13B-sized active work per token. If the general MoE mechanism feels new, revisit <a class="ref" href="05-mixture-of-experts.html">Note 6: MoE &amp; Switch</a>; this note focuses on what Mixtral adds in architecture, interpretation, and serving.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of each transformer layer as a hospital floor. A dense model sends every patient through the same general clinic. Mixtral keeps eight specialist clinics on the floor, lets triage choose the <strong>top two</strong> clinics for each patient, and blends their opinions. The hospital must still rent space for all clinics, but any one patient visits only two.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow the lecture smoothly if these five pieces are fresh.</p>
+  <ul>
+    <li><strong>Mixture-of-Experts / routing</strong> — a router sends each token to a small subset of expert subnetworks; see <a class="ref" href="05-mixture-of-experts.html">Note 6: MoE &amp; Switch</a> for the generic mechanism.</li>
+    <li><strong>Softmax &amp; top-k</strong> — softmax turns scores into weights; top-k keeps only the largest few candidates.</li>
+    <li><strong>Transformer FFN block</strong> — after attention, each token independently passes through an MLP/FFN; Mixtral replaces this block with expert FFNs.</li>
+    <li><strong>Parameter vs compute distinction</strong> — parameters describe how much model capacity must be stored; active compute describes how much work a token actually uses.</li>
+    <li><strong>Decoder-only transformer</strong> — Mixtral keeps the autoregressive, attention-then-FFN layer shape of Mistral 7B and changes the FFN part.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The sparse-compute bargain</h2>
+<p>Start with one token in the sentence “The proof follows by induction.” In a dense transformer, that token visits the same FFN as every other token. In Mixtral, the token first passes through attention, then a router chooses two expert FFNs out of eight for that token in that layer. Only after seeing the concrete routing trick do we name the architecture: <strong>a sparse Mixture-of-Experts decoder-only transformer</strong>.</p>
+
+<h3 id="s1a">1.1 Dense layer, sparse FFN</h3>
+<p>Albert begins by reviewing the Mistral 7B layer: RMSNorm, attention with grouped-query attention, residual connection, RMSNorm, FFN, residual connection. Mixtral keeps this skeleton. The surgical swap is:</p>
+<ul>
+  <li><strong>Attention stays shared</strong>: every token uses the same attention module in the layer.</li>
+  <li><strong>FFN becomes eight expert FFNs</strong>: each expert is a SwiGLU-style feed-forward network.</li>
+  <li><strong>Router is per token, per layer</strong>: the model chooses the top two experts for that token at that layer.</li>
+</ul>
+<div class="box eqn">
+  <span class="lbl">Key equation — from dense FFN to sparse MoE FFN</span>
+  <p>$$\text{dense: } y=\operatorname{FFN}(x) \qquad\quad \text{Mixtral: } y=\sum_{i\in\operatorname{top\text{-}2}(x)} g_i(x)\,E_i(x)$$</p>
+  <p>Here \(x\in\mathbb{R}^{d}\) is one token’s hidden vector, \(E_i\) is expert \(i\)’s FFN, and \(g_i(x)\) is the router’s normalized gate weight for the selected expert.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    T["one token hidden vector x"] --> A["shared attention"]
+    A --> R["router<br/>8 expert logits"]
+    R --> K["top-2 select"]
+    K --> E1["expert E_a<br/>FFN"]
+    K --> E2["expert E_b<br/>FFN"]
+    E1 --> W["weighted combine<br/>g_a E_a(x) + g_b E_b(x)"]
+    E2 --> W
+    W --> Y["MoE output y"]
+</div>
+<figcaption>Mixtral does not run all eight specialists for a token; the router activates two and blends their outputs.</figcaption>
+</figure>
+
+<h3 id="s1b">1.2 What “8×7B” really means</h3>
+<p>The model name is easy to misread. It does <em>not</em> mean there are eight complete 7B models and the token runs through two whole models. Each of Mixtral’s 32 transformer layers contains eight FFN experts, while attention, embeddings, routers, and other parts are shared.</p>
+<div class="box intuition">
+  <span class="lbl">Crisp distinction — capacity is not active compute</span>
+  <p>Mixtral 8×7B has roughly <strong>46.7B ≈ 47B total parameters</strong> that must be stored. But a token activates only the shared path plus <strong>2 of 8 FFN experts per layer</strong>, totaling about <strong>12.9B ≈ 13B active parameters</strong>. The mental model is: <strong>47B-model memory/capacity, dense-13B-ish per-token compute</strong>.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“8×7B means 56B active parameters.”</strong> No. Attention and router weights are shared, and only two experts fire for a token in each MoE layer. Also, “13B active” is not the whole serving cost: dynamic routing adds communication and batching complications.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if one layer has 8 experts and top-2 routing, what fraction of that layer’s experts run for one token?</summary>
+<p>Two out of eight, so \(2/8=25\%\) of the expert FFNs in that layer run for that token. The other six still occupy memory and may serve other tokens in the batch.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Top-2 routing inside a Mixtral layer</h2>
+<p>Imagine the hospital triage desk sees a patient with symptoms that are mostly neurological but partly metabolic. It does not send the patient to every clinic. It scores each clinic, picks the best two, then blends their diagnoses. The router does the same thing with token vectors.</p>
+
+<h3 id="s2a">2.1 Router logits to weighted experts</h3>
+<p>For one token hidden vector \(x\), the router computes eight scores. Then it keeps the top two, softmaxes over just those selected scores, runs those two expert FFNs, and adds their outputs with the gate weights.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — Mixtral top-2 gate</span>
+  <p>$$z = W_r x, \qquad S=\operatorname{top\text{-}2}(z), \qquad g_i=\frac{e^{z_i}}{\sum_{j\in S}e^{z_j}}\;\;\text{for }i\in S$$</p>
+  <p>\(W_r\) is the router matrix, \(z\in\mathbb{R}^{8}\) are expert logits, \(S\) is the selected pair of expert indices, and \(g_i\) are the two gate weights that sum to 1.</p>
+</div>
+<div class="box eqn">
+  <span class="lbl">Key equation — selected expert output</span>
+  <p>$$y=\sum_{i\in S}g_i\,E_i(x)$$</p>
+  <p>Each \(E_i(x)\) is a full FFN output vector of the same hidden size \(d\), so the weighted sum also has shape \(d\).</p>
+</div>
+
+<h3 id="s2b">2.2 Why the FFN is the natural place</h3>
+<p>The lecture’s useful heuristic is: attention often behaves like token-to-token communication or algorithmic routing, while FFNs store much of a transformer’s learned factual and procedural knowledge. MoE-fying the FFN therefore increases the model’s stored capacity where knowledge is plausibly concentrated, without forcing every token to use all of it.</p>
+<div class="box why">
+  <span class="lbl">Why MoE-fy MLPs first?</span>
+  <p>Making the FFN eight-way wider is like hiring many specialist clinics. Knowledge-heavy benchmarks such as MMLU benefit strongly in the lecture’s plots. MoE-fying attention is possible research territory, but Albert notes stability and systems questions, especially under bf16 training.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what stays dense/shared in Mixtral even though the FFN is sparse?</summary>
+<p>The attention block, residual path, normalizations, embeddings, and router machinery are shared. Sparsity is primarily in the feed-forward expert block.</p></details>
+
+<h2 id="worked"><span class="num">3.</span>Worked example — top-2 routing by hand</h2>
+<p>Numbers make the router less mysterious. Suppose one token reaches a Mixtral layer and the router emits logits for experts \(E_1\) through \(E_8\):</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$z=[3.1,\;0.2,\;2.8,\;-1.0,\;0.5,\;1.9,\;0.0,\;0.7]$$</p>
+  <p>The two largest logits are \(3.1\) and \(2.8\), so the selected experts are \(S=\{1,3\}\). Softmax over only these two scores:</p>
+  <p>$$g_1=\frac{e^{3.1}}{e^{3.1}+e^{2.8}}=\frac{1}{1+e^{-0.3}}\approx\frac{1}{1+0.7408}\approx0.574$$</p>
+  <p>$$g_3=\frac{e^{2.8}}{e^{3.1}+e^{2.8}}=\frac{0.7408}{1+0.7408}\approx0.426$$</p>
+  <p>The MoE output is therefore:</p>
+  <p>$$y\approx0.574\,E_1(x)+0.426\,E_3(x)$$</p>
+  <p>The other six experts receive gate weight zero for this token in this layer.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — for a 5-token sequence, how many expert FFN calls happen in one Mixtral layer?</summary>
+<p>Top-2 routing means \(5\times2=10\) expert-token calls in that layer. Those 10 calls may touch fewer than 8 distinct expert modules if several tokens choose the same experts; across 32 layers the path has \(5\times2\times32=320\) expert-token dispatches.</p></details>
+<details class="check"><summary>✓ Check yourself — if expert 6’s logit rose from 1.9 to 3.4, which experts would win?</summary>
+<p>Experts \(E_6\) and \(E_1\) would win because \(3.4\) and \(3.1\) are the top two logits. Their weights would be \(g_6=1/(1+e^{-0.3})\approx0.574\) and \(g_1\approx0.426\).</p></details>
+
+<h2 id="trace"><span class="num">4.</span>End-to-end trace — one token through one Mixtral layer</h2>
+<p>Now follow a single token hidden state through one layer. The exact hidden dimension is model-config dependent; for Mixtral 8×7B the common configuration uses \(d=4096\), but the shape logic below is the point.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/active-params</th></tr>
+  <tr><td>0 · token hidden</td><td>The token enters the layer after the previous residual stream.</td><td class="tt">x ∈ R^d</td></tr>
+  <tr><td>1 · attention</td><td>RMSNorm, grouped-query/sliding-window attention, output projection, then residual update.</td><td class="tt">R^d → R^d · shared dense path</td></tr>
+  <tr><td>2 · router logits</td><td>The post-attention token vector is multiplied by a router matrix.</td><td class="tt">R^d → R^8</td></tr>
+  <tr><td>3 · top-2 select</td><td>Keep the two largest router logits and softmax over just those two.</td><td class="tt">8 scores → 2 gates</td></tr>
+  <tr><td>4 · expert FFNs</td><td>Run exactly two selected SwiGLU FFNs for this token.</td><td class="tt">2 of 8 experts · ~13B active over full model</td></tr>
+  <tr><td>5 · weighted combine</td><td>Add the two expert outputs using their gate weights.</td><td class="tt">g_a E_a(x)+g_b E_b(x) ∈ R^d</td></tr>
+  <tr><td>6 · residual output</td><td>Add the MoE result back into the residual stream and pass to the next layer.</td><td class="tt">R^d → R^d</td></tr>
+  <tr><td>Total tally</td><td>All experts must be available, but the token only walks one sparse path.</td><td class="tt">~47B stored · ~13B active/token</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p><strong>Sparse activation decouples knowledge from per-token cost.</strong> The hospital owns all eight clinics on every floor, so its total expertise is large. But the patient visits two clinics per floor, so the per-patient work is much smaller than “run all clinics.”</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where does the vector shape return to \(d\)?</summary>
+<p>After attention the token remains in \(\mathbb{R}^{d}\). Each selected expert also outputs \(\mathbb{R}^{d}\), and their weighted sum stays in \(\mathbb{R}^{d}\), so the residual stream can continue unchanged.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>What the experts learn</h2>
+<p>The tempting story is: one expert for code, one for math, one for medicine, one for French. Albert’s interpretation section pushes against that story. The router gives a rare, discrete-ish signal about which expert handled which token, but the signal does not reveal tidy human-readable departments.</p>
+
+<h3 id="s5a">5.1 Not clean topics</h3>
+<p>The analysis in the talk looked at validation splits from the Pile and compared expert selection across layers 0, 15, and 31. The observed pattern was cautious:</p>
+<ul>
+  <li><strong>Layer 0</strong> looked fairly uniform, consistent with shallow syntactic/token-level processing.</li>
+  <li><strong>Layer 15</strong> showed a suggestive spike: one expert was selected more for DeepMind Mathematics and next most for GitHub, hinting at a math/code feature — but Albert explicitly calls this speculative.</li>
+  <li><strong>Layer 31</strong> moved closer to uniform again, with some arithmetic-looking spikes but no clean domain story.</li>
+</ul>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“The experts should specialize in human topics.”</strong> If two experts owned all code, then code-heavy batches would overload them while other experts sat idle. The learned features may be syntactic, positional, frequency-based, or linear combinations of concepts that are efficient for the model but alien to our labels.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    D["Human guess:<br/>topic departments"] --> X["not strongly supported"]
+    G["Observed routing signals"] --> L0["layer 0<br/>near-uniform"]
+    G --> L15["layer 15<br/>some math/code spikes"]
+    G --> L31["layer 31<br/>less clear again"]
+    L0 --> C["syntactic / positional / hidden features"]
+    L15 --> C
+    L31 --> C
+</div>
+<figcaption>The lecture’s interpretation result is mostly negative: routing is informative, but not a clean topical legend.</figcaption>
+</figure>
+
+<h3 id="s5b">5.2 Temporal locality</h3>
+<p>The strongest clean behavior was <strong>temporal locality</strong>: consecutive tokens often reuse experts more than chance. For first-choice routing, random chance is \(12.5\%\) with eight experts; in middle layers the same-expert rate was close to double random. When allowing first-or-second choice, the rate was also significantly above the random baseline. In hospital terms, adjacent patients from the same ambulance often go to the same clinics.</p>
+<div class="box intuition">
+  <span class="lbl">Interpretation opportunity</span>
+  <p>Attention weights ask “which earlier tokens did this token look at?” Router choices ask “which parameters did this token use?” That is a different interpretability handle, but the handle is not a full explanation.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why would perfectly topical experts be bad for serving code-heavy traffic?</summary>
+<p>If only the “code experts” were selected, they would become bottlenecks while other experts did no work. Efficient serving wants useful specialization <em>and</em> balanced load across experts.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Systems and results</h2>
+<p>Mixtral’s sparse path gives impressive performance-per-active-parameter, but serving it is not the same as serving a dense 13B model. The model has to keep the whole hospital available.</p>
+
+<h3 id="s6a">6.1 Memory, communication, batching</h3>
+<p>The hard systems truth is: <strong>all experts must be in memory</strong> for fast inference, even though a token computes through only two per layer. That makes Mixtral attractive in data centers with high batch sizes and expert parallelism, but less natural on memory-constrained edge devices.</p>
+<ul>
+  <li><strong>Memory-bound serving</strong> — loading ~47B parameters is the footprint; quantization can help, but the inactive experts are not free.</li>
+  <li><strong>Expert parallelism</strong> — place different experts on different GPUs or nodes so many tokens can be processed concurrently.</li>
+  <li><strong>Communication overhead</strong> — routing tokens to experts across devices costs bandwidth and synchronization; with many experts or cross-node routing, this can dominate.</li>
+  <li><strong>Batching tradeoff</strong> — high batch sizes let different experts stay busy; tiny batches may not amortize routing and communication.</li>
+  <li><strong>Sliding-window attention</strong> — inherited from Mistral 7B, lower layers attend over local windows while deeper layers propagate information, helping long-context efficiency alongside grouped-query attention.</li>
+</ul>
+<div class="box eqn">
+  <span class="lbl">Serving cost mental model</span>
+  <p>$$\text{latency} \not\propto \text{active parameters alone}$$</p>
+  <p>Active parameters predict compute roughly, but memory footprint, token dispatch, GPU-to-GPU communication, load imbalance, and batch shape all matter.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why can Mixtral be worse than a dense model on a memory-starved edge device?</summary>
+<p>Because the edge device must store or page the full expert set. Even if each token uses only ~13B active parameters, fast inference wants the ~47B total parameters available.</p></details>
+
+<h3 id="s6b">6.2 Benchmarks and open weights</h3>
+<p>The headline result is not “MoE is magic”; it is “capacity and compute can be separated enough to move the Pareto frontier.” The lecture reports Mixtral 8×7B as a strong open model: around 12.9B active parameters per token, 32k context, Apache 2.0 release, strong multilingual performance, and competitive results against Llama-2-70B and GPT-3.5-style baselines at much lower active compute.</p>
+<div class="box why">
+  <span class="lbl">Why open weights matter here</span>
+  <p>The routing analysis, expert-removal “treasure hunt,” quantization attempts, and serving experiments became community research because people could inspect and modify the model. Open sparse MoEs are not only products; they are laboratories.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what is the safest one-sentence claim about Mixtral’s result?</summary>
+<p>Mixtral 8×7B stores far more total capacity than a 13B dense model while activating roughly 13B parameters per token, producing strong open-model performance with nontrivial memory and routing costs.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read yet. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What exact transformer sub-block does Mixtral replace with experts? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why is “47B total, 13B active” not a contradiction? <a class="ref" href="#s1b">(§1.2)</a></li>
+    <li>Given router logits, how do you compute the two selected gates and the final output? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>In the trace, where do the eight logits appear, and where do they disappear back into a \(d\)-dimensional vector? <a class="ref" href="#trace">(trace)</a></li>
+    <li>What did the Mixtral routing analysis actually find about expert specialization? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain Mixtral to a beginner using the hospital-floor analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Mixtral 8×7B</td><td>Mistral AI’s open sparse MoE language model with roughly 47B total parameters and about 13B active parameters per token.</td></tr>
+  <tr><td>Sparse Mixture-of-Experts</td><td>A model layer with many expert subnetworks where only a small subset is activated for each input token.</td></tr>
+  <tr><td>Router / gate</td><td>The learned module that scores experts for a token and assigns gate weights to the selected experts.</td></tr>
+  <tr><td>Top-2 routing</td><td>A routing rule that chooses the two highest-scoring experts for a token.</td></tr>
+  <tr><td>Expert FFN</td><td>One feed-forward network inside the MoE block; in Mixtral there are eight per transformer layer.</td></tr>
+  <tr><td>Active parameters</td><td>The parameters actually used in the computation path for a token.</td></tr>
+  <tr><td>Total parameters</td><td>All parameters that must be stored to represent the model, including inactive experts.</td></tr>
+  <tr><td>Expert parallelism</td><td>A serving/training strategy that places different experts on different devices so routed tokens can be processed in parallel.</td></tr>
+  <tr><td>Temporal locality</td><td>The tendency for nearby/consecutive tokens to choose overlapping experts more often than random chance.</td></tr>
+  <tr><td>Sliding-window attention</td><td>An attention pattern where tokens attend locally in lower layers while deeper layers propagate information over longer spans.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Jiang et al. (2024). <strong>Mixtral of Experts.</strong> <a class="ref" href="https://arxiv.org/abs/2401.04088">arXiv:2401.04088</a> — the architecture and analysis paper behind the lecture.</li>
+  <li>Mistral AI (2023). <strong>Mixtral 8x7B announcement.</strong> <a class="ref" href="https://mistral.ai/news/mixtral-of-experts">Mistral AI blog</a> — release notes, benchmark claims, context length, and Apache 2.0 availability.</li>
+  <li>Jiang et al. (2023). <strong>Mistral 7B.</strong> <a class="ref" href="https://arxiv.org/abs/2310.06825">arXiv:2310.06825</a> — the dense backbone design with grouped-query and sliding-window attention.</li>
+  <li>Shazeer et al. (2017). <strong>Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer.</strong> <a class="ref" href="https://arxiv.org/abs/1701.06538">arXiv:1701.06538</a> — classic sparse top-k MoE routing.</li>
+  <li>Fedus, Zoph, and Shazeer (2021). <strong>Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity.</strong> <a class="ref" href="https://arxiv.org/abs/2101.03961">arXiv:2101.03961</a> — top-1 MoE, load balancing, and expert parallelism.</li>
+  <li>Lepikhin et al. (2020). <strong>GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding.</strong> <a class="ref" href="https://arxiv.org/abs/2006.16668">arXiv:2006.16668</a> — large-scale conditional computation and sharding context for MoE systems.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="https://www.youtube.com/watch?v=RcJ1YXHLv5o">CS25 lecture video</a> — Albert Jiang’s full “Demystifying Mixtral of Experts” talk and Q&amp;A.</li>
+  <li><a class="ref" href="05-mixture-of-experts.html">Note 6: MoE &amp; Switch</a> — the general sparse MoE mechanism before Mixtral’s top-2 implementation.</li>
+  <li>Raposo et al. (2024). <strong>Mixture-of-Depths: Dynamically allocating compute in transformer-based language models.</strong> <a class="ref" href="https://arxiv.org/abs/2404.02258">arXiv:2404.02258</a> — a related adaptive-compute direction discussed in Q&amp;A.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="28-aligning-open-llms.html">◀ Previous: Aligning Open LLMs</a>
+  <a class="r" href="30-near-shallow-architectures.html">Next: Near-Shallow Architectures ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 29 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Fonts, MathJax, and Mermaid load from CDNs.
+</div>
+
+</article>
+</div>
+</body>
+</html>

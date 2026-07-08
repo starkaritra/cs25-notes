@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 38 — On the Biology of a Large Language Model</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Biology, not blueprint-reading</a>
+  <a href="#s1a" class="sub">1.1 Grown systems need microscopes</a>
+  <a href="#s2">2 · Superposition and features</a>
+  <a href="#s2a" class="sub">2.1 Why neurons are polysemantic</a>
+  <a href="#s3">3 · Sparse autoencoders</a>
+  <a href="#s3a" class="sub">3.1 Dictionary learning objective</a>
+  <a href="#s4">4 · Circuits and attribution graphs</a>
+  <a href="#s4a" class="sub">4.1 Case studies from Claude</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Why it matters</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 8 · Note 3 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>On the Biology of a Large Language Model — Josh Batson (Anthropic)</h1>
+  <p class="lead">We can build LLMs that translate rare languages, reason through medical cases, and write rhymes — yet still not know <em>how</em> the computation happens inside. Batson’s answer: treat a trained model like a biological specimen and build microscopes for its internal mechanisms.</p>
+  <div class="meta">
+    <span class="pill">🎓 Josh Batson</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=vRQs7qfIDaU" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Black-box behavior is not enough when models become competent enough to receive trust. A model can answer a leap-year question with a mix of true facts and false conclusion; it can stop drawing seven fingers without anyone knowing whether the underlying concept improved; it can give a polished explanation that hides the strategy it actually used. Mechanistic interpretability asks: <strong>what internal mechanism produced this output?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of Claude as a living cell. Training is the evolutionary process that produced a complex organism; the transformer architecture is only the scaffold. Sparse autoencoders are microscopes, features are cell parts, circuits are pathways, and interventions are like optogenetics: perturb one component and watch the organism’s behavior change.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow this note smoothly if these are fresh. Each item is one line; skim, then jump back to <a class="ref" href="08-transformer-circuits.html">Note 8 on Transformer Circuits</a> if the circuits language feels shaky.</p>
+  <ul>
+    <li><strong>Transformer residual stream</strong> — each layer reads and writes a vector state; mechanistic interpretability studies which directions get written and why. See <a class="ref" href="08-transformer-circuits.html">Note 8</a>.</li>
+    <li><strong>Activation vector</strong> — the list of numbers at one token and layer; a <em>direction</em> in this space can represent a concept or subroutine.</li>
+    <li><strong>Autoencoder</strong> — a model trained to compress an input and reconstruct it; here the hidden code is forced to be sparse.</li>
+    <li><strong>Sparsity</strong> — only a few code entries are active at once; this matches the hunch that a model uses a small set of concepts on any token.</li>
+    <li><strong>Superposition</strong> — models can pack more useful features than dimensions by overlapping them, so one neuron may participate in many unrelated concepts.</li>
+    <li><strong>Circuit</strong> — a causally connected set of components that implements a behavior, such as induction heads in <a class="ref" href="08-transformer-circuits.html">Note 8</a>.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Biology, not blueprint-reading</h2>
+<p>Batson starts with a contrast: we know the training algorithm, the architecture, and the matrix multiplications, but that is like saying a cell is “chemistry all the way down.” Correct, yet not explanatory. If Claude translates Circassian from an in-context dictionary or mishandles February 29, we want the internal story: which representations were formed, which pathways used them, and which competing mechanisms won.</p>
+
+<h3 id="s1a">1.1 Grown systems need microscopes</h3>
+<p>Language models are <strong>grown, not built</strong>. We initialize weights randomly, feed data like nutrients, and optimize toward a loss like sunlight. The result is an organic computational object whose useful mechanisms were not hand-designed. The “biology of an LLM” is therefore an empirical science: collect observations, build instruments, propose mechanisms, perturb the system, and revise the map.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the tautology is not the explanation</span>
+  <p>$$
+  x_{\ell+1}=x_{\ell}+\operatorname{Attn}_{\ell}(x_{\ell})+\operatorname{MLP}_{\ell}(x_{\ell})
+  $$</p>
+  <p>
+  Here \(x_{\ell}\) is the residual-stream activation at layer \(\ell\). This equation says how the transformer updates numbers. It does <em>not</em> yet say whether the model is representing “Texas,” planning a rhyme, suppressing a refusal, or reusing an arithmetic lookup.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Training data + objective<br/>growth conditions"] --> B["Trained LLM<br/>complex organism"]
+    B --> C["Cache activations<br/>microscope slide"]
+    C --> D["Sparse autoencoder<br/>feature microscope"]
+    D --> E["Attribution graph<br/>pathway map"]
+    E --> F["Intervention<br/>perturb and test"]
+    F --> G["Revised mechanism<br/>biology of the model"]
+</div>
+<figcaption>The interpretability loop mirrors biology: observe, decompose, trace pathways, intervene, and update the causal story.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Established versus hypothesized</span>
+  <p><strong>Established:</strong> these methods can find human-interpretable components and some causal pathways in real models. <strong>Hypothesized:</strong> the recovered graph is the full mechanism. Batson is careful: current maps are partial, MLP-focused, sometimes approximate, and attention is not yet fully explained.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is “it is matrix multiplication” an unsatisfying answer?</summary>
+<p>Because it does not let you predict behavior under distribution shift, identify a failure mechanism, or know what to change. “Matrix multiplication” is the substrate; a mechanism names the represented variables and causal pathway.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Superposition: the model’s filing cabinet is overcrowded</h2>
+<p>Suppose you open the cell and label every visible blob “neuron.” Early vision models sometimes had pleasing neurons: edge detectors, eye detectors, car detectors. But Batson shows language-model neurons that fire for code, Chinese text, math, and Socrates. The neuron is not always the biological part we should name.</p>
+
+<h3 id="s2a">2.1 Why neurons are polysemantic</h3>
+<p>The reason is <strong>superposition</strong>: the model may need to represent far more concepts than it has clean orthogonal dimensions. So it packs many feature directions into the same activation space. A single neuron coordinate then becomes a projection of several overlapping features, making it <strong>polysemantic</strong> — active for many unrelated-looking inputs.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — features are directions, not necessarily neurons</span>
+  <p>$$
+  x \approx \sum_{i\in S} f_i d_i \quad \text{with} \quad |S|\ll m
+  $$</p>
+  <p>
+  \(x\) is an activation vector, \(d_i\) is a learned feature direction, \(f_i\ge 0\) is that feature’s strength, and \(S\) is the small active set. The model may have \(m\) feature directions even when the activation space has only \(d_{\text{model}}\) dimensions.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Neuron coordinate 17"] --> B["fires for code errors"]
+    A --> C["fires for Greek philosophy"]
+    A --> D["fires for Chinese text"]
+    A --> E["fires for arithmetic tables"]
+    F["Feature direction<br/>bugs in code"] --> G["many languages + many bug types"]
+    H["Feature direction<br/>Golden Gate Bridge"] --> I["English, translations, images, indirect mentions"]
+</div>
+<figcaption>A neuron coordinate can be a crowded aisle; a feature direction is closer to the item the microscope should label.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If neurons are messy, the model is uninterpretable.”</strong> Not necessarily. The mistake is assuming the visible coordinate basis is the right basis. Biology did not stop at “the tissue looks messy”; it invented stains, microscopes, and cell types.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would count as evidence that a direction is a real feature?</summary>
+<p>It activates on semantically related examples, generalizes across surface forms, and causally changes behavior when amplified or suppressed. Example: a code-error feature fires for bugs across languages; suppressing it makes the model miss bugs, while activating it can make the model act as if a bug exists.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Sparse autoencoders: dictionary learning as a microscope</h2>
+<p>Batson’s team collects many activation vectors from Claude, then trains a sparse autoencoder (SAE) to reconstruct each activation as a sparse combination of learned directions. The important move is not “compress the model.” It is “find a dictionary whose entries behave like monosemantic microscope labels.”</p>
+
+<h3 id="s3a">3.1 Dictionary learning objective</h3>
+<p>In classical dictionary learning, we factor a data matrix into dictionary atoms and sparse coefficients. Anthropic scaled this idea with one-layer sparse autoencoders, including very large dictionaries such as tens of millions of features for Claude 3 Sonnet.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SAE reconstruction plus sparsity</span>
+  <p>$$
+  \mathcal{L}(x)=\left\|x-\hat{x}\right\|_2^2+\lambda\left\|f(x)\right\|_1,
+  \qquad
+  \hat{x}=\sum_{i=1}^{m} f_i(x)d_i
+  $$</p>
+  <p>
+  The first term demands faithful reconstruction of the original activation \(x\). The \(L_1\) penalty, weighted by \(\lambda\), makes most feature activations \(f_i(x)\) zero. The learned directions \(d_i\) are the candidate “cell parts.”</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Activation vector x<br/>one token, one layer"] --> B["SAE encoder<br/>compute sparse code f(x)"]
+    B --> C["Active features<br/>Golden Gate Bridge<br/>code error<br/>sycophancy"]
+    C --> D["SAE decoder<br/>sum feature directions"]
+    D --> E["Reconstruction x-hat<br/>close to x"]
+    C --> F["Human interpretation<br/>look at top activating examples"]
+</div>
+<figcaption>The SAE microscope turns a dense activation into a sparse list of candidate concepts, then checks that their sum reconstructs the original vector.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why the Golden Gate Bridge example matters</span>
+  <p>The same feature activates for “Golden Gate Bridge,” translations, an image of the bridge, and indirect mentions like driving from San Francisco to Marin. That is not a mere word detector; it looks like a reusable concept. When Anthropic amplified the feature, “Golden Gate Claude” became bizarrely bridge-obsessed — a vivid feature-clamping demonstration.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is reconstruction necessary?</summary>
+<p>If the SAE only produced sparse labels but failed to reconstruct activations, it might be inventing a pretty story unrelated to the model’s computation. Reconstruction forces the dictionary to explain the actual vector the transformer used.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>Circuits and attribution graphs: from parts to pathways</h2>
+<p>A list of cell parts is not yet biology. Once features are available, Batson’s team asks how they connect across layers to produce an output. Their attribution graphs trace which active features causally feed into other features and, ultimately, into the next-token logits.</p>
+
+<h3 id="s4a">4.1 Case studies from Claude</h3>
+<p>The lecture’s anchor example is: <em>“The capital of the state containing Dallas is …”</em> The graph shows features for Dallas, states, Texas, state capitals, and Austin. Suppressing or swapping parts changes the answer in coherent ways: California leads to Sacramento, Georgia to Atlanta, the Byzantine Empire to Constantinople. That is evidence for a manipulable abstract pathway, not only a memorized string.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — causal contribution, not mere correlation</span>
+  <p>$$
+  \text{effect}_{i\to y}\;\approx\;\operatorname{logit}_y(x+\alpha d_i)-\operatorname{logit}_y(x)
+  $$</p>
+  <p>
+  \(d_i\) is a feature direction, \(\alpha\) is an intervention strength, and \(\operatorname{logit}_y\) is the score for output token \(y\). The exact machinery is richer, but the principle is simple: perturb the candidate part and see whether the output changes as the proposed mechanism predicts.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Prompt features<br/>Dallas + containing state"] --> B["Intermediate concept<br/>Texas"]
+    C["Task feature<br/>state capital"] --> D["Answer target<br/>Austin"]
+    B --> D
+    B --> E["Related Texas features<br/>politics, sayings, geography"]
+    E --> D
+    D --> F["Output logit<br/>Austin"]
+    C --> F
+</div>
+<figcaption>An attribution graph is a proposed pathway: features about Dallas and state capitals route through Texas toward the Austin output.</figcaption>
+</figure>
+
+<p>Across the paper and talk, the same microscope reveals several motifs:</p>
+<ul>
+  <li><strong>Multi-step reasoning.</strong> Medical diagnosis examples route symptoms through a latent diagnosis such as preeclampsia, then to the requested extra symptom such as visual disturbances.</li>
+  <li><strong>Multilingual shared concepts.</strong> Translation-equivalent sentences start language-specific, converge to shared middle-layer concepts like smallness/oppositeness/largeness, then become language-specific again near output.</li>
+  <li><strong>Addition and arithmetic.</strong> Claude does not simply run the human carrying algorithm; it often computes parallel facts such as last digit, magnitude band, and lookup-like subcomponents that combine to produce 36 + 59 = 95.</li>
+  <li><strong>Planning ahead.</strong> In a rhyming couplet, a “rabbit/bunny” target feature can activate at the newline before the model writes the line that ends in “rabbit.” One-token-at-a-time output can still be guided by future targets.</li>
+  <li><strong>Refusals and hallucination.</strong> A generic “I can’t answer” tendency can be suppressed by known-answer features. If the known-answer signal is boosted for a fake name, the model may hallucinate a sport or paper.</li>
+  <li><strong>Jailbreaks and hidden goals.</strong> Some jailbreaks exploit timing: the model begins a continuation before the harmful topic is fully recognized. In unfaithful reasoning examples, the model can use a hint to choose an answer while producing an explanation that sounds like independent math.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Next-token prediction means no planning.”</strong> The output is sampled one token at a time, but the forward pass can contain features for future constraints. A poet can choose the destination “rabbit” before writing the words that lead there.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does multilingual overlap peak in the middle layers?</summary>
+<p>Early layers still encode language-specific tokens and spelling. Late layers must prepare language-specific output words. Middle layers have room to represent the abstract concept — such as smallness or oppositeness — that translations share.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">5.</span>Worked example — superposition and sparse features by hand</h2>
+<p>Numbers make the superposition idea concrete. We will pack three concept directions into a two-neuron activation space, then show how a sparse code can recover the active concepts.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Imagine two neuron coordinates, so activations live in \(\mathbb{R}^2\). Define three feature directions:</p>
+  <p>$$
+  d_1=(1,0),\qquad d_2=(0,1),\qquad d_3=\left(\frac{1}{\sqrt{2}},\frac{1}{\sqrt{2}}\right)\approx(0.707,0.707).
+  $$</p>
+  <p>Suppose the true active concepts are feature 1 with strength 2 and feature 3 with strength 1:</p>
+  <p>$$
+  x=2d_1+1d_3=(2,0)+(0.707,0.707)=(2.707,0.707).
+  $$</p>
+  <p>If we stare only at neurons, both coordinates are active, so the activation looks like a blend. Raw dot products are also ambiguous:</p>
+  <p>$$
+  x\cdot d_1=2.707,\qquad x\cdot d_2=0.707,\qquad x\cdot d_3=\frac{2.707+0.707}{\sqrt{2}}\approx2.414.
+  $$</p>
+  <p>A sparse reconstruction instead asks for a small active set:</p>
+  <p>$$
+  \min_{f\ge0}\left\|x-\sum_i f_i d_i\right\|_2^2+\lambda\|f\|_1.
+  $$</p>
+  <p>The sparse answer \(f=(2,0,1)\) reconstructs exactly:</p>
+  <p>$$
+  2d_1+0d_2+1d_3=(2.707,0.707)=x.
+  $$</p>
+  <p>So the right explanation is not “neuron 1 and neuron 2 fired.” It is “feature 1 and feature 3 were active; feature 2 was not.”</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["2 neuron dimensions<br/>(x1, x2)"] --> B["3 feature directions<br/>d1, d2, d3"]
+    B --> C["Dense activation<br/>x = (2.707, 0.707)"]
+    C --> D["Sparse code<br/>f1 = 2, f2 = 0, f3 = 1"]
+    D --> E["Interpretable reconstruction<br/>feature 1 + feature 3"]
+</div>
+<figcaption>Superposition packs more concepts than axes; sparsity chooses the few concepts needed for this activation.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — if \(x'=d_2+d_3\), what sparse code reconstructs it?</summary>
+<p>Compute \(x'=(0,1)+(0.707,0.707)=(0.707,1.707)\). The sparse code is \(f=(0,1,1)\): feature 2 and feature 3 are active, feature 1 is off.</p></details>
+
+<details class="check"><summary>✓ Check yourself — why does sparsity yield interpretability here?</summary>
+<p>Without sparsity, many mixtures can approximate the same 2-D vector, and all three dot products may be positive. The sparse penalty favors the explanation with the fewest active feature directions, matching the assumption that only a small number of concepts are used at one token.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — reading a computation with attribution graphs</h2>
+<p>Now follow one concrete question through the interpretability pipeline. The prompt is: <em>“The capital of the state containing Dallas is”</em>. The model answers: <em>Austin</em>.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>What we see</th></tr>
+  <tr><td>0 · prompt</td><td>The text enters the transformer and each token gets embedded into residual-stream vectors.</td><td class="tt">tokens: The / capital / state / containing / Dallas / is</td></tr>
+  <tr><td>1 · run model, cache activations</td><td>Forward pass predicts the next token while we save activations at layers and token positions.</td><td class="tt">cached vectors x[layer, token]</td></tr>
+  <tr><td>2 · decompose with SAE</td><td>Each dense activation is reconstructed as a sparse set of active feature directions.</td><td class="tt">Dallas feature; state feature; capital-answer feature</td></tr>
+  <tr><td>3 · build attribution graph</td><td>Trace backward from the Austin logit to features that causally influenced it, then to features that influenced those.</td><td class="tt">Dallas → Texas; state capital → capital name; Texas → Austin</td></tr>
+  <tr><td>4 · test the circuit</td><td>Suppress or swap feature groups in the base model and check whether the output changes coherently.</td><td class="tt">California swap → Sacramento; Georgia swap → Atlanta</td></tr>
+  <tr><td>5 · interpret cautiously</td><td>Group related features into a human-readable mechanism, while tracking errors and unexplained components.</td><td class="tt">partial mechanism, not a complete proof</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Features are the right unit more often than neurons</span>
+  <p>The trace works because “Dallas,” “Texas,” and “state capital” can be represented as directions and feature groups that cut across neuron coordinates. If we insisted on individual neurons, the map would look like a messy tissue smear; with sparse features, it starts to look like a pathway.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would make this trace stronger evidence than a pretty diagram?</summary>
+<p>Interventions. If suppressing the Texas-related features reduces Austin, or swapping in California produces Sacramento, the graph is not merely descriptive; it has passed a causal test.</p></details>
+
+<!-- ================= SECTION 7 ================= -->
+<h2 id="s7"><span class="num">7.</span>Why it matters — safety, auditing, steering, and humility</h2>
+<p>Mechanistic interpretability is not only intellectual curiosity. If a future model is entrusted with high-stakes work, we need ways to audit whether it is using the intended information, whether it is hiding a goal, whether a refusal is calibrated, and whether a hallucination was caused by overconfident recall.</p>
+
+<div class="box check">
+  <span class="lbl">What this microscope can already help with</span>
+  <ul>
+    <li><strong>Safety auditing:</strong> inspect whether harmful, deceptive, or sycophantic features are active in a behavior.</li>
+    <li><strong>Debugging hallucinations:</strong> separate “knows the entity” from “must answer anyway” pathways.</li>
+    <li><strong>Steering:</strong> clamp or suppress features to test and sometimes change behavior, as in Golden Gate Claude.</li>
+    <li><strong>Generalization studies:</strong> see whether arithmetic, multilingual concepts, or medical abstractions are reused across contexts.</li>
+  </ul>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“An attribution graph is the model’s complete thought.”</strong> No. Current graphs are lossy scientific instruments. They rely on learned replacement models, sparse dictionaries, human feature labeling, and imperfect reconstruction. Batson’s strongest claim is not that the organism is solved; it is that we can now do real experiments on parts of it.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Epistemic status — a practical inequality</span>
+  <p>$$
+  \text{useful map} \;\ne\; \text{complete territory}
+  $$</p>
+  <p>The recovered features and pathways can be causally useful while still missing attention-mediated selection, redundant backup circuits, or mechanisms that only appear under other prompts. Treat every graph as a microscope image with resolution limits.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why might reasoning models reduce some hallucinations?</summary>
+<p>Batson’s speculation is that one forward pass must choose whether to answer before all possible checks finish. Letting a model think out loud or spend adaptive compute gives it more chances to verify the answer before committing to the next visible token.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does Batson call this “biology” rather than “physics” or “software debugging”? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why can a neuron be polysemantic even when the model has meaningful internal concepts? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Write the SAE objective and explain the reconstruction term and sparsity term in plain English. <a class="ref" href="#s3">(§3)</a></li>
+    <li>What extra evidence turns an attribution graph from a plausible story into a causal hypothesis? <a class="ref" href="#trace">(trace)</a></li>
+    <li>In the worked example, why does \(f=(2,0,1)\) explain the activation better than saying “both neurons fired”? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain features, circuits, and intervention to a beginner using the cell microscope analogy.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Mechanistic interpretability</td><td>Reverse-engineering a neural network into human-understandable internal mechanisms that causally explain behavior.</td></tr>
+  <tr><td>Residual stream</td><td>The running vector state in a transformer that attention and MLP blocks read from and write to.</td></tr>
+  <tr><td>Activation vector</td><td>The numeric state at a token and layer; interpretability methods study directions inside this vector space.</td></tr>
+  <tr><td>Feature</td><td>A direction or pattern in activation space that corresponds to a concept, behavior, or computational subroutine.</td></tr>
+  <tr><td>Polysemantic neuron</td><td>A neuron coordinate that activates for multiple unrelated-looking concepts because several features overlap in that coordinate.</td></tr>
+  <tr><td>Superposition</td><td>Packing more features than dimensions by representing features as non-orthogonal directions in the same space.</td></tr>
+  <tr><td>Sparse autoencoder (SAE)</td><td>An autoencoder trained to reconstruct activations using only a small number of active dictionary features.</td></tr>
+  <tr><td>Monosemantic feature</td><td>A feature that appears to have one coherent meaning across many activating examples.</td></tr>
+  <tr><td>Attribution graph</td><td>A graph of active features and causal influences that traces how an output was produced.</td></tr>
+  <tr><td>Feature clamping</td><td>Artificially increasing or decreasing a feature’s activation to test or steer model behavior.</td></tr>
+  <tr><td>Cross-layer transcoder</td><td>A replacement-style interpretability model that approximates MLP computations across layers with interpretable sparse features.</td></tr>
+  <tr><td>Epistemic status</td><td>A label for how strongly a claim is supported: established result, plausible interpretation, speculation, or limitation.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Batson et al. (2025). <strong>On the Biology of a Large Language Model.</strong> <a class="ref" href="https://transformer-circuits.pub/2025/attribution-graphs/biology.html" target="_blank">link</a> — the interactive Anthropic paper this talk presents.</li>
+  <li>Anthropic interpretability team (2025). <strong>Tracing the Thoughts of a Large Language Model.</strong> <a class="ref" href="https://www.anthropic.com/research/tracing-thoughts-language-model" target="_blank">link</a> — public overview of attribution graphs and case studies.</li>
+  <li>Templeton et al. (2024). <strong>Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet.</strong> <a class="ref" href="https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html" target="_blank">link</a> — Golden Gate Bridge features, feature clamping, and large-scale SAE results.</li>
+  <li>Bricken et al. (2023). <strong>Towards Monosemanticity: Decomposing Language Models With Dictionary Learning.</strong> <a class="ref" href="https://transformer-circuits.pub/2023/monosemantic-features/index.html" target="_blank">link</a> — early SAE/dictionary-learning work for transformer features.</li>
+  <li>Elhage et al. (2022). <strong>Toy Models of Superposition.</strong> <a class="ref" href="https://transformer-circuits.pub/2022/toy_model/index.html" target="_blank">link</a> — the core superposition picture behind polysemantic neurons.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="08-transformer-circuits.html">CS25 Note 8 — Transformer Circuits &amp; Induction Heads</a> — the local prerequisite for circuits thinking.</li>
+  <li>Elhage et al. (2021). <strong>A Mathematical Framework for Transformer Circuits.</strong> <a class="ref" href="https://transformer-circuits.pub/2021/framework/index.html" target="_blank">link</a> — the circuits vocabulary that precedes attribution graphs.</li>
+  <li>Huang et al. (2016). <strong>Densely Connected Convolutional Networks.</strong> <a class="ref" href="https://arxiv.org/abs/1608.06993" target="_blank">link</a> — DenseNet, mentioned as an analogy for cross-layer connections.</li>
+  <li>Richard Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html" target="_blank">link</a> — Batson invokes the lesson that scaling simple methods often beats clever hand engineering.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="37-llm-reasoning.html">◀ Previous: LLM reasoning</a>
+  <a class="r" href="39-world-models-drug-discovery.html">Next: World models for drug discovery ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 38 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

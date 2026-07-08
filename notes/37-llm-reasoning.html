@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 37 — Large Language Model Reasoning</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · What counts as reasoning?</a>
+  <a href="#s1a" class="sub">1.1 Last letters, not vibes</a>
+  <a href="#s1b" class="sub">1.2 The misconception</a>
+  <a href="#s2">2 · Chain-of-thought prompting</a>
+  <a href="#s2a" class="sub">2.1 Shift the output distribution</a>
+  <a href="#s2b" class="sub">2.2 Why answer-only decoding fails</a>
+  <a href="#s3">3 · CoT already lives in decoding</a>
+  <a href="#s3a" class="sub">3.1 CoT-decoding</a>
+  <a href="#s3b" class="sub">3.2 Confidence after reasoning</a>
+  <a href="#s4">4 · Aggregation and decomposition</a>
+  <a href="#s4a" class="sub">4.1 Self-consistency</a>
+  <a href="#s4b" class="sub">4.2 Least-to-most prompting</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Why more tokens are more compute</a>
+  <a href="#s7a" class="sub">7.1 Serial computation</a>
+  <a href="#s7b" class="sub">7.2 Training, verification, retrieval</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 8 · Note 2 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>Large Language Model Reasoning — Denny Zhou (Google DeepMind)</h1>
+  <p class="lead">Denny Zhou's central move is simple and profound: for LLMs, reasoning often means generating the right intermediate tokens before the answer, then decoding or aggregating those paths wisely.</p>
+  <div class="meta">
+    <span class="pill">🎓 Denny Zhou</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=ebnX5Ur1hBk" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>The argument around LLMs usually stalls at “can they <em>really</em> reason, or are they merely pattern-matching?” Zhou avoids the vague debate by giving a testable definition: in this lecture, <strong>reasoning is the sequence of intermediate tokens between the question and the final answer</strong>. His thesis is not that LLMs are human minds. His thesis is sharper: LLMs can reason surprisingly well <strong>if the decoding process elicits useful intermediate steps</strong>.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Picture the model as a detective with a scratchpad. If the detective blurts the first suspect, you may get a confident-looking mistake. If the detective writes clues in order, tries several plausible case files, and then compares final suspects, the answer improves. CoT is the scratchpad; self-consistency is asking several scratchpads to vote; least-to-most is solving the case by breaking it into smaller clues.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Keep these four ideas loaded; the lecture uses them constantly.</p>
+  <ul>
+    <li><strong>LLM next-token generation</strong> — a language model predicts a distribution over the next token; a full answer is produced by repeatedly sampling or choosing from those distributions.</li>
+    <li><strong>Prompting / few-shot examples</strong> — text placed before the question can reshape what kinds of continuations the model ranks highly.</li>
+    <li><strong>Greedy vs sampling decoding</strong> — greedy picks the locally most likely next token; sampling explores other plausible continuations, which matters when the best answer is hidden behind a lower-ranked first step.</li>
+    <li><strong>Chain-of-thought</strong> — intermediate natural-language steps before the final answer; here they are treated as generated tokens, not as a mystical human-like faculty.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>What counts as reasoning in this talk?</h2>
+<p>Zhou opens with a deliberately tiny task: “concatenate the last letter of each word in <em>artificial intelligence</em>.” An answer-only model can jump to <code>LE</code>. A reasoning model writes: “the last letter of <em>artificial</em> is <code>l</code>; the last letter of <em>intelligence</em> is <code>e</code>; concatenate them to get <code>le</code>.” The highlighted middle is the lecture's operational definition of reasoning.</p>
+
+<h3 id="s1a">1.1 Last letters, not vibes</h3>
+<p>The “last-letter” task is useful because first-letter concatenation is common on the web, while last-letter concatenation is not. That makes it harder to dismiss the result as memorized acronym pattern matching. The key object is the generated path:</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — reasoning as latent text</span>
+  <p>$$x \;\longrightarrow\; r_1,r_2,\ldots,r_m \;\longrightarrow\; a$$</p>
+  <p>Here \(x\) is the input question, \(r_1,\ldots,r_m\) are intermediate reasoning tokens, and \(a\) is the final answer. The scratchpad is not extra architecture; it is more generated text.</p>
+</div>
+
+<h3 id="s1b">1.2 The misconception</h3>
+<div class="box pitfall">
+  <span class="lbl">Common misconception — “you need a special architecture for reasoning”</span>
+  <p>Zhou's counterclaim is that a pre-trained transformer can already contain reasoning-like continuations in its output space. The problem is often <em>selection</em>: greedy decoding may pick an answer-only path, while another high-quality continuation begins with “I”, “We”, or “Let's work it out” and exposes a correct chain.</p>
+</div>
+<p>This stance also keeps us honest. LLMs are probability models, not people. The useful scientific question is therefore: <strong>which prompts, decoders, training signals, and test-time procedures make the probability model spend tokens on the right intermediate computation?</strong></p>
+
+<details class="check"><summary>✓ Check yourself — in Zhou's definition, is reasoning an internal feeling or an observable sequence?</summary>
+<p>Observable sequence. In this lecture, reasoning means the intermediate tokens generated between the problem and the final answer. That definition may not settle philosophy, but it lets us measure and improve behavior.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Chain-of-thought prompting: make the scratchpad likely</h2>
+<p>Take the apple problem from the talk: “I have 3 apples. My dad has 2 more apples than me. How many apples do we have in total?” A direct answer can be <code>5</code>, because the model latches onto “3 plus 2.” A CoT answer writes the missing intermediate: dad has \(3+2=5\), so together \(3+5=8\).</p>
+
+<h3 id="s2a">2.1 Shift the output distribution</h3>
+<p>Few-shot CoT prompting places a similar worked solution before the new question. The prompt does not install a new reasoning module. It <strong>reshapes the output distribution</strong> so that scratchpad-style continuations rise toward the top. The zero-shot phrase “Let's think step by step” is the minimal version: less task-specific, often weaker than good few-shot examples, but strikingly general.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    A["Question"] --> B["Answer-only continuation<br/>short but fragile"]
+    A --> C["CoT prompt example"]
+    C --> D["Scratchpad continuation<br/>steps then answer"]
+    D --> E["Final answer"]
+</div><figcaption>CoT prompting works by making a reasoning-style continuation more probable before the model commits to a final answer.</figcaption></figure>
+
+<h3 id="s2b">2.2 Why answer-only decoding fails</h3>
+<p>Greedy decoding optimizes the next token locally. But for reasoning tasks, the globally useful path may begin with a token that is not locally first-ranked. Zhou's apple example shows that the “correct detective” may sit behind a second, third, or fourth candidate first token.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — path probability is not answer probability</span>
+  <p>$$\underbrace{\arg\max_{r,a} P(r,a\mid x)}_{\text{most likely full response}}\quad \neq \quad \underbrace{\arg\max_a P(a\mid x)}_{\text{most likely final answer}}$$</p>
+  <p>The most likely <em>response string</em> can be a short wrong answer. The most likely <em>answer</em> may require summing over many reasoning paths that end at the same answer.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can “3 apples + dad has 2 more” lead to the wrong answer 5?</summary>
+<p>Because answer-only decoding can collapse the problem to the visible local operation \(3+2=5\). The missing intermediate is that dad has 5 apples, so the total is \(3+5=8\).</p></details>
+
+<h2 id="s3"><span class="num">3.</span>CoT is latent even without prompting</h2>
+<p>A landmark part of Zhou's talk is CoT-decoding: do not add “think step by step”; instead, inspect alternative decoding candidates. In pre-trained models, some non-greedy paths already contain reasoning. The scratchpad is latent in the distribution; decoding can surface it.</p>
+
+<h3 id="s3a">3.1 CoT-decoding</h3>
+<p>CoT-decoding has two moves. First, go beyond the greedy first token and continue multiple candidates. Second, select the response whose final answer has high confidence. In the apple example, a candidate beginning with “I” or “You” may unfold the correct reasoning and land on 8.</p>
+
+<h3 id="s3b">3.2 Confidence after reasoning</h3>
+<p>Zhou reports a striking empirical pattern: when a response includes a coherent chain of reasoning, the probability of the final answer token can jump dramatically. In the talk's apple example, a path ending in the correct answer 8 has very high answer confidence. This does not make confidence infallible, but it explains why answer-confidence reranking is useful.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — confidence after a path</span>
+  <p>$$\text{conf}(a;r,x)=P(a\mid x,r)$$</p>
+  <p>The model's confidence in answer \(a\) is evaluated <em>after</em> it has generated reasoning path \(r\). A better scratchpad can make the final token distribution sharper.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is surprising about CoT-decoding?</summary>
+<p>It shows that reasoning-style paths can appear without explicit CoT prompting or fine-tuning. Prompting helps rank those paths higher, but the paths may already be present in the model's output space.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Aggregation and decomposition: two ways to make reasoning sturdier</h2>
+<p>Once reasoning is a latent path, a single path is a risky bet. The detective may write a wrong scratchpad. Zhou's next step is to treat reasoning paths as latent variables and marginalize over them. This gives self-consistency.</p>
+
+<h3 id="s4a">4.1 Self-consistency: sample many paths, vote on answers</h3>
+<p>Self-consistency samples multiple chain-of-thought responses and ignores which exact path is most common. It collects final answers and chooses the answer that appears most often. In the lecture, Zhou frames this as standard machine learning: latent-variable marginalization, approximated by sampling.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — marginalize over reasoning paths</span>
+  <p>$$P(a\mid x)=\sum_r P(a,r\mid x)\;\approx\;\frac{1}{K}\sum_{i=1}^{K}\mathbf{1}[a_i=a]$$</p>
+  <p>Each sampled reasoning path \(r_i\) ends in an answer \(a_i\). Voting estimates which answer has the most probability mass across paths.</p>
+</div>
+
+<figure><div class="mermaid">
+flowchart LR
+    Q["One question"] --> R1["reasoning path 1<br/>final answer = 18"]
+    Q --> R2["reasoning path 2<br/>final answer = 11"]
+    Q --> R3["reasoning path 3<br/>final answer = 18"]
+    Q --> R4["reasoning path k<br/>final answer = 27"]
+    R1 --> V["majority vote"]
+    R2 --> V
+    R3 --> V
+    R4 --> V
+    V --> A["answer with largest mass"]
+</div><figcaption>Self-consistency: one question fans out into sampled scratchpads; only the final answers vote.</figcaption></figure>
+
+<p>Zhou emphasizes the cost tradeoff. Sampling many paths is inference-time scaling: accuracy can rise, but tokens and latency rise too. He also notes a useful calibration signal: when many independent samples agree, the answer is often more reliable.</p>
+
+<h3 id="s4b">4.2 Least-to-most prompting: solve easier clues first</h3>
+<p>Least-to-most prompting, associated with Zhou and collaborators, attacks a hard problem by first decomposing it into easier subproblems, then solving them in order. In detective terms: identify the clue list before accusing anyone. This supports easy-to-hard generalization because each sub-answer becomes context for the next step.</p>
+<figure><div class="mermaid">
+flowchart TD
+    H["Hard problem"] --> D["Decompose into ordered subproblems"]
+    D --> S1["Solve subproblem 1"]
+    S1 --> S2["Solve subproblem 2 using answer 1"]
+    S2 --> S3["Continue until final subproblem"]
+    S3 --> F["Final answer"]
+</div><figcaption>Least-to-most prompting converts one brittle jump into a sequence of smaller serial steps.</figcaption></figure>
+
+<details class="check"><summary>✓ Check yourself — why does self-consistency vote on final answers rather than exact reasoning strings?</summary>
+<p>Many different scratchpads can correctly reach the same answer. If you vote on exact strings, useful probability mass is split across paraphrases. Voting on final answers approximates \(P(a\mid x)=\sum_r P(a,r\mid x)\).</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked micro-example — self-consistency by hand</h2>
+<p>Suppose a math word problem is sampled five times. The reasoning paths differ, and their final answers are:</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$[18,\;18,\;11,\;18,\;27]$$</p>
+  <p>Count the votes:</p>
+  <p>$$\#(18)=3,\qquad \#(11)=1,\qquad \#(27)=1$$</p>
+  <p>Estimate the answer probabilities by frequency:</p>
+  <p>$$\widehat{P}(18\mid x)=\frac{3}{5}=0.60,
+  \quad \widehat{P}(11\mid x)=\frac{1}{5}=0.20,
+  \quad \widehat{P}(27\mid x)=\frac{1}{5}=0.20$$</p>
+  <p>Self-consistency returns <strong>18</strong>. A single greedy sample might have returned 11; five sampled scratchpads reveal that 18 has the largest estimated answer mass.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if a sixth sample returns 27, what answer wins?</summary>
+<p>The counts become \(18:3\), \(27:2\), \(11:1\). The majority/plurality answer is still 18, now with estimated frequency \(3/6=0.50\).</p></details>
+<details class="check"><summary>✓ Check yourself — why does sampling diverse paths help, and what does it cost?</summary>
+<p>It helps because different paths explore different latent computations, so correct answers can accumulate probability mass even when no single path is guaranteed. It costs extra test-time compute: more generated tokens, more latency, and more money.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — CoT plus self-consistency on one word problem</h2>
+<p>Now follow one concrete question through the whole pipeline, tracking the evolving state.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+  <tr><td>0 · question</td><td>Ask the model: “Maya has 4 bags with 3 marbles each. She gives away 5 marbles. How many remain?”</td><td class="tt">x = word problem</td></tr>
+  <tr><td>1 · sample path 1</td><td>Generate a scratchpad: “4 bags × 3 marbles = 12 marbles. 12 − 5 = 7.”</td><td class="tt">r1 → ans 7</td></tr>
+  <tr><td>2 · sample path 2</td><td>Generate another scratchpad: “4 + 3 = 7, then 7 − 5 = 2.” This path used the wrong operation.</td><td class="tt">r2 → ans 2</td></tr>
+  <tr><td>3 · sample path 3</td><td>Generate a third scratchpad: “Each bag has 3, so total is 4×3=12. Giving away 5 leaves 7.”</td><td class="tt">r3 → ans 7</td></tr>
+  <tr><td>4 · collect final answers</td><td>Discard the wording of the paths and keep only the final answers.</td><td class="tt">[7, 2, 7]</td></tr>
+  <tr><td>5 · majority vote</td><td>Choose the most frequent final answer.</td><td class="tt">7 has 2/3 votes</td></tr>
+  <tr><td>6 · final answer</td><td>Return the voted answer, ideally with a concise explanation.</td><td class="tt">final = 7 marbles</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Generating intermediate tokens is doing more serial computation. The model gets extra scratchpad positions where it can store partial results like \(4\times3=12\) before producing the answer. Self-consistency then spends even more test-time compute by running several scratchpads and aggregating them.</p>
+</div>
+
+<h2 id="s7"><span class="num">7.</span>Why more tokens are more compute</h2>
+<p>The theory section of the lecture explains why CoT is not merely prettier output. A fixed-depth transformer is excellent at parallel computation, but many reasoning tasks are inherently serial: step 2 depends on step 1, step 3 depends on step 2, and so on. Intermediate tokens give the model a way to unroll that serial process over time.</p>
+
+<h3 id="s7a">7.1 Serial computation</h3>
+<div class="box eqn">
+  <span class="lbl">Key equation — CoT as an unrolled circuit</span>
+  <p>$$\text{Boolean circuit of size }T\quad \Rightarrow \quad \text{constant-size transformer} + O(T)\text{ CoT tokens}$$</p>
+  <p>Zhou cites theoretical work with Tengyu Ma and collaborators: with enough intermediate tokens, a constant-size transformer can simulate computations that would otherwise require much greater depth or be impossible for direct answer generation. In the scratchpad analogy, each token is another line where the detective can carry forward a computed clue.</p>
+</div>
+<p>This connects directly to <a class="ref" href="13-emergent-abilities-scaling.html">Note 13 on emergence</a>, <a class="ref" href="24-beyond-llms-agents-reasoning.html">Note 24 on guided reasoning and agents</a>, and <a class="ref" href="34-v5-overview.html">Note 34 on V5 test-time compute</a>. The o1-era lesson is not only “make the model bigger.” It is also “spend more inference compute on useful reasoning tokens and aggregation.”</p>
+
+<h3 id="s7b">7.2 Training, verification, retrieval</h3>
+<p>The talk also places CoT inside a larger research arc. Supervised fine-tuning on human-written solutions is useful, but Zhou argues it can generalize poorly if it optimizes imitation rather than the final task metric. Self-improvement, rejection sampling, and RL fine-tuning use the model's own generated paths plus a verifier for tasks with checkable answers. This is why math and competitive programming advanced quickly: the final answer can often be automatically verified.</p>
+<p>But not every important task has a unique verifier. Creative writing, software design, and collaborative coding involve taste, maintainability, and context. Zhou's closing agenda is therefore broader: handle non-verifiable tasks, build real applications, and combine reasoning with retrieval. A model may reason better after recalling a related problem, a formula, or a principle — the detective checks the archive before solving the case.</p>
+
+<details class="check"><summary>✓ Check yourself — why does RL fine-tuning need a verifier?</summary>
+<p>The training loop samples reasoning paths and must know which outputs deserve reward. For math, a ground-truth answer can verify whether a sampled path ended correctly. For open-ended tasks, the verifier is much harder to define.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer these from memory, then jump back if one feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What exact definition of “reasoning” does Zhou use in this lecture? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why can CoT prompting work without changing the model architecture? <a class="ref" href="#s2">(§2)</a></li>
+    <li>What does CoT-decoding reveal about pre-trained models? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Write the marginalization equation behind self-consistency, then explain it in one sentence. <a class="ref" href="#s4">(§4)</a></li>
+    <li>Redo the vote in the worked example if the samples are \([18,11,11,18,11]\). <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain “more reasoning tokens = more serial computation” to a beginner in three sentences. <a class="ref" href="#trace">(trace)</a></li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Reasoning tokens</td><td>Intermediate generated text between the input and final answer; the lecture's operational definition of reasoning.</td></tr>
+  <tr><td>Chain-of-thought (CoT)</td><td>A prompt, training target, or decoding behavior that makes the model write intermediate steps before answering.</td></tr>
+  <tr><td>CoT-decoding</td><td>A decoding method that explores non-greedy candidates and selects reasoning-like responses using final-answer confidence.</td></tr>
+  <tr><td>Self-consistency</td><td>Sampling many reasoning paths and choosing the most frequent final answer.</td></tr>
+  <tr><td>Marginalization</td><td>Summing probability over hidden alternatives; here, many scratchpads can support the same answer.</td></tr>
+  <tr><td>Least-to-most prompting</td><td>Decomposing a hard problem into easier subproblems, then solving them in order.</td></tr>
+  <tr><td>Verifier</td><td>A rule, program, or judge that says whether an output is correct enough to reward or keep.</td></tr>
+  <tr><td>Test-time compute</td><td>Extra computation spent during inference, such as longer scratchpads, more samples, or voting.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or central in the lecture</h4>
+<ol class="refs">
+  <li>Denny Zhou, CS25 V5 lecture. <strong>Large Language Model Reasoning.</strong> <a class="ref" href="https://www.youtube.com/watch?v=ebnX5Ur1hBk">video</a> — the source talk for this note.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">arXiv</a> — the core few-shot CoT result.</li>
+  <li>Kojima et al. (2022). <strong>Large Language Models are Zero-Shot Reasoners.</strong> <a class="ref" href="https://arxiv.org/abs/2205.11916">arXiv</a> — “Let's think step by step.”</li>
+  <li>Wang et al. (2022). <strong>Self-Consistency Improves Chain of Thought Reasoning in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.11171">arXiv</a> — majority voting over sampled reasoning paths.</li>
+  <li>Zhou et al. (2022). <strong>Least-to-Most Prompting Enables Complex Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2205.10625">arXiv</a> — easy-to-hard decomposition.</li>
+  <li>Wang and Zhou (2024). <strong>Chain-of-Thought Reasoning Without Prompting.</strong> <a class="ref" href="https://arxiv.org/abs/2402.10200">arXiv</a> — CoT-decoding and answer-confidence selection.</li>
+  <li>Li, Liu, Zhou, and Ma (2024). <strong>Chain of Thought Empowers Transformers to Solve Inherently Serial Problems.</strong> <a class="ref" href="https://arxiv.org/abs/2402.12875">arXiv</a> — theoretical framing for intermediate tokens as serial computation.</li>
+  <li>Zelikman et al. (2022). <strong>STaR: Bootstrapping Reasoning With Reasoning.</strong> <a class="ref" href="https://arxiv.org/abs/2203.14465">arXiv</a> — model-generated rationales and self-improvement.</li>
+  <li>Luong et al. (2024). <strong>ReFT: Reasoning with Reinforced Fine-Tuning.</strong> <a class="ref" href="https://arxiv.org/abs/2401.08967">arXiv</a> — reinforced fine-tuning for reasoning paths.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="13-emergent-abilities-scaling.html">Note 13</a> — emergence and why capabilities can appear abruptly with scale.</li>
+  <li><a class="ref" href="24-beyond-llms-agents-reasoning.html">Note 24</a> — guided reasoning, agents, and tool use before the V5 reasoning wave.</li>
+  <li><a class="ref" href="34-v5-overview.html">Note 34</a> — the V5 overview's framing of reasoning models and test-time compute.</li>
+  <li>Rich Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html">essay</a> — the scaling-and-learning lens Zhou invokes.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="36-advent-of-agi.html">◀ Previous · Advent of AGI</a>
+  <a class="r" href="38-biology-of-an-llm.html">Next · Biology of an LLM ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 37 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

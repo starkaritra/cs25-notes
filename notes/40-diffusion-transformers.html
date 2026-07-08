@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 40 — Transformers in Diffusion Models</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Diffusion in 60 seconds</a>
+  <a href="#s1a" class="sub">1.1 Forward noising</a>
+  <a href="#s1b" class="sub">1.2 Reverse denoising</a>
+  <a href="#s2">2 · Latent diffusion</a>
+  <a href="#s2a" class="sub">2.1 Why the latent canvas matters</a>
+  <a href="#s3">3 · Diffusion Transformers</a>
+  <a href="#s3a" class="sub">3.1 Patchify noisy latents</a>
+  <a href="#s3b" class="sub">3.2 adaLN conditioning</a>
+  <a href="#s3c" class="sub">3.3 Scaling behavior</a>
+  <a href="#s4">4 · Conditioning &amp; guidance</a>
+  <a href="#s4a" class="sub">4.1 Text, cross-attention, MMDiT</a>
+  <a href="#s5">5 · Beyond images &amp; limits</a>
+  <a href="#s5a" class="sub">5.1 Video, audio, controls</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 8 · Note 5 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>Transformers in Diffusion Models for Image Generation &amp; Beyond</h1>
+  <p class="lead">Diffusion models turn noise into images by many small denoising moves; DiT replaces the old U-Net denoiser with a transformer, making image, video, and other continuous generation scale like the rest of deep learning.</p>
+  <div class="meta">
+    <span class="pill">🎓 Sayak Paul</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=vXtapCFctTI" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>For a decade, the best image generators were full of image-specific machinery: convolutions, U-Nets, up/down paths, skip connections, custom blocks. Sayak Paul’s lecture argues that the center of gravity has shifted: if we can express a noisy image as tokens, the same transformer scaling playbook that worked for language and vision classification can now power <strong>generation</strong> too — from Stable Diffusion 3 to Sora-like video systems.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of diffusion as a restoration studio. The forward process slowly covers a clean painting with layers of static. The reverse model is the restorer: at each visit it removes a tiny, context-aware layer of static. A DiT is a restorer who does not look through a convolutional stencil; it cuts the canvas into patches, lets every patch talk to every other patch, and uses the prompt plus timestep as the work order.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow this note smoothly if these are fresh. Each is one line; skim, and jump if anything feels shaky.</p>
+  <ul>
+    <li><strong>Gaussian noise</strong> — random values from a bell curve; diffusion deliberately adds this noise so generation can be learned as denoising.</li>
+    <li><strong>ViT patchify</strong> — split an image into fixed-size patches and treat them as tokens; DiT reuses this idea on noisy image latents, building on <a class="ref" href="BP5CM0YxbP8.html">Note 4 on Vision Transformers</a>.</li>
+    <li><strong>Transformer block</strong> — LayerNorm, self-attention, MLP, and residual connections; DiT keeps this familiar backbone.</li>
+    <li><strong>VAE / latent space</strong> — an encoder compresses pixels into a smaller continuous grid and a decoder expands it back; Stable Diffusion does denoising in this cheaper latent canvas.</li>
+    <li><strong>LayerNorm</strong> — normalizes each token’s features; adaptive LayerNorm lets timestep/text/class conditions scale and shift those features.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Diffusion in 60 seconds: generation as repeated repair</h2>
+<p>Start with one real image of a cat. If we add a little noise, it is still recognizably a cat. Add more noise, and only a fuzzy silhouette remains. Add enough, and the image becomes pure static. Diffusion training uses that artificial destruction process to create unlimited supervised examples: “Here is a corrupted image at timestep \(t\); predict the noise that corrupted it.”</p>
+
+<h3 id="s1a">1.1 Forward noising: deliberately destroy the sample</h3>
+<p>The <strong>forward process</strong> is fixed, not learned. It gradually mixes the clean data \(x_0\) with Gaussian noise \(\epsilon \sim \mathcal{N}(0,I)\). A schedule chooses how much clean signal remains at timestep \(t\).</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — closed-form noising</span>
+  <p>$$x_t=\sqrt{\bar\alpha_t}\,x_0+\sqrt{1-\bar\alpha_t}\,\epsilon$$</p>
+  <p>Here \(x_0\) is the clean image or latent, \(x_t\) is the noisy version at timestep \(t\), \(\epsilon\) is sampled Gaussian noise, and \(\bar\alpha_t\) is the remaining signal power. When \(\bar\alpha_t\) is high, the painting is still visible; when it is low, static dominates.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["clean image x0"] --> B["small noise<br/>early t"]
+    B --> C["heavy noise<br/>middle t"]
+    C --> D["almost Gaussian static<br/>late t"]
+</div>
+</figure>
+<figcaption>The forward path is easy because we choose it: it turns data into noise according to a schedule.</figcaption>
+
+<h3 id="s1b">1.2 Reverse denoising: learn the repair move</h3>
+<p>The neural net learns the reverse move. During training we sample a clean example, a timestep, and a noise vector, form \(x_t\), and ask the network \(\epsilon_\theta\) to predict the noise that was added. At inference, we start from pure noise and repeat that prediction/repair step until a sample appears.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — epsilon prediction objective</span>
+  <p>$$\mathcal{L}=\mathbb{E}_{x_0,\epsilon,t}\big[\lVert \epsilon - \epsilon_\theta(x_t, t)\rVert^2\big]$$</p>
+  <p>The target is not “draw a cat in one shot.” The target is smaller: given the current static-covered canvas \(x_t\) and timestep \(t\), predict the noise \(\epsilon\) so the sampler can step toward the clean data manifold.</p>
+</div>
+<div class="box intuition">
+  <span class="lbl">Why this works</span>
+  <p>One enormous generation problem becomes many local correction problems. The restorer does not need to imagine the whole painting from scratch; each pass asks, “what noise should I remove from this partially restored canvas?”</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why does the model need the timestep?</summary>
+<p>The same-looking amount of pixel variation can mean different things at different noise levels. The timestep tells the model where it is on the destruction/repair trajectory: early steps remove coarse static from near-noise, late steps make smaller high-frequency corrections.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Latent diffusion: restore a compressed canvas first</h2>
+<p>Running the full denoising loop directly on pixels is expensive. Stable Diffusion’s key engineering move is to compress the image into a smaller continuous latent grid with a VAE, denoise there, and decode only at the end.</p>
+
+<h3 id="s2a">2.1 Why the latent canvas matters</h3>
+<p>If an image is \(512\times512\times3\), the pixel canvas has hundreds of thousands of values. A latent might be \(64\times64\times4\): still spatial, still continuous, but far cheaper. Sayak emphasized that modern state-of-the-art systems are usually latent-space systems because pixel-space diffusion is computationally prohibitive.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["text prompt"] --> B["text encoder<br/>CLIP, T5, or LLM"]
+    C["Gaussian noise latent<br/>h x w x c"] --> D["core denoiser<br/>U-Net or DiT"]
+    E["timestep<br/>scheduler"] --> D
+    B --> D
+    D --> F["refined latent"]
+    F --> G["VAE decoder"]
+    G --> H["image"]
+</div>
+</figure>
+<figcaption>A modern text-to-image system is a loop around a core denoiser, with text, timestep, and noisy latent as inputs.</figcaption>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Latent diffusion ignores pixels.” Not quite. The VAE still learns a pixel-to-latent-to-pixel representation; the diffusion model simply performs the expensive iterative part in a smaller coordinate system. The restorer works on a thumbnail blueprint, then the decoder paints the final full-resolution canvas.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what has to have the same shape in a standard epsilon-prediction denoiser?</summary>
+<p>The denoiser’s input noisy latent and output predicted noise usually have the same latent shape, because the model predicts one noise value for each latent value it wants the sampler to correct.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Diffusion Transformer: replace the U-Net restorer</h2>
+<p>Early diffusion systems used large U-Nets: convolutional downsampling blocks, middle blocks, upsampling blocks, skip connections, and inserted attention modules. They worked, but they were visually and conceptually heavy. DiT asks a cleaner question: if a noisy latent is a grid, why not patchify it into tokens and run a standard transformer?</p>
+
+<h3 id="s3a">3.1 Patchify noisy latents, like ViT</h3>
+<p>DiT takes a noisy latent \(x_t\in\mathbb{R}^{H_l\times W_l\times C}\), cuts it into \(P\times P\) patches, linearly projects each patch to hidden width \(d\), adds positional embeddings, and processes the resulting token sequence. The number of tokens is</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — latent patches become tokens</span>
+  <p>$$N=\frac{H_l}{P}\cdot\frac{W_l}{P},\qquad X\in\mathbb{R}^{N\times d}$$</p>
+  <p>\(H_l,W_l\) are latent height and width, \(P\) is patch size, \(N\) is token count, and \(d\) is transformer width. This is the same patchify move as ViT, but the tokens represent a noisy generative state rather than a clean classification image.</p>
+</div>
+
+<h3 id="s3b">3.2 adaLN: inject timestep and conditioning without a giant detour</h3>
+<p>The DiT must know both <em>where</em> it is in the denoising trajectory and <em>what</em> it is supposed to generate. For class-conditional DiT, the timestep embedding and class embedding are summed into a conditioning vector \(c\). Instead of cross-attending to that small vector, DiT uses <strong>adaptive LayerNorm</strong>: \(c\) produces scale, shift, and sometimes gate parameters inside each transformer block.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — adaptive LayerNorm modulation</span>
+  <p>$$\operatorname{adaLN}(h;c)=\gamma(c)\odot \operatorname{LN}(h)+\beta(c)$$</p>
+  <p>\(h\) is a token feature vector, \(\operatorname{LN}\) is ordinary LayerNorm, and \(\gamma(c),\beta(c)\) are condition-dependent scale and shift vectors. In the restoration analogy, the work order does not become another patch; it changes how every restoration step is normalized and applied.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    X["noisy latent patches<br/>N x d"] --> LN1["LayerNorm"]
+    C["timestep + class or text condition<br/>c"] --> M["modulation MLP or table<br/>scale, shift, gate"]
+    M --> LN1
+    LN1 --> SA["self-attention<br/>patches talk globally"]
+    SA --> R1["residual add"]
+    R1 --> LN2["LayerNorm"]
+    M --> LN2
+    LN2 --> FFN["MLP"]
+    FFN --> R2["residual add"]
+    R2 --> Y["updated noisy-latent tokens<br/>N x d"]
+</div>
+</figure>
+<figcaption>A DiT block keeps the familiar transformer skeleton, while adaLN lets timestep and condition steer normalization and residual strength.</figcaption>
+
+<h3 id="s3c">3.3 Scaling behavior: more DiT compute buys better samples</h3>
+<p>The original DiT result was important not only because it was elegant, but because it scaled: as model size and Gflops increased, FID decreased and images improved. That is the strategic reason transformers matter here. The field gets to reuse a well-understood scaling machine instead of hand-designing ever-larger U-Nets.</p>
+<table>
+  <tr><th>Scaling knob</th><th>Observed effect</th><th>Learning meaning</th></tr>
+  <tr><td>More blocks / width</td><td>More Gflops per denoising call</td><td>More capacity for global patch interactions.</td></tr>
+  <tr><td>Better denoiser</td><td>Lower FID in the DiT scaling curves</td><td>Generated images move closer to the real-image feature distribution.</td></tr>
+  <tr><td>Transformer backbone</td><td>Predictable scaling trend</td><td>The image generator can benefit from the same architecture improvements as other transformer systems.</td></tr>
+</table>
+<div class="box eqn">
+  <span class="lbl">Compute warning — attention sees all patches</span>
+  <p>$$\text{self-attention cost}\;\approx\;O(N^2d)$$</p>
+  <p>This quadratic token cost is the price of global patch interaction. It is manageable for compressed latents and moderate resolutions, but becomes painful for 4K images or video spacetime tokens.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is DiT more than “ViT copied into diffusion”?</summary>
+<p>It reuses ViT patch tokens and transformer blocks, but it must also predict noise, condition on timestep, preserve the input/output latent shape, and inject class/text guidance through mechanisms such as adaLN or cross-/joint-attention.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>Conditioning &amp; guidance: telling the restorer what to reveal</h2>
+<p>An unconditional denoiser learns “make this look like data.” A useful generator needs “make this look like <em>this prompt</em>.” Sayak’s lecture moved from simple class conditioning to text encoders, PixArt-alpha, Stable Diffusion 3’s MMDiT, and later simplifications.</p>
+
+<h3 id="s4a">4.1 Text conditioning: cross-attention, MMDiT, and multiple text encoders</h3>
+<p>For natural language, a class embedding is not enough. PixArt-alpha uses a text encoder and cross-attention so noisy latent tokens can attend to text tokens. Stable Diffusion 3 uses a multimodal DiT variant: image and text tokens get separate projections, then co-evolve in a joint attention space. The lecture’s practical point: diverse text encoders such as CLIP and T5 can give the denoiser complementary prompt representations, which helps prompt following and text rendering.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P["prompt tokens"] --> TE["text encoders<br/>CLIP, T5, or LLM"]
+    TE --> TX["text embeddings"]
+    X["noisy latent patches"] --> SA["latent self-attention"]
+    TX --> CA["cross-attention or joint attention"]
+    SA --> CA
+    T["timestep embedding"] --> ALN["adaLN modulation"]
+    ALN --> CA
+    CA --> E["predicted noise conditioned on prompt"]
+</div>
+</figure>
+<figcaption>Text-to-image DiTs combine a denoising state, a timestep, and text representations; architectures differ in whether text enters by cross-attention, adaLN, or joint multimodal attention.</figcaption>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — classifier-free guidance</span>
+  <p>$$\hat\epsilon=\epsilon_\theta(x_t,t,\varnothing)+w\big(\epsilon_\theta(x_t,t,c)-\epsilon_\theta(x_t,t,\varnothing)\big)$$</p>
+  <p>\(\epsilon_\theta(x_t,t,c)\) is the conditional noise prediction, \(\epsilon_\theta(x_t,t,\varnothing)\) is the unconditional prediction, and \(w\) is guidance strength. Larger \(w\) pushes harder toward the prompt, but too much can reduce realism or diversity.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“More guidance always means a better prompt match.” Guidance is a steering knob, not truth serum. Past a point, the restorer over-obeys the work order and can create oversaturated, brittle, or less diverse images.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why did Sayak say multiple text encoders may help?</summary>
+<p>They can supply diverse representations of the same prompt: CLIP contributes contrastive image-text alignment, while T5 or an LLM contributes richer language structure and longer prompt handling. The lecture notes that this is a strong empirical belief rather than a fully settled systematic law.</p></details>
+
+<!-- ================= SECTION 5 ================= -->
+<h2 id="s5"><span class="num">5.</span>Beyond images: spacetime patches, controls, and limits</h2>
+<p>Once generation is “tokens plus denoising,” the recipe generalizes. Audio can be represented as continuous latent tokens. Video can be represented as spacetime patches. Structural controls such as pose, depth, or segmentation can be added by adapters, ControlNet-style auxiliary networks, or extra input channels in DiT-like backbones.</p>
+
+<h3 id="s5a">5.1 Video and other continuous modalities</h3>
+<p>OpenAI describes Sora as a diffusion transformer trained on spacetime patches: instead of patchifying only height and width, the model tokenizes across time as well. The idea is powerful but costly: video adds a temporal axis, so full attention becomes a 3D dependency problem. Sayak emphasized that factorized shortcuts are not automatically enough when temporal consistency and cinematic realism matter.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["image DiT<br/>2D latent patches"] --> B["video DiT<br/>space-time patches"]
+    B --> C["more tokens<br/>higher attention cost"]
+    C --> D["efficiency pressure<br/>linear attention, compression, distillation"]
+    D --> E["applications<br/>video, audio, robotics, gene synthesis"]
+</div>
+</figure>
+<figcaption>The same denoising-transformer idea extends beyond images, but each added axis makes token count and evaluation harder.</figcaption>
+
+<div class="box intuition">
+  <span class="lbl">Where the frontier is moving</span>
+  <p>Recent systems explore flow matching, linear attention, MMDiT variants, parameter sharing, stronger text encoders, and hybrid LLM/image architectures. The common thread is simplification under scale: keep the transformer core, then reduce the cost of making enough denoising steps over enough tokens.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Limitations to keep honest</span>
+  <p>Diffusion is sequential, so sampling can be slow; distillation and flow-matching try to reduce the number of steps. Training and inference are compute-hungry. Metrics such as FID, preference scores, compositionality tests, and human evaluation each see only part of image quality. And interpretability of these generative transformers remains difficult.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why can GANs still matter if diffusion quality is high?</summary>
+<p>Diffusion usually needs many denoising steps, while GANs generate in one shot. For ultra-real-time or narrow well-curated domains, a GAN or GAN-assisted distillation objective can still be useful despite GAN failure modes such as mode collapse.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">6.</span>Worked example — one denoising formula by hand</h2>
+<p>Numbers make the forward process concrete. Use a single scalar “pixel” or latent coordinate. Let the clean value be \(x_0=1.0\), choose a timestep with \(\bar\alpha_t=0.36\), and sample noise \(\epsilon=0.5\).</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>First compute the square roots:</p>
+  <p>$$\sqrt{\bar\alpha_t}=\sqrt{0.36}=0.6,\qquad \sqrt{1-\bar\alpha_t}=\sqrt{0.64}=0.8$$</p>
+  <p>Now apply the forward-noise formula:</p>
+  <p>$$x_t=0.6\cdot 1.0+0.8\cdot 0.5=0.6+0.4=1.0$$</p>
+  <p>At this timestep, the noisy value happens to equal the original scalar, but it is now a mixture: 60% clean-signal coefficient and 80% noise coefficient times the sampled noise. If the model predicts the noise perfectly, \(\epsilon_\theta=0.5\), we can estimate the clean value:</p>
+  <p>$$\hat{x}_0=\frac{x_t-\sqrt{1-\bar\alpha_t}\,\epsilon_\theta}{\sqrt{\bar\alpha_t}}=\frac{1.0-0.8\cdot0.5}{0.6}=\frac{0.6}{0.6}=1.0$$</p>
+  <p>If it predicts \(0.45\) instead, the estimate becomes \((1.0-0.8\cdot0.45)/0.6\approx1.067\), so noise-prediction error turns into reconstruction error.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what does \(\bar\alpha_t\to 0\) mean?</summary>
+<p>The clean-signal coefficient \(\sqrt{\bar\alpha_t}\) goes to 0, while the noise coefficient \(\sqrt{1-\bar\alpha_t}\) goes to 1. The state becomes almost pure Gaussian noise: the painting is fully covered by static.</p></details>
+<details class="check"><summary>✓ Check yourself — redo the recovery if \(\epsilon_\theta=0.25\)</summary>
+<p>Use \(\hat{x}_0=(1.0-0.8\cdot0.25)/0.6=(1.0-0.2)/0.6=0.8/0.6\approx1.333\). Under-predicting the noise leaves too much noise in the “clean” estimate.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one DiT image generation run</h2>
+<p>Now follow one text-to-image sample through the whole pipeline. The concrete prompt could be “tiny astronaut hatching from an egg on the moon,” one of the playful examples Sayak used to motivate text-to-image generation.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · pure noise latent</td><td>Sample an initial latent from a Gaussian distribution.</td><td class="tt">h×w×c</td></tr>
+  <tr><td>1 · patchify</td><td>Split the noisy latent grid into patches and project each patch to transformer width.</td><td class="tt">N×d</td></tr>
+  <tr><td>2 · add conditions</td><td>Add positional embeddings; compute timestep embedding and text conditioning from the prompt.</td><td class="tt">N×d + timestep + text cond</td></tr>
+  <tr><td>3 · DiT blocks</td><td>Self-attention mixes latent patches while adaLN, cross-attention, or joint attention injects conditioning.</td><td class="tt">N×d</td></tr>
+  <tr><td>4 · predict noise</td><td>The final layer unpatchifies a prediction of the noise in the current latent.</td><td class="tt">h×w×c</td></tr>
+  <tr><td>5 · denoise one step</td><td>The scheduler uses the predicted noise to move from \(x_t\) toward \(x_{t-1}\).</td><td class="tt">h×w×c</td></tr>
+  <tr><td>6 · repeat T steps</td><td>Run the same denoiser sequentially across the sampling schedule.</td><td class="tt">h×w×c</td></tr>
+  <tr><td>7 · VAE decode</td><td>Decode the final latent into pixels.</td><td class="tt">H×W×3 image</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Iterative denoising trades one hard generation leap for many smaller repair steps. The model repeatedly asks “what static should be removed now?” rather than “what entire image should appear?” That is why the process is slower than one-shot generation but often easier to train to high fidelity.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where does Note 4’s ViT patch idea reappear in this trace?</summary>
+<p>At Step 1: the noisy latent grid is split into patches and projected to tokens. The difference is the goal: ViT classifies or represents an image, while DiT predicts denoising updates for a generative sampler.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is diffusion training a supervised denoising problem rather than a direct “draw an image” problem? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What does \(\bar\alpha_t\) control in the forward equation, and what happens as it approaches zero? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why does latent diffusion make Stable Diffusion-style systems cheaper than pixel diffusion? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How does DiT reuse ViT patchification while changing the task and conditioning? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why is classifier-free guidance a tradeoff rather than a free improvement? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Teach it back: explain Diffusion Transformers to a beginner using the restoration-studio analogy in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Diffusion model</td><td>A generative model trained to reverse a gradual noising process, usually by predicting noise at many timesteps.</td></tr>
+  <tr><td>Forward process</td><td>The fixed corruption process that mixes clean data with Gaussian noise.</td></tr>
+  <tr><td>Reverse process</td><td>The learned denoising process that turns noise back into data step by step.</td></tr>
+  <tr><td>\(\bar\alpha_t\)</td><td>The schedule term measuring how much clean signal remains at timestep \(t\).</td></tr>
+  <tr><td>Latent diffusion</td><td>Denoising in a compressed VAE latent space instead of directly in pixel space.</td></tr>
+  <tr><td>DiT</td><td>Diffusion Transformer: a transformer denoiser that patchifies noisy latents and predicts noise.</td></tr>
+  <tr><td>adaLN</td><td>Adaptive LayerNorm: condition-dependent scale/shift/gate parameters that steer transformer blocks.</td></tr>
+  <tr><td>Classifier-free guidance</td><td>A sampling trick that combines conditional and unconditional predictions to strengthen prompt adherence.</td></tr>
+  <tr><td>MMDiT</td><td>Multimodal DiT: a joint text-image diffusion transformer design used in Stable Diffusion 3.</td></tr>
+  <tr><td>FID</td><td>Fréchet Inception Distance, an image-generation metric comparing generated and real image feature distributions.</td></tr>
+  <tr><td>Flow matching</td><td>A related generative training approach that learns a velocity field along a path from noise to data, often enabling straighter sampling trajectories.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Sayak Paul (CS25, 2025). <strong>Transformers in Diffusion Models.</strong> <a class="ref" href="https://www.youtube.com/watch?v=vXtapCFctTI">lecture video</a> — source lecture for this note.</li>
+  <li>Ho, Jain &amp; Abbeel (2020). <strong>Denoising Diffusion Probabilistic Models.</strong> <a class="ref" href="https://arxiv.org/abs/2006.11239">arXiv</a> — classic DDPM formulation of iterative denoising.</li>
+  <li>Rombach et al. (2022). <strong>High-Resolution Image Synthesis with Latent Diffusion Models.</strong> <a class="ref" href="https://arxiv.org/abs/2112.10752">arXiv</a> — latent diffusion foundation behind Stable Diffusion.</li>
+  <li>Peebles &amp; Xie (2023). <strong>Scalable Diffusion Models with Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2212.09748">arXiv</a> — the DiT paper: patchified latents, adaLN, and scaling results.</li>
+  <li>Ho &amp; Salimans (2022). <strong>Classifier-Free Diffusion Guidance.</strong> <a class="ref" href="https://arxiv.org/abs/2207.12598">arXiv</a> — guidance without a separate classifier.</li>
+  <li>Chen et al. (2023). <strong>PixArt-α: Fast Training of Diffusion Transformer for Photorealistic Text-to-Image Synthesis.</strong> <a class="ref" href="https://arxiv.org/abs/2310.00426">arXiv</a> — early text-to-image DiT with a strong text encoder.</li>
+  <li>Esser et al. (2024). <strong>Scaling Rectified Flow Transformers for High-Resolution Image Synthesis.</strong> <a class="ref" href="https://arxiv.org/abs/2403.03206">arXiv</a> — Stable Diffusion 3 and MMDiT.</li>
+  <li>OpenAI (2024). <strong>Video generation models as world simulators.</strong> <a class="ref" href="https://openai.com/index/video-generation-models-as-world-simulators/">technical report</a> — Sora as a diffusion transformer over spacetime patches.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Hugging Face. <strong>Diffusers documentation.</strong> <a class="ref" href="https://huggingface.co/docs/diffusers/index">docs</a> — practical implementations of many architectures named in the lecture.</li>
+  <li>Meta FAIR. <strong>Flow Matching Guide and Code.</strong> <a class="ref" href="https://github.com/facebookresearch/flow_matching">code</a> — a concrete entry point for flow-matching-style generative modeling.</li>
+  <li>Xie et al. (2024). <strong>SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2410.10629">arXiv</a> — linear-attention DiT direction for high-resolution efficiency.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="39-world-models-drug-discovery.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 Transformers United — study notes · Note 40 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Rendering requires an internet connection for MathJax, Mermaid, and Google Fonts CDNs. Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>
+

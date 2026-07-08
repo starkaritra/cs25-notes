@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 49 — Serving Transformers: Lessons from the Trenches</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The serving mindset</a>
+  <a href="#s1a" class="sub">1.1 Workloads and SLOs</a>
+  <a href="#s2">2 · Prefill vs decode</a>
+  <a href="#s2a" class="sub">2.1 Why the phases bottleneck differently</a>
+  <a href="#s3">3 · KV-cache: the hidden bill</a>
+  <a href="#s3a" class="sub">3.1 Paging and batching</a>
+  <a href="#s4">4 · Techniques that move the curve</a>
+  <a href="#s4a" class="sub">4.1 Speculation, quantization, parallelism</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 10 · Note 4 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>Serving Transformers: Lessons from the Trenches</h1>
+  <p class="lead">Training gets the glory, but serving is where latency, cost, utilization, and user experience are decided.</p>
+  <div class="meta">
+    <span class="pill">🎓 Charles Frye · Modal</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=ZUdIsRZhWXI" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>The lecture’s thesis is sharp: model weights do not become value until people can use them. That use happens through inference servers, and the server decides the actual experience: how long until the first token appears, how smoothly tokens stream, how many users fit on one GPU, and how many dollars each million tokens costs.</p>
+  <p>The dangerous misconception is <strong>“inference is just a forward pass, easy.”</strong> Autoregressive serving is a queueing, memory-management, scheduling, and hardware-utilization problem wrapped around a neural network.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of an LLM server as a busy restaurant. <strong>Prefill</strong> is reading a whole table’s order and prepping ingredients in one burst. <strong>Decode</strong> is plating one bite at a time for many tables. The kitchen is expensive, so the goal is not “cook one dish beautifully”; it is keep the stoves hot, the pantry organized, and every diner served before they get annoyed.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow the note smoothly if these are fresh. For deeper background, connect this to transformer attention from Notes 1 and the efficient-sequence tradeoffs in Note 44.</p>
+  <ul>
+    <li><strong>Autoregressive decoding</strong> — the model emits one next token, appends it to the context, then repeats; serving cost scales with both prompt and generated length.</li>
+    <li><strong>Attention &amp; KV-cache</strong> — attention needs previous keys and values; caching them avoids recomputing the whole past at every generated token.</li>
+    <li><strong>Compute-bound vs bandwidth-bound</strong> — a compute-bound step waits on FLOPs; a bandwidth-bound step waits on moving bytes from GPU memory to compute units.</li>
+    <li><strong>Batching</strong> — grouping requests lets the GPU do larger matrix operations, but larger batches can increase per-user latency.</li>
+    <li><strong>Quantization</strong> — using fewer bits per value, such as int8, int4, or fp8, reduces memory traffic and capacity pressure, sometimes with quality loss.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The serving mindset: workloads before kernels</h2>
+<p>Charles frames inference engineering from the application backward. A chatbot, a background coding agent, and a bulk document processor all call language models, but they impose different constraints. The chatbot needs smooth interaction; the background agent tolerates seconds or minutes; the data processor wants maximum tokens per dollar.</p>
+
+<h3 id="s1a">1.1 Workloads and SLOs</h3>
+<p>A serving team first defines the workload: queries per second, input-token distribution, output-token distribution, prefix reuse, peak-to-average traffic ratio, and latency budget. Then it reasons per replica: how much can one engine on one machine handle before adding more replicas?</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — user-facing latency</span>
+  <p>$$T_{\text{last}} \approx T_{\text{queue}} + T_{\text{TTFT}} + N_{\text{out}}\,T_{\text{TPOT}}$$</p>
+  <p>
+    Here, \(T_{\text{TTFT}}\) is time to first token, \(T_{\text{TPOT}}\) is time per output token, and \(N_{\text{out}}\) is generated length. Tool calls and network hops add more terms, which is why production traces matter.
+  </p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Application archetype"] --> B["Workload shape<br/>QPS, input, output, prefix reuse"]
+    B --> C["SLOs<br/>TTFT, TPOT, TTLT, errors, cost"]
+    C --> D["One-replica benchmark"]
+    D --> E["Scale replicas<br/>route, autoscale, observe"]
+</div>
+<figcaption>Serving design starts with the promised experience, then maps that promise to replica capacity.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Throughput is the only number that matters.”</strong> Aggregate tokens/s can look excellent while a user sees stuttering tokens. For interactive systems, tail TTFT and TPOT are part of the product.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which metric matters most for a ChatGPT-like UI?</summary>
+<p>Mostly per-user output tokens per second after a low TTFT. Aggregate throughput matters for cost, but the felt experience is whether the first token arrives soon and the stream does not stall.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The two phases of autoregressive inference</h2>
+<p>One prompt such as “Explain PagedAttention” creates two very different hardware workloads. First, the server processes the full prompt in parallel. Then it enters a loop: sample one token, append it, sample one token, append it. This asymmetry drives most modern serving systems.</p>
+
+<h3 id="s2a">2.1 Why the phases bottleneck differently</h3>
+<p><strong>Prefill</strong> sees many prompt tokens at once, so it can use large matrix-matrix operations and tends to be compute-bound. <strong>Decode</strong> has only one new query token per sequence per step; it repeatedly streams weights and KV-cache from memory, so it tends to be memory-bandwidth-bound.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — arithmetic intensity</span>
+  <p>$$I = \frac{\text{operations}}{\text{bytes moved}}$$</p>
+  <p>High \(I\) means the GPU can be limited by math throughput; low \(I\) means the GPU waits on memory bandwidth. Decode often has very low \(I\), so expensive tensor cores can sit underused unless batching or speculation increases useful work per byte.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph P["Prefill: prompt phase"]
+      P1["Input tokens<br/>many at once"] --> P2["Transformer forward<br/>parallel over prompt"] --> P3["Fill KV-cache"]
+    end
+    subgraph D["Decode: generation phase"]
+      D1["One new token step"] --> D2["Read weights + past KV"] --> D3["Sample token"] --> D4["Append KV"] --> D1
+    end
+    P3 --> D1
+</div>
+<figcaption>Prefill is a big parallel prep burst; decode is the repeated one-token serving loop.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why can prefill be faster per token than decode?</summary>
+<p>Prefill processes many tokens together, turning work into large dense matrix operations. Decode handles only the next token for each active request, so each step has less compute per byte loaded from GPU memory.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The KV-cache: the hidden bill behind long context</h2>
+<p>Without caching, token 2,000 would recompute attention over tokens 1 through 1,999 every time a new token is generated. So servers store every layer’s previous keys and values. That cache is essential, but it grows with sequence length and batch size.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — KV-cache size</span>
+  <p>$$\text{KV bytes} \approx 2 \times L \times H \times d_h \times S \times B \times \text{bytes}$$</p>
+  <p>
+    The factor 2 is for keys and values. \(L\) is layer count, \(H\) attention heads, \(d_h\) head dimension, \(S\) sequence length, \(B\) active batch size, and \(\text{bytes}\) is storage precision such as 2 bytes for fp16/bf16.
+  </p>
+</div>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 290" width="100%" height="290" role="img" aria-label="KV cache pages schematic">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1b1f24"></path>
+    </marker>
+  </defs>
+  <rect x="18" y="26" width="210" height="62" rx="12" fill="#ffffff" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="34" y="63" fill="#1b1f24" font-size="18" font-weight="700">Request A: 2,048 tokens</text>
+  <rect x="18" y="112" width="210" height="62" rx="12" fill="#ffffff" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="34" y="149" fill="#1b1f24" font-size="18" font-weight="700">Request B: 37 tokens</text>
+  <rect x="18" y="198" width="210" height="62" rx="12" fill="#ffffff" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="34" y="235" fill="#1b1f24" font-size="18" font-weight="700">Request C: 711 tokens</text>
+  <line x1="240" y1="57" x2="342" y2="57" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"></line>
+  <line x1="240" y1="143" x2="342" y2="143" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"></line>
+  <line x1="240" y1="229" x2="342" y2="229" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"></line>
+  <text x="365" y="34" fill="#1b1f24" font-size="18" font-weight="700">Paged KV memory</text>
+  <g transform="translate(350,50)">
+    <rect width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="62" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="124" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="186" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="248" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect>
+    <rect y="54" width="58" height="42" fill="#f4e8ff" stroke="#7b4fc7"></rect><rect x="62" y="54" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="124" y="54" width="58" height="42" fill="#fff8d8" stroke="#a06d00"></rect><rect x="186" y="54" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="248" y="54" width="58" height="42" fill="#fff8d8" stroke="#a06d00"></rect>
+    <rect y="108" width="58" height="42" fill="#fff8d8" stroke="#a06d00"></rect><rect x="62" y="108" width="58" height="42" fill="#f4e8ff" stroke="#7b4fc7"></rect><rect x="124" y="108" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect><rect x="186" y="108" width="58" height="42" fill="#f4e8ff" stroke="#7b4fc7"></rect><rect x="248" y="108" width="58" height="42" fill="#e7f0ff" stroke="#2f6df6"></rect>
+    <text x="20" y="175" fill="#1b1f24" font-size="14">Fixed-size pages; each request owns only pages it needs.</text>
+  </g>
+</svg>
+</div>
+<figcaption>PagedAttention treats KV-cache memory like virtual memory pages, reducing waste from variable sequence lengths.</figcaption>
+</figure>
+
+<h3 id="s3a">3.1 Paging and batching</h3>
+<p>Variable prompts and outputs make static allocation wasteful: one short request may reserve a long-request-sized slab. <strong>PagedAttention</strong>, popularized by <strong>vLLM</strong>, stores KV blocks in fixed-size pages and maps each sequence to the pages it actually uses. <strong>Continuous batching</strong> then lets the scheduler add new requests and remove finished requests at each decode step instead of freezing a batch until every sequence ends.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Static batch<br/>wait for all to finish"] --> B["Padding + fragmentation<br/>idle slots"]
+    C["Continuous batch<br/>admit/evict every step"] --> D["Higher utilization<br/>but scheduler complexity"]
+    E["PagedAttention<br/>KV pages not slabs"] --> F["Less memory waste<br/>larger effective batch"]
+</div>
+<figcaption>Modern LLM serving is as much memory scheduling as neural-network math.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why do long-context workloads hurt batch size?</summary>
+<p>Each active token position needs KV entries in every layer. Longer contexts consume more KV memory, leaving less HBM for other simultaneous requests even if model weights already fit.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Techniques that move the throughput–latency curve</h2>
+<p>A serving system is usually tuning a curve: more batching improves tokens/s and cost/token, but can hurt per-user latency. The techniques below either reduce bytes moved, increase useful work per step, or make the scheduler waste less GPU time.</p>
+
+<h3 id="s4a">4.1 Speculation, quantization, parallelism</h3>
+<ul>
+  <li><strong>Speculative decoding</strong> — a small draft model proposes several tokens; the large target model verifies them. Accepted runs reduce the number of expensive target-model decode steps.</li>
+  <li><strong>Quantization</strong> — int8, int4, fp8, or fp4 weights/KV reduce capacity and bandwidth pressure; application evals must verify quality, especially for long sequences.</li>
+  <li><strong>FlashAttention</strong> — optimized attention kernels reduce memory movement during attention, especially important in prefill and long prompts.</li>
+  <li><strong>Tensor parallelism</strong> — split large models across GPUs so weights fit and memory bandwidth is pooled; communication overhead becomes the price.</li>
+  <li><strong>Prefix / KV caching</strong> — reuse previous prompt computations when many requests share a system prompt, document prefix, or agent trajectory.</li>
+  <li><strong>Observability and profiling</strong> — log TTFT, TPOT, queue time, cache hit rate, per-replica utilization, power, temperature, and token IDs. You cannot optimize what you cannot see.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — speculative speedup intuition</span>
+  <p>$$\text{effective target steps} \approx \frac{N_{\text{out}}}{1 + \mathbb{E}[A]}$$</p>
+  <p>If the verifier accepts an average of \(\mathbb{E}[A]\) extra draft tokens per target-model call, the big model runs fewer decode iterations. Real speedup also depends on draft-model cost, batching, and acceptance distribution.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    Q["Prompt + current KV"] --> S["Small draft model<br/>proposes k tokens"]
+    S --> V["Large model verifies<br/>one parallel pass"]
+    V --> A{"Accepted prefix?"}
+    A -- "yes" --> O["Emit multiple tokens"]
+    A -- "mismatch" --> R["Emit target token<br/>restart draft"]
+    O --> Q
+    R --> Q
+</div>
+<figcaption>Speculative decoding spends spare compute to reduce memory-bound target-model steps.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — when is speculative decoding most attractive?</summary>
+<p>When target-model decode is memory-bandwidth-bound and spare compute is available. A cheap, accurate draft model can turn one target-model call into multiple emitted tokens.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked micro-example — KV-cache size arithmetic</h2>
+<p>Now put numbers on the hidden bill. Consider a 7B-ish transformer with 32 layers, 32 heads, head dimension 128, and fp16 KV-cache storage at 2 bytes per number.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Per generated or prompt token, per active sequence:</p>
+  <p>$$
+  \begin{aligned}
+  \text{KV bytes/token}
+  &\approx 2 \times L \times H \times d_h \times \text{bytes} \\
+  &= 2 \times 32 \times 32 \times 128 \times 2 \\
+  &= 524{,}288\ \text{bytes} \\
+  &\approx 0.50\ \text{MiB/token}\quad(\text{about }0.52\ \text{MB/token}).
+  \end{aligned}
+  $$</p>
+  <p>Many back-of-the-envelope discussions round this to <strong>about 1 MB/token</strong> after implementation overheads or wider KV layouts. Using the lecture’s requested rough rule:</p>
+  <p>$$1.05\ \text{MB/token} \times 2048\ \text{tokens} \times 16\ \text{requests} \approx 34{,}400\ \text{MB} \approx 34\ \text{GB}.$$</p>
+  <p>That is only KV-cache. A 7B fp16 model’s weights are roughly \(7\times10^9\times2\approx14\) GB, so at long context and batch 16 the cache can dominate what limits batch size.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does halving precision to fp8 do?</summary>
+<p>It halves the bytes term from 2 to 1 byte, so the raw KV-cache estimate halves. The 34 GB rough estimate becomes about 17 GB, before allocator overheads and quality/accuracy considerations.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one request through an LLM server</h2>
+<p>Follow one user request, “Summarize this 2,048-token document,” through a vLLM-style server. The important state is not only text; it is queue position, KV-cache pages, and active decode batch membership.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Bottleneck</th></tr>
+  <tr><td>1 · request arrives</td><td>HTTP/gRPC request is accepted, tokenized, assigned an SLO budget, and placed into a scheduler queue.</td><td class="tt">Queueing + CPU tokenization</td></tr>
+  <tr><td>2 · prefill prompt</td><td>The model processes all prompt tokens in parallel and writes each layer’s keys and values into KV-cache pages.</td><td class="tt">Compute-bound; fills HBM</td></tr>
+  <tr><td>3 · first token</td><td>Logits are sampled; the first output token is streamed to the client. This determines TTFT.</td><td class="tt">Prefill time + queue delay</td></tr>
+  <tr><td>4 · decode loop</td><td>Each step reads weights and past KV, produces one token per active sequence, appends new KV, and joins a continuous batch with other requests.</td><td class="tt">Memory-bandwidth-bound</td></tr>
+  <tr><td>5 · stream tokens</td><td>Detokenized text is sent incrementally while the scheduler balances fairness, throughput, and latency tails.</td><td class="tt">TPOT + tail jitter</td></tr>
+  <tr><td>6 · finish and free</td><td>The request emits end-of-text or hits a limit; its KV-cache pages are returned to the free pool for new requests.</td><td class="tt">Memory reclamation</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Why decode is memory-bandwidth-bound</span>
+  <p>During decode, each active request contributes only one fresh query token, but the GPU must still stream model weights and read relevant KV-cache. That is like the restaurant plating one bite after walking through the whole pantry. Continuous batching adds more plates per trip; paging keeps pantry shelves from being wasted on empty space.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where do PagedAttention and continuous batching act in the trace?</summary>
+<p>PagedAttention acts when KV pages are allocated, appended, reused, and freed. Continuous batching acts inside the decode loop, where finished requests leave and newly prefilling/ready requests can enter between token steps.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory, then jump back if a link exposes a gap.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is the phrase “inference is just a forward pass” misleading? <a class="ref" href="#hook">(hook)</a></li>
+    <li>Explain prefill vs decode and name the bottleneck of each. <a class="ref" href="#s2">(§2)</a></li>
+    <li>Write the KV-cache formula and interpret every symbol. <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why can KV-cache, not model weights, limit batch size? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Choose one technique — PagedAttention, continuous batching, speculation, quantization, FlashAttention, tensor parallelism, or prefix caching — and say which bottleneck it attacks. <a class="ref" href="#s4">(§4)</a></li>
+    <li>Teach it back: describe an LLM server as a restaurant in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Prefill</td><td>Prompt-processing phase where many input tokens are processed together and KV-cache entries are created.</td></tr>
+  <tr><td>Decode</td><td>Autoregressive generation loop that produces one new token per active sequence per step.</td></tr>
+  <tr><td>KV-cache</td><td>Stored keys and values from previous tokens, used so attention does not recompute the whole past.</td></tr>
+  <tr><td>TTFT</td><td>Time to first token: delay before the user sees the first streamed output token.</td></tr>
+  <tr><td>TPOT</td><td>Time per output token: average or percentile spacing between generated tokens.</td></tr>
+  <tr><td>PagedAttention</td><td>vLLM’s virtual-memory-style method for storing KV-cache in pages to reduce fragmentation.</td></tr>
+  <tr><td>Continuous batching</td><td>Scheduler behavior that changes the active batch at each step as requests arrive or finish.</td></tr>
+  <tr><td>Speculative decoding</td><td>A fast draft model proposes tokens and a larger model verifies them to reduce large-model steps.</td></tr>
+  <tr><td>Quantization</td><td>Representing weights or cache values with fewer bits to reduce memory and bandwidth demand.</td></tr>
+  <tr><td>Tensor parallelism</td><td>Splitting a model’s matrix operations and weights across multiple GPUs.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly connected to the lecture</h4>
+<ol class="refs">
+  <li>Kwon et al. (2023). <strong>Efficient Memory Management for Large Language Model Serving with PagedAttention.</strong> <a class="ref" href="https://arxiv.org/abs/2309.06180">arXiv</a> — the vLLM/PagedAttention paper behind the paging analogy.</li>
+  <li>vLLM Project. <strong>vLLM documentation.</strong> <a class="ref" href="https://docs.vllm.ai/">docs</a> — practical engine docs for continuous batching, KV-cache management, and serving.</li>
+  <li>Zheng et al. (2024). <strong>SGLang: Efficient Execution of Structured Language Model Programs.</strong> <a class="ref" href="https://arxiv.org/abs/2312.07104">arXiv</a> — another major open-source serving engine discussed in the lecture.</li>
+  <li>Dao et al. (2022). <strong>FlashAttention: Fast and Memory-Efficient Exact Attention.</strong> <a class="ref" href="https://arxiv.org/abs/2205.14135">arXiv</a> — the attention-kernel line of work that reduces memory movement.</li>
+  <li>Leviathan, Kalman, and Matias (2023). <strong>Fast Inference from Transformers via Speculative Decoding.</strong> <a class="ref" href="https://arxiv.org/abs/2211.17192">arXiv</a> — core speculative decoding formulation.</li>
+  <li>Modal. <strong>GPU Glossary.</strong> <a class="ref" href="https://modal.com/gpu-glossary">guide</a> — Charles’s recommended vocabulary for GPU systems terms.</li>
+  <li>Modal. <strong>LLM Engineer’s Almanac.</strong> <a class="ref" href="https://modal.com/llm-almanac">guide</a> — workload and benchmarking framing referenced in the talk.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>NVIDIA. <strong>TensorRT-LLM documentation.</strong> <a class="ref" href="https://nvidia.github.io/TensorRT-LLM/">docs</a> — compiled serving stack and optimization reference.</li>
+  <li>Artificial Analysis. <strong>Model intelligence, speed, and price comparisons.</strong> <a class="ref" href="https://artificialanalysis.ai/">dashboard</a> — a live way to reason about capability/cost tradeoffs.</li>
+  <li>Hugging Face. <strong>Text Generation Inference.</strong> <a class="ref" href="https://huggingface.co/docs/text-generation-inference/index">docs</a> — another production serving stack with batching, quantization, and streaming concepts.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="48-generalization-parameters-context.html">◀ Previous: Generalization, Parameters, Context</a>
+  <a class="r" href="50-native-multimodal-intelligence.html">Next: Native Multimodal Intelligence ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 49 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

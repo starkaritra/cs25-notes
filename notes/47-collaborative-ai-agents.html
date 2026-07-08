@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 47 — Collaborative AI Agents for Science & Medicine</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The problem: expert workflows are long</a>
+  <a href="#s1a" class="sub">1.1 System 1 vs System 2</a>
+  <a href="#s2">2 · Collaborative agent architecture</a>
+  <a href="#s2a" class="sub">2.1 Co-scientist as a while loop</a>
+  <a href="#s3">3 · Science: propose → critique → refine</a>
+  <a href="#s3a" class="sub">3.1 Validation examples</a>
+  <a href="#s4">4 · Medicine: diagnostic and safety loops</a>
+  <a href="#s4a" class="sub">4.1 Why verification matters</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 10 · Note 2 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>Advancing Science and Medicine with Collaborative AI Agents</h1>
+  <p class="lead">Vivek Natarajan explains why hard scientific and medical work needs not a single chat response, but a collaborating team of agents that can search, debate, rank, verify, and hand useful uncertainty back to experts.</p>
+  <div class="meta">
+    <span class="pill">🎓 Vivek Natarajan · Google DeepMind</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=jFdH7n6BAl0" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A doctor diagnosing a patient, or a scientist chasing a disease mechanism, is not doing one next-token prediction. They read papers, form hypotheses, check constraints, ask a colleague, revise, design an experiment, and decide what is worth scarce lab or clinical attention. This lecture's central claim is that <strong>multi-agent LLM systems</strong> can mimic more of that long expert workflow than a single fast answer can.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a <strong>research lab meeting</strong>. One person proposes an idea, another pulls papers, a skeptic attacks weak links, a senior scientist ranks what is worth doing, and the PI keeps the goal grounded. Co-scientist-style systems turn that lab meeting into computation: agents play roles, share memory, use tools, and iterate until the proposal is stronger.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>LLM agent</strong> — an LLM wrapped in a loop that can plan, call tools, observe results, and update state; see <a class="ref" href="36-advent-of-agi.html">Note 36</a> for the agent framing.</li>
+    <li><strong>ReAct / tool use</strong> — interleave reasoning traces with actions such as search or code execution; see <a class="ref" href="24-beyond-llms-agents-reasoning.html">Note 24</a>.</li>
+    <li><strong>Retrieval</strong> — fetch relevant external evidence instead of relying only on parametric memory; see <a class="ref" href="25-retrieval-augmented-lms.html">Note 25</a>.</li>
+    <li><strong>Self-critique / verifier</strong> — use a separate pass to find unsupported claims, bad assumptions, or missing tests before finalizing an answer.</li>
+    <li><strong>Multi-agent orchestration</strong> — coordinate several specialized agents through a shared scratchpad, queue, memory, or controller.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The problem: expert workflows are long</h2>
+<p>The transcript begins with Med-PaLM and Med-PaLM 2, systems tuned for medical QA and summarization, then asks a harder question: could an LLM help generate a new biomedical hypothesis? Early PaLM-era scaffolds could retrieve literature and suggest genes for rare disease work, but hallucination made naive prompting unreliable. The project therefore shifted from “ask one model” to “build a structured thinking engine.”</p>
+
+<h3 id="s1a">1.1 System 1 vs System 2</h3>
+<p>Vivek frames ordinary chat-model answers as mostly <strong>System 1</strong>: fast, fluent, pattern-matching. Scientific discovery needs more <strong>System 2</strong>: slow, deliberate, skeptical, and willing to spend time. That is why the lecture repeatedly returns to <strong>test-time compute</strong>: more agents, more rounds, more retrieval, and more critique can buy better hypotheses when the search space is rich enough.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — useful progress from extra inference</span>
+  <p>$$\text{quality}(h_T) \approx f\big(\text{model},\ \text{evidence},\ \text{roles},\ T\big)$$</p>
+  <p>Here \(h_T\) is the best hypothesis after \(T\) agent rounds. The lecture's empirical bet is not that more compute always helps; it helps when evidence and critique let the system search a large hypothesis space intelligently.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Fast answer<br/>single LLM"] --> B["Surface correlations"]
+    C["Scientific work<br/>multi-agent loop"] --> D["Retrieve evidence"]
+    D --> E["Generate hypotheses"]
+    E --> F["Critique and rank"]
+    F --> G["Refine or stop"]
+    G --> D
+</div>
+<figcaption>Single-shot answers are useful, but long-horizon scientific reasoning needs an iterative loop.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If the base model is smart enough, roles are unnecessary.”</strong> The talk argues the opposite: even strong Gemini models are wrapped in roles because science is partly a coordination problem — generating, checking, ranking, and deciding are different cognitive jobs.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is AlphaFold both inspiring and insufficient for this lecture's goal?</summary>
+<p>It is inspiring because it solved a grand protein-structure problem at enormous scale. It is insufficient as the model for “scientific superintelligence” because it is specialized: sequence in, structure out. Co-scientist aims for generality: natural-language goals across many scientific tasks.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Collaborative agent architecture</h2>
+<p>The co-scientist system takes a scientist's natural-language research goal, optional constraints, ranking rubrics, seed directions, PDFs, and experimental data. It then runs a multi-agent computation and returns a research report: hypotheses, rankings, uncertainty, and suggested next validation steps.</p>
+
+<h3 id="s2a">2.1 Co-scientist as a while loop</h3>
+<p>Vivek describes the architecture as a computer program with a while loop. The loop has four recurring functions: <strong>generate</strong> ideas, <strong>review/critique</strong> them, <strong>rank/prioritize</strong> them through debates, and <strong>evolve</strong> them using feedback stored in memory.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    H["Human scientist<br/>goal + constraints + data"] --> M["Shared memory<br/>papers, debates, summaries"]
+    M --> G["Generation agents<br/>literature strategies + expert simulation"]
+    G --> R["Reflection agents<br/>review + uncertainty"]
+    R --> K["Ranking agent<br/>debate matches + Elo scores"]
+    K --> E["Evolution agents<br/>revise promising hypotheses"]
+    E --> M
+    K --> O["Research report<br/>prioritized hypotheses"]
+    O --> H
+</div>
+<figcaption>A collaborative multi-agent workflow: roles divide labor, but memory closes the feedback loop.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — debate ranking with Elo intuition</span>
+  <p>$$P(i \succ j)=\frac{1}{1+10^{(R_j-R_i)/400}}$$</p>
+  <p>\(R_i\) and \(R_j\) are ratings for hypotheses \(i\) and \(j\). After debate matches, hypotheses that repeatedly win under the scientist's rubric rise in priority. The exact implementation can differ, but the idea is tournament-style ranking of ideas.</p>
+</div>
+
+<figure>
+  <div class="svgcard">
+    <svg viewBox="0 0 760 300" role="img" aria-label="AI co-scientist lab meeting schematic" style="max-width:100%;height:auto">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#2b2721"/></marker>
+      </defs>
+      <rect x="20" y="30" width="150" height="80" rx="14" fill="#eef4ff" stroke="#2b2721" stroke-width="2"/>
+      <text x="95" y="62" text-anchor="middle" font-size="17" fill="#2b2721">Planner</text>
+      <text x="95" y="88" text-anchor="middle" font-size="13" fill="#2b2721">breaks goal</text>
+      <rect x="215" y="30" width="150" height="80" rx="14" fill="#f2edff" stroke="#2b2721" stroke-width="2"/>
+      <text x="290" y="62" text-anchor="middle" font-size="17" fill="#2b2721">Researcher</text>
+      <text x="290" y="88" text-anchor="middle" font-size="13" fill="#2b2721">retrieves papers</text>
+      <rect x="410" y="30" width="150" height="80" rx="14" fill="#eef9f0" stroke="#2b2721" stroke-width="2"/>
+      <text x="485" y="62" text-anchor="middle" font-size="17" fill="#2b2721">Solver</text>
+      <text x="485" y="88" text-anchor="middle" font-size="13" fill="#2b2721">drafts hypothesis</text>
+      <rect x="590" y="30" width="150" height="80" rx="14" fill="#fff4df" stroke="#2b2721" stroke-width="2"/>
+      <text x="665" y="62" text-anchor="middle" font-size="17" fill="#2b2721">Critic</text>
+      <text x="665" y="88" text-anchor="middle" font-size="13" fill="#2b2721">flags weak links</text>
+      <rect x="215" y="180" width="345" height="70" rx="16" fill="#ffffff" stroke="#2b2721" stroke-width="2"/>
+      <text x="388" y="209" text-anchor="middle" font-size="18" fill="#2b2721">Shared scratchpad / memory</text>
+      <text x="388" y="234" text-anchor="middle" font-size="13" fill="#2b2721">evidence · debate summaries · uncertainty · tool outputs</text>
+      <line x1="170" y1="70" x2="215" y2="70" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="365" y1="70" x2="410" y2="70" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="560" y1="70" x2="590" y2="70" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M665 110 C665 180, 560 210, 560 210" fill="none" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M215 210 C140 190, 95 130, 95 110" fill="none" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M388 180 C388 135, 485 126, 485 110" fill="none" stroke="#2b2721" stroke-width="2" marker-end="url(#arrow)"/>
+    </svg>
+  </div>
+<figcaption>The “lab meeting” analogy made concrete: agents pass artifacts, not vibes, through shared memory.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what does the ranking agent add beyond generating many good ideas?</summary>
+<p>Scientists are not short on ideas; they are short on time, attention, and validation budget. Ranking adds prioritization, uncertainty, and epistemic humility so the report can say what is worth reading or testing first.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Science: propose → critique → refine</h2>
+<p>The scientific part of the talk centers on <strong>AI co-scientist</strong>, a general-purpose multi-agent system for hypothesis generation. Its agents use strategy libraries: read related papers, simulate expert debates, review novelty, rank by constraints, and feed debate summaries back into memory.</p>
+
+<h3 id="s3a">3.1 Validation examples from the talk</h3>
+<p>The lecture's evidence is not a single leaderboard. It is a set of biomedical collaborations where the system proposed or recapitulated hypotheses that scientists could inspect and sometimes test:</p>
+<ul>
+  <li><strong>Antimicrobial resistance</strong> — a recapitulation task with Imperial researchers, where the system surfaced a horizontal gene-transfer mechanism that was not yet public.</li>
+  <li><strong>AML drug repurposing</strong> — Houston Methodist physician-scientists tested AI-nominated drugs such as KIRA6 and observed promising IC50 curves in cell lines.</li>
+  <li><strong>Liver fibrosis</strong> — Gary Peltz's group used the system for epigenomic targets, organoid validation protocols, and candidate drugs such as vorinostat.</li>
+  <li><strong>Protein design</strong> — co-scientist used tools such as AlphaFold in the loop to design improved Oct4-like proteins with desired activity and safety properties.</li>
+  <li><strong>Alzheimer's mechanism</strong> — the system recapitulated a multi-step ACE-inhibitor cascade and proposed a missing bradykinin → B2R receptor link later tested in a chase assay.</li>
+  <li><strong>Plant immunity</strong> — researchers used it to build a structural novelty index over AlphaFold predictions and identify an unusual potato immunoprotein architecture.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — hypothesis search as constrained optimization</span>
+  <p>$$h^*=\arg\max_h\ \Big[U(h\mid g,e)-\lambda_1\,\text{risk}(h)-\lambda_2\,\text{cost}(h)\Big]$$</p>
+  <p>\(g\) is the scientist's goal, \(e\) is retrieved evidence, \(U\) is usefulness or expected scientific value, and the penalties encode safety, feasibility, novelty uncertainty, and validation cost.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can “go broad” complement a human scientist's “go deep”?</summary>
+<p>A specialist may know one domain deeply but miss analogies from cancer, plant immunity, protein design, or pharmacology. A retrieval-and-agent system can scan broadly, surface surprising links, and let the human expert judge feasibility.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Medicine: diagnostic and safety loops</h2>
+<p>The medical arc begins with <strong>Med-PaLM</strong> and <strong>Med-PaLM 2</strong>, which showed medically tuned LLMs could reach passing and then expert-level performance on USMLE-style benchmarks. It also names <strong>AMIE</strong>, a Google/DeepMind research program for conversational diagnostic AI. The same collaboration pattern appears in medicine: a single confident answer is dangerous; a safer system should gather evidence, simulate specialist consultation, verify claims, and defer to clinicians.</p>
+
+<h3 id="s4a">4.1 Why verification matters</h3>
+<p>Medical and biomedical agents sit in high-stakes domains. A verifier agent can ask: Is the claim supported by retrieved evidence? Is the proposed experiment safe? Does a diagnostic suggestion need urgent human escalation? The talk's safety answer is layered: check the user goal at the start, monitor generated ideas during the run, halt unsafe explorations, and inherit base-model safety work from Gemini.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — reliability with a verifier</span>
+  <p>$$P(\text{unsafe final})=P(\text{unsafe draft})\,P(\text{verifier misses it})$$</p>
+  <p>This is only a simplification. It assumes the verifier's misses are not perfectly correlated with the solver's mistakes — the worked example below shows why correlation is the enemy.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P["Patient or research case"] --> A["History/evidence agent"]
+    A --> D["Diagnostic or scientific solver"]
+    D --> S["Specialist-role consultants"]
+    S --> V["Verifier and safety monitor"]
+    V -->|"flag"| D
+    V -->|"acceptable with uncertainty"| C["Clinician/scientist judgment"]
+</div>
+<figcaption>In medicine, the final authority should be a clinician; agents are evidence-gathering and reasoning support.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Multi-agent means automatically safer.”</strong> Not necessarily. If all agents share the same blind spot, cite the same weak evidence, or optimize the wrong reward, they can amplify an error. Collaboration helps when roles and evidence sources create genuinely different failure modes.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name two failure modes that become worse in a multi-agent system.</summary>
+<p>Coordination overhead can waste compute or hide responsibility. Error propagation can occur when one agent writes a false claim into shared memory and later agents treat it as established evidence.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked example — one tiny case, by hand</h2>
+<p>Numbers make the reliability story concrete. Suppose a solo agent answers a medical QA or hypothesis-screening subtask correctly with probability \(p=0.7\). Its error rate is therefore \(1-p=0.3\). Now add an independent critic/verifier that catches a wrong answer with probability \(c=0.6\).</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>The only errors that reach the final answer are the solo agent's errors that the critic misses:</p>
+  <p>$$\begin{aligned}
+  P(\text{final error}) &= P(\text{solo wrong})\times P(\text{critic misses wrong})\\
+  &=0.3\times(1-0.6)\\
+  &=0.3\times0.4\\
+  &=0.12.
+  \end{aligned}$$</p>
+  <p>So the effective accuracy becomes</p>
+  <p>$$P(\text{final correct})=1-0.12=0.88.$$</p>
+  <p>The critic improved reliability from \(0.70\) to \(0.88\), but only because it caught mistakes the solver would otherwise ship.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if the critic catches wrong answers with probability 0.8 instead of 0.6, what is the new accuracy?</summary>
+<p>The final error is \(0.3\times(1-0.8)=0.3\times0.2=0.06\). Accuracy is \(1-0.06=0.94\).</p></details>
+<details class="check"><summary>✓ Check yourself — when does adding more agents stop helping?</summary>
+<p>When errors are highly correlated, when agents share the same bad evidence, when communication overhead dominates, or when the task is already easy enough that extra rounds only add cost. In the extreme, ten agents repeating the same hallucination are not ten independent checks.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — follow one concrete instance</h2>
+<p>Now trace one biomedical task through a collaborative pipeline: “Find plausible repurposed drugs for acute myeloid leukemia, with evidence and a validation plan.”</p>
+<table>
+  <tr><th>Step</th><th>Agent</th><th>Action</th><th>Output</th></tr>
+  <tr><td>0 · task</td><td>Human scientist</td><td>Specifies disease, constraints, novelty threshold, and assay budget.</td><td class="tt">goal + rubric</td></tr>
+  <tr><td>1 · decompose</td><td>Planner</td><td>Splits work into literature search, target-pathway mapping, candidate ranking, and validation design.</td><td class="tt">subtasks</td></tr>
+  <tr><td>2 · retrieve</td><td>Researcher</td><td>Uses tools to retrieve papers, drug-target databases, and prior AML pathway evidence.</td><td class="tt">evidence bundle</td></tr>
+  <tr><td>3 · draft</td><td>Solver</td><td>Proposes candidate drugs and explains mechanistic rationale.</td><td class="tt">candidate hypotheses</td></tr>
+  <tr><td>4 · verify</td><td>Critic</td><td>Flags weak citations, missing controls, toxicity concerns, and claims already tested clinically.</td><td class="tt">issues + uncertainty</td></tr>
+  <tr><td>5 · revise</td><td>Solver</td><td>Removes weak candidates, tightens novelty claims, and adds experiment protocols.</td><td class="tt">ranked report</td></tr>
+  <tr><td>6 · decide</td><td>Human scientist</td><td>Chooses what to validate in cell lines or organoids.</td><td class="tt">experiment plan</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Role specialization plus critique beats a monolithic answer because each stage leaves an artifact that the next stage can inspect. The researcher grounds the solver, the critic protects the human from overconfident drafts, and the final report preserves both promising ideas and reasons for doubt.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why did the lecture contrast System 1 chat answers with System 2 scientific reasoning? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What are the four recurring functions in the co-scientist while loop? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How does tournament-style debate help prioritize hypotheses? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Why is validation, not just fluent explanation, central in science and medicine? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the critic reliability calculation and explain the correlated-error caveat. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain collaborative AI agents for science to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Agentic scaffold</td><td>An LLM wrapped with prompts, tools, memory, and control logic so it can act over multiple steps.</td></tr>
+  <tr><td>AI co-scientist</td><td>Google/DeepMind multi-agent system described in the talk for generating, critiquing, ranking, and refining scientific hypotheses.</td></tr>
+  <tr><td>Debate loop</td><td>A process where agents argue for or against hypotheses so strengths and weaknesses become explicit.</td></tr>
+  <tr><td>Elo ranking</td><td>A rating method from games used here as an intuition for ranking hypotheses after pairwise debate matches.</td></tr>
+  <tr><td>Epistemic humility</td><td>The system's ability to say what it does not know, where evidence is weak, and what must be validated.</td></tr>
+  <tr><td>Med-PaLM / Med-PaLM 2</td><td>Medical LLM systems for medical QA and related tasks, cited as early evidence that LLMs can be tuned for medicine.</td></tr>
+  <tr><td>AMIE</td><td>Articulate Medical Intelligence Explorer, a research system for conversational diagnostic AI.</td></tr>
+  <tr><td>Test-time compute</td><td>Extra computation spent during inference — more search, tools, debate rounds, or verifier passes.</td></tr>
+  <tr><td>Tool grounding</td><td>Using external tools or databases so claims can be tied to evidence rather than only model memory.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Juraj Gottweis, Wei-Hung Weng, Vivek Natarajan et al. <strong>Accelerating scientific discovery with Co-Scientist.</strong> <a class="ref" href="https://arxiv.org/abs/2502.18864">arXiv:2502.18864</a> — technical paper behind the multi-agent co-scientist system discussed in the lecture.</li>
+  <li>Google Research. <strong>Accelerating scientific breakthroughs with an AI co-scientist.</strong> <a class="ref" href="https://research.google/blog/accelerating-scientific-breakthroughs-with-an-ai-co-scientist/">Google Research blog</a> — accessible overview and examples.</li>
+  <li>Karan Singhal, Shekoofeh Azizi, Tao Tu, S. Sara Mahdavi, Jason Wei, Hyung Won Chung, Nathan Scales, Ajay Tanwani, Heather Cole-Lewis, Stephen Pfohl, et al. <strong>Large language models encode clinical knowledge.</strong> <a class="ref" href="https://www.nature.com/articles/s41586-023-06291-2">Nature, 2023</a> — Med-PaLM paper named in the introduction.</li>
+  <li>Karan Singhal et al. <strong>Towards expert-level medical question answering with large language models.</strong> <a class="ref" href="https://arxiv.org/abs/2305.09617">arXiv:2305.09617</a> — Med-PaLM 2 technical report.</li>
+  <li>Tao Tu, Anil Palepu, Mike Schaekermann et al. <strong>Towards conversational diagnostic AI.</strong> <a class="ref" href="https://arxiv.org/abs/2401.05654">arXiv:2401.05654</a> — AMIE, the medical diagnostic dialogue system named in the intro.</li>
+  <li>John Jumper et al. <strong>Highly accurate protein structure prediction with AlphaFold.</strong> <a class="ref" href="https://www.nature.com/articles/s41586-021-03819-2">Nature, 2021</a> — specialized scientific AI used in the lecture as a contrast with generality.</li>
+  <li>David Silver et al. <strong>Mastering the game of Go without human knowledge.</strong> <a class="ref" href="https://www.nature.com/articles/nature24270">Nature, 2017</a> — AlphaZero/self-play lineage behind the debate-and-search analogy.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="24-beyond-llms-agents-reasoning.html">CS25 Note 24</a> — ReAct, tool use, and agent reasoning basics.</li>
+  <li><a class="ref" href="25-retrieval-augmented-lms.html">CS25 Note 25</a> — retrieval-augmented language models and evidence grounding.</li>
+  <li><a class="ref" href="36-advent-of-agi.html">CS25 Note 36</a> — agentic systems and generality framing.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="46-next-token-to-next-gen.html">◀ Previous note</a>
+  <a class="r" href="48-generalization-parameters-context.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 47 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

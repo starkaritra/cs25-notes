@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 22 — Recipe for Training Helpful Chatbots</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The assistant gap</a>
+  <a href="#s1a" class="sub">1.1 H4 and the HHHH target</a>
+  <a href="#s1b" class="sub">1.2 From web text to chat turns</a>
+  <a href="#s2">2 · The training recipe</a>
+  <a href="#s2a" class="sub">2.1 SFT / instruction tuning</a>
+  <a href="#s2b" class="sub">2.2 Preferences and reward models</a>
+  <a href="#s2c" class="sub">2.3 PPO with KL, or DPO</a>
+  <a href="#s3">3 · Data is the crux</a>
+  <a href="#s3a" class="sub">3.1 Human and synthetic demonstrations</a>
+  <a href="#s3b" class="sub">3.2 Preference annotation reliability</a>
+  <a href="#worked">4 · Worked micro-example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Evaluation and failure modes</a>
+  <a href="#s6a" class="sub">6.1 Human eval and LLM judges</a>
+  <a href="#s6b" class="sub">6.2 What can go wrong</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 5 · Note 2 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>A Recipe for Training Helpful Chatbots</h1>
+  <p class="lead">Nazneen Rajani explains the practical alignment kitchen: start with a pretrained LM, teach it to follow instructions, collect human or AI preferences, then optimize toward helpful, honest behavior without letting the model drift into reward-gaming weirdness.</p>
+  <div class="meta">
+    <span class="pill">🎓 Nazneen Rajani / Hugging Face</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=mcep6W8oB1I" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A raw pretrained language model is very good at the game it was trained to play: predict plausible next text. But a chatbot user is not asking for “whatever text tends to come next on the internet.” They want an answer that follows the instruction, stays factual, avoids harm, and admits uncertainty. That is a different target.</p>
+  <p>This lecture complements <a class="ref" href="12-language-human-alignment.html">Note 12 on alignment</a>. Note 12 gives the strategic framing; this note gives the hands-on recipe Hugging Face's H4 team used when trying to recreate the “secret sauce” of aligned chat models in the open.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — cooking an assistant</span>
+  <p>Think of a helpful chatbot as a dish, not a raw ingredient. <strong>Pretraining</strong> grows the staple crop. <strong>SFT</strong> teaches the recipe card. <strong>Preference data</strong> is the tasting panel. <strong>Reward modeling</strong> learns the panel's palate. <strong>PPO with a KL leash</strong>, or <strong>DPO</strong>, adjusts the seasoning while preventing the chef from dumping in sugar because the taste-test metric liked one sweet bite.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You only need a few concepts active before the pipeline starts.</p>
+  <ul>
+    <li><strong>Language modeling</strong> — pretraining minimizes next-token surprise, e.g. \(-\sum_t \log p_\theta(x_t\mid x_{&lt;t})\); this gives capability, not an assistant persona.</li>
+    <li><strong>Instruction tuning / SFT</strong> — fine-tune on pairs \((\text{instruction},\text{good response})\) so the model imitates demonstrated assistant behavior.</li>
+    <li><strong>Reward and policy in RL</strong> — the policy \(\pi(y\mid x)\) produces a response \(y\) to prompt \(x\); a reward \(r(x,y)\) scores how desirable that response is.</li>
+    <li><strong>Logistic sigmoid</strong> — \(\sigma(z)=1/(1+e^{-z})\) turns a score difference into a probability; preference models use it to say “winner should score above loser.”</li>
+    <li><strong>KL divergence</strong> — \(D_{\mathrm{KL}}(p\|q)\) measures distribution drift; RLHF uses it as a leash from the RL-updated model back to the supervised assistant.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The assistant gap: prediction is not helpfulness</h2>
+<p>Imagine asking, “Can you help me debug this Python error?” A base LM may continue with a forum-like thread, hallucinate package names, or answer in a style that looks plausible but does not solve the problem. The model is not being stubborn; its original objective never said “be the user's assistant.”</p>
+
+<h3 id="s1a">1.1 H4 and the HHHH target</h3>
+<p>Rajani describes Hugging Face's H4 effort: build an open recipe for a chatbot that is <strong>helpful, harmless, honest, and Huggy</strong>. The team did not try to redo pretraining. They started with open pretrained models and focused on the alignment stages that turn a capable text predictor into something chat-shaped.</p>
+<p>Her practical split is useful: <strong>SFT</strong> mostly teaches the model to be helpful and conversational; <strong>preference learning plus RLHF</strong> adds stronger pressure toward desirable behavior such as truthfulness and harmlessness. In real systems these blend, but this mental split helps you debug the recipe.</p>
+
+<h3 id="s1b">1.2 From web text to chat turns</h3>
+<p>A chat model is trained on structured turns, not just loose documents. A dataset example might contain a system message, a user instruction, optional input context, and an assistant response. The <strong>chat template</strong> tells the tokenizer and model where those turns begin and end.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — base LM objective versus assistant target</span>
+  <p>$$
+  \underbrace{\min_\theta\;\mathbb{E}_{x\sim\mathcal{D}_{\text{text}}}\left[-\log p_\theta(x_t\mid x_{&lt;t})\right]}_{\text{predict likely text}}
+  \quad\neq\quad
+  \underbrace{\max_\pi\;\mathbb{E}_{x\sim\mathcal{D}_{\text{users}},\,y\sim\pi(\cdot\mid x)}\left[U_{\text{human}}(x,y)\right]}_{\text{help the user}}
+  $$</p>
+  <p>The left side learns internet regularities. The right side asks for human utility: following the instruction, being useful, staying truthful, and refusing appropriately.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If the base model is strong enough, it is already aligned.”</strong> Scale can improve knowledge and fluency, but it does not automatically prioritize the user's intent. Rajani's whole recipe exists because capability and helpful assistant behavior are separable ingredients.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — which part of a raw LM's objective says “be concise and truthful”?</summary>
+<p>None directly. The model may learn patterns of concise or truthful text when those patterns appear in pretraining, but the loss only rewards predicting observed tokens, not satisfying the user's actual preference.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The training recipe: from base LM to aligned chat</h2>
+<p>The canonical picture Rajani starts from is InstructGPT: demonstrations first, preferences second, reward-guided optimization third. Hugging Face's H4 work keeps this skeleton, then asks very practical questions: which data, how much, what task mix, human or synthetic, and how do we evaluate?</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["1. Pretraining<br/>base LM predicts text"] --> B["2. SFT / instruction tuning<br/>human or synthetic demonstrations"]
+    B --> C["Chat policy<br/>follows templates and system prompts"]
+    C --> D["3. Preference data<br/>humans or AI rank responses"]
+    D --> E["4. Reward model<br/>score prompt-response pairs"]
+    E --> F["5a. RLHF with PPO<br/>maximize reward minus KL"]
+    D --> G["5b. DPO<br/>optimize policy directly from preferences"]
+    F --> H["Helpful chatbot<br/>useful, safer, more honest"]
+    G --> H
+</div>
+</figure>
+<figcaption>The full recipe: SFT makes the model chat-shaped; preference learning tells it which chat behavior people prefer; PPO or DPO turns that signal into a new policy.</figcaption>
+
+<h3 id="s2a">2.1 SFT / instruction tuning: demonstrations teach the format</h3>
+<p>Start with examples where the input and output are both supplied by humans or high-quality synthetic processes. Each item says, “when the user asks this, a good assistant answer looks like that.” In the transcript, Rajani highlights task categories such as generation, open-ended Q&amp;A, brainstorming, classification, summarization, and code-related help.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — supervised fine-tuning</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{SFT}}(\theta)
+  =-\mathbb{E}_{(x,y^*)\sim\mathcal{D}_{\mathrm{demo}}}\log \pi_\theta(y^*\mid x)
+  $$</p>
+  <p>\(x\) is the prompt, \(y^*\) is the demonstrated assistant response, and \(\pi_\theta\) is the policy being trained. In the cooking analogy, this is the chef copying good recipes before inventing variations.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why do chat templates matter during SFT?</summary>
+<p>They make the training and inference format match. If the model sees explicit user/assistant/system turn markers during fine-tuning, it learns when to answer, when to condition on system instructions, and where the assistant response should begin.</p></details>
+
+<h3 id="s2b">2.2 Preferences and reward models: learn the tasting panel</h3>
+<p>For preference data, humans write or select prompts; models generate multiple candidate responses; annotators rank, rate, or choose the better response. Rajani emphasizes that this is often easier than writing the perfect answer, but still noisy: if two bad model outputs are nearly tied, annotators may disagree or break ties arbitrarily.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — Bradley–Terry reward-model loss</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{RM}}=-\log\sigma\big(r(x,y_w)-r(x,y_l)\big)
+  $$</p>
+  <p>The reward model \(r(x,y)\) gives a scalar score to a prompt-response pair. \(y_w\) is the preferred winner, \(y_l\) is the less-preferred loser, and \(\sigma\) turns the score gap into “probability the winner is preferred.”</p>
+</div>
+
+<h3 id="s2c">2.3 PPO with KL, or DPO without a separate reward model</h3>
+<p>Classical RLHF trains a reward model, then uses PPO to update the assistant policy toward high-reward responses. But if the policy can exploit blind spots in the reward model, it may drift away from normal helpful language. The KL penalty anchors it to the SFT policy.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — RLHF objective with KL leash</span>
+  <p>$$
+  \max_\pi\;\mathbb{E}_{x,\,y\sim\pi(\cdot\mid x)}\left[
+  r_\phi(x,y)-\beta D_{\mathrm{KL}}\!\left(\pi(\cdot\mid x)\,\|\,\pi_{\mathrm{SFT}}(\cdot\mid x)\right)
+  \right]
+  $$</p>
+  <p>The reward term says “make the tasting panel happy.” The KL term says “do not leave the recipe book entirely.” \(\beta\) controls how tight the leash is.</p>
+</div>
+<p><strong>DPO</strong> is the modern shortcut Rajani discusses in the Zephyr work: it uses preference pairs to optimize the policy directly, without first training a separate reward model and running an RL loop. It is still preference optimization, but the implementation is simpler and often more stable.</p>
+<details class="check"><summary>✓ Check yourself — what stage disappears in DPO compared with PPO-style RLHF?</summary>
+<p>The explicit learned reward model plus PPO rollout loop. DPO trains the policy directly from chosen/rejected preference pairs, usually relative to a reference policy.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Data is the crux, not an afterthought</h2>
+<p>A recipe is only as good as its ingredients. Much of the lecture is not about a new loss function; it is about the unglamorous details that decide whether the loss sees useful signal: task mix, length distribution, dialogue turns, annotator instructions, and whether synthetic data helps or contaminates evaluation.</p>
+
+<h3 id="s3a">3.1 Human and synthetic demonstrations</h3>
+<p>Rajani maps instruction datasets along a spectrum. On the human-written side are efforts such as Surge-collected H4 data, OpenAssistant, and Dolly. On the synthetic side are pipelines such as Self-Instruct, UltraChat, and role-play datasets like CAMEL, where stronger LMs generate tasks, answers, or whole conversations.</p>
+<ul>
+  <li><strong>Human demonstrations</strong> can be high quality, factual, and tailored, but they are expensive and slower to collect. H4 spent heavily on roughly 10k SFT pairs plus 20k preference dialogues.</li>
+  <li><strong>Synthetic / distilled data</strong> scales fast. UltraChat and UltraFeedback enabled Zephyr-7B to become a strong open chat model, but the model may inherit the style and biases of the teacher and evaluator.</li>
+  <li><strong>Diversity matters</strong>: generation, brainstorming, coding, factual QA, summarization, and chat stress different abilities. Rajani notes that factual tasks are especially useful when collecting preferences because correctness is less ambiguous.</li>
+</ul>
+<div class="box intuition">
+  <span class="lbl">Ingredient quality beats ingredient pile size</span>
+  <p>Several results in the lecture echo LIMA and Self-Instruct: after a few thousand high-quality instruction examples, returns can saturate. More examples are not automatically better if they repeat the same short, easy, or noisy patterns.</p>
+</div>
+
+<h3 id="s3b">3.2 Preference annotation reliability</h3>
+<p>Preference data sounds simple: show two responses and ask which is better. In practice, Rajani's team found low agreement when model outputs were both weak. The annotation template also matters: Anthropic-style 1–8 pairwise rankings, LLaMA-2-style “which is better and by how much,” or individual 1–10 scoring all induce slightly different noise.</p>
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["Prompt<br/>What causes rainbows?"] --> B["Model samples k responses"]
+    B --> C["Annotator compares<br/>helpful and truthful?"]
+    C --> D["Chosen response y_w"]
+    C --> E["Rejected response y_l"]
+    D --> F["Preference pair<br/>(x, y_w, y_l)"]
+    E --> F
+    F --> G["Train reward model<br/>or DPO policy"]
+</div>
+</figure>
+<figcaption>Preference data is a compression of human judgment: rich reasons become a chosen/rejected pair or a rating margin.</figcaption>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Preferences are objective labels like ImageNet classes.”</strong> Some prompts have clear truth conditions; many do not. A verbose answer, a concise answer, and a safety-conscious answer may trade off differently depending on the user's real need.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why did H4 emphasize factual tasks in preference collection?</summary>
+<p>Because factual prompts make it easier to distinguish truthful/helpful from untruthful/unhelpful. Open-ended generation or brainstorming can have many acceptable answers, so preference labels become noisier.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked micro-example — one reward-model preference by hand</h2>
+<p>Numbers make the Bradley–Terry loss less mysterious. Suppose the prompt is: <em>“Explain why the sky is blue in two sentences.”</em> A human prefers response \(y_w\) over response \(y_l\). The reward model currently assigns:</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$
+  r_w=r(x,y_w)=2.2,\qquad r_l=r(x,y_l)=0.7
+  $$</p>
+  <p>First compute the score gap:</p>
+  <p>$$
+  \Delta=r_w-r_l=2.2-0.7=1.5
+  $$</p>
+  <p>Turn the gap into the model's probability that the winner is preferred:</p>
+  <p>$$
+  \sigma(1.5)=\frac{1}{1+e^{-1.5}}\approx\frac{1}{1+0.2231}=0.8176
+  $$</p>
+  <p>Now compute the loss:</p>
+  <p>$$
+  \mathcal{L}=-\log(0.8176)\approx 0.2014
+  $$</p>
+  <p>The loss is already fairly small because the reward model scores the winner above the loser. The gradient-sign intuition is simple: if the label says \(y_w\) won, training pushes \(r_w\) upward and \(r_l\) downward, especially when \(\Delta\) is too small or negative.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what if both responses had equal scores?</summary>
+<p>If \(r_w=r_l\), then \(\Delta=0\), \(\sigma(0)=0.5\), and \(\mathcal{L}=-\log(0.5)\approx0.693\). The model is saying “coin flip,” so the preference label gives a strong push: raise the winner's score and lower the loser's score.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — follow one user prompt through the recipe</h2>
+<p>Trace one concrete request through the kitchen. The exact words are illustrative; the state column shows what changes at each stage.</p>
+<table>
+  <tr><th>Stage</th><th>Input</th><th>Output</th></tr>
+  <tr><td>0 · user prompt</td><td class="tt">“Explain RLHF to a beginner in 3 bullets.”</td><td>A raw request that specifies topic, audience, and format.</td></tr>
+  <tr><td>1 · base LM</td><td class="tt">Prompt → pretrained next-token predictor</td><td>Rambly forum-like continuation; may define RLHF, then wander into unrelated reinforcement learning history.</td></tr>
+  <tr><td>2 · SFT model</td><td class="tt">Chat template + demonstrations</td><td>Follows instruction shape: three bullets, assistant tone, clearer beginner wording.</td></tr>
+  <tr><td>3 · sample candidates</td><td class="tt">SFT policy samples k responses</td><td>Several plausible answers: one concise, one verbose, one slightly inaccurate, one with a safety caveat.</td></tr>
+  <tr><td>4 · reward model</td><td class="tt">RM scores each \(r_\phi(x,y_i)\)</td><td>Ranks the concise accurate answer highest; penalizes hallucinated or unhelpfully verbose candidates.</td></tr>
+  <tr><td>5 · PPO update</td><td class="tt">High reward − KL drift from SFT</td><td>Policy shifts probability toward high-reward answers while staying close to the supervised assistant distribution.</td></tr>
+  <tr><td>6 · final aligned reply</td><td class="tt">Updated chat policy</td><td>Helpful three-bullet answer: clear, accurate, scoped to a beginner, and not needlessly long.</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why the KL penalty matters</span>
+  <p>The reward model is only an approximation of human taste. Without the KL anchor, PPO can discover strange text that scores well for the reward model but no longer looks like normal helpful assistant behavior. KL says: improve the seasoning, but do not mutate the dish into something the original recipe would never serve.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — at which stage do humans usually compare multiple model answers?</summary>
+<p>After SFT, when the model can already produce chat-like candidates. Humans compare or rank sampled responses, creating preference data for a reward model or DPO.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Evaluation and failure modes: measuring a chatbot is also alignment</h2>
+<p>Rajani's last arc is a warning: once you train chatbots, you still need to know whether they improved. Old NLP benchmarks test pieces of capability; chat assistants require human preference, instruction following, harmlessness, and robustness under adversarial prompting.</p>
+
+<h3 id="s6a">6.1 Human eval, LLM-as-judge, MT-Bench, Arena, Elo</h3>
+<p>Human evaluation remains the closest target, but it is slow and expensive. Public leaderboards therefore use pairwise wins, Elo-style ratings, GPT-4 or Claude as judges, MT-Bench multi-turn scoring, AlpacaEval, and Chatbot Arena crowdsourced battles. These are useful thermometers, not laws of nature.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — Elo-style pairwise intuition</span>
+  <p>$$
+  P(A\text{ beats }B)=\frac{1}{1+10^{(R_B-R_A)/400}}
+  $$</p>
+  <p>\(R_A\) and \(R_B\) are model ratings inferred from pairwise comparisons. If many users or judges prefer model A over model B, A's rating rises. The catch: judge biases become rating biases.</p>
+</div>
+
+<h3 id="s6b">6.2 What can go wrong</h3>
+<ul>
+  <li><strong>Reward hacking</strong> — the policy finds outputs that exploit the reward model rather than actually helping the user.</li>
+  <li><strong>Sycophancy</strong> — the model flatters or agrees with the user instead of correcting false premises.</li>
+  <li><strong>Over-refusal</strong> — harmless requests get blocked because the safety signal is too blunt.</li>
+  <li><strong>Verbosity bias</strong> — judges, especially LLM judges, may prefer longer list-like answers even when concise answers are better.</li>
+  <li><strong>Position bias</strong> — Rajani reports GPT-4 showing a left-position preference in pairwise judging; telling it about the bias can even flip the bias.</li>
+  <li><strong>Evaluation doping</strong> — a judge may favor models trained on data generated by that same judge model, making synthetic-data wins look cleaner than they are.</li>
+</ul>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“GPT-4 judging is a free replacement for humans.”</strong> It is scalable and often useful, but Rajani shows concrete quirks: positional bias, preference for GPT-4-like data, stronger correlation on creative tasks than on some low-entropy math/coding/reasoning tasks, and sensitivity to answer style.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — how can you reduce position bias in pairwise LLM judging?</summary>
+<p>Randomize or balance which model appears on the left and right, evaluate both orders when possible, and report sensitivity. Do not assume a single fixed order is neutral.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory before reopening the sections.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is next-token pretraining not the same as helpful assistant behavior? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What does SFT teach that the base LM did not reliably know? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Write the reward-model preference loss and explain each symbol. <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>Why does PPO-style RLHF need a KL penalty? <a class="ref" href="#trace">(trace)</a></li>
+    <li>When might DPO be preferable to reward-model-plus-PPO? <a class="ref" href="#s2c">(§2.3)</a></li>
+    <li>Name two ways LLM-as-judge evaluation can mislead you. <a class="ref" href="#s6b">(§6.2)</a></li>
+    <li>Teach it back: explain the whole chatbot recipe to a beginner using the cooking analogy in four sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Base LM</td><td>A pretrained language model optimized to predict text, before chat-specific alignment.</td></tr>
+  <tr><td>SFT / instruction tuning</td><td>Supervised fine-tuning on instruction-response demonstrations so the model imitates good assistant answers.</td></tr>
+  <tr><td>Chat template</td><td>The exact token format for system, user, and assistant turns.</td></tr>
+  <tr><td>Preference data</td><td>Examples where humans or AI judges choose or rank candidate responses to the same prompt.</td></tr>
+  <tr><td>Reward model</td><td>A learned scorer \(r(x,y)\) that predicts which response people prefer.</td></tr>
+  <tr><td>Bradley–Terry loss</td><td>A pairwise loss that makes a preferred response score higher than a rejected response.</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement learning from human feedback: optimize a policy against a reward model trained from preferences.</td></tr>
+  <tr><td>PPO</td><td>A policy-gradient RL algorithm often used to update the assistant policy during RLHF.</td></tr>
+  <tr><td>KL penalty</td><td>A drift penalty that keeps the RL-updated policy close to a reference model, usually the SFT model.</td></tr>
+  <tr><td>DPO</td><td>Direct Preference Optimization: train directly from chosen/rejected pairs without a separate reward-model RL loop.</td></tr>
+  <tr><td>Red-teaming</td><td>Adversarial testing that probes whether the model reveals harmful, deceptive, private, or otherwise unsafe behavior.</td></tr>
+  <tr><td>Elo</td><td>A rating system inferred from pairwise wins and losses, adapted from chess to chatbot comparisons.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">arXiv</a> — the InstructGPT three-stage recipe Rajani uses as the baseline.</li>
+  <li>Bai et al. (2022). <strong>Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2204.05862">arXiv</a> — Anthropic HH framing and preference data.</li>
+  <li>Wang et al. (2022). <strong>Self-Instruct.</strong> <a class="ref" href="https://arxiv.org/abs/2212.10560">arXiv</a> — bootstrapping instruction data from a small seed set.</li>
+  <li>Ding et al. (2023). <strong>Enhancing Chat Language Models by Scaling High-quality Instructional Conversations.</strong> <a class="ref" href="https://arxiv.org/abs/2305.14233">arXiv</a> — UltraChat synthetic dialogue data.</li>
+  <li>Cui et al. (2023). <strong>UltraFeedback.</strong> <a class="ref" href="https://huggingface.co/datasets/openbmb/UltraFeedback">dataset</a> — AI feedback pairs used in Zephyr-style DPO.</li>
+  <li>Touvron et al. (2023). <strong>Llama 2.</strong> <a class="ref" href="https://arxiv.org/abs/2307.09288">arXiv</a> — chat alignment details and pairwise preference templates.</li>
+  <li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290">arXiv</a> — the RM-free alternative to PPO-style RLHF.</li>
+  <li>Tunstall et al. (2023). <strong>Zephyr: Direct Distillation of LM Alignment.</strong> <a class="ref" href="https://arxiv.org/abs/2310.16944">arXiv</a> — the H4 synthetic-data SFT + DPO result discussed in the lecture.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>LMSYS (2023). <strong>Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.</strong> <a class="ref" href="https://arxiv.org/abs/2306.05685">arXiv</a> — practical background for MT-Bench, Arena, and judge bias.</li>
+  <li>Stanford CRFM. <strong>AlpacaEval.</strong> <a class="ref" href="https://tatsu-lab.github.io/alpaca_eval/">site</a> — a lightweight LLM-as-judge evaluation used in the Zephyr comparison.</li>
+  <li>OpenAssistant Contributors (2023). <strong>OpenAssistant Conversations.</strong> <a class="ref" href="https://huggingface.co/datasets/OpenAssistant/oasst1">dataset</a> — open human-written assistant data.</li>
+  <li>Databricks (2023). <strong>Dolly 15k.</strong> <a class="ref" href="https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm">blog</a> — an early open instruction-following dataset and model release.</li>
+  <li>Hugging Face H4. <strong>Zephyr-7B-beta model card.</strong> <a class="ref" href="https://huggingface.co/HuggingFaceH4/zephyr-7b-beta">model</a> — concrete artifact from the recipe.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="21-love-the-transformer.html">◀ Previous</a>
+  <a class="r" href="23-no-language-left-behind.html">Next ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 22 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

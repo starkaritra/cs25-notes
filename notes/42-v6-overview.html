@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 42 — Overview of Transformers (V6)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why an overview now?</a>
+  <a href="#s1a" class="sub">1.1 The V6 map</a>
+  <a href="#s2">2 · Mechanics recap</a>
+  <a href="#s2a" class="sub">2.1 Attention as routing</a>
+  <a href="#s3">3 · The current frontier</a>
+  <a href="#s3a" class="sub">3.1 Reasoning, agents, modalities</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Open problems</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 9 · Note 2 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>Overview of Transformers (CS25 V6)</h1>
+  <p class="lead">Steven and Karan reopen the transformer story at V6: a tight mechanics recap, then the frontier — reasoning models, agents, multimodality, long context, efficiency, and alternatives such as SSMs.</p>
+  <div class="meta">
+    <span class="pill">🎓 Steven and Karan</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=bHSDPgZYie0" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this overview now?</span>
+  <p>CS25 V6 begins after transformers have moved from “a clever sequence model” to the default substrate for language, vision, biology, speech, code, agents, and scientific modeling. The lecture’s point is not to re-teach every detail — <a class="ref" href="02-transformer-mechanics.html">Note 2</a> does that — but to ask what changed by V6: models now reason longer, call tools, see and hear, remember more context, serve billions of requests, and face hard questions about hallucination, alignment, and whether attention is the final architecture.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a research lab with a shared whiteboard</span>
+  <p>Think of a transformer as a lab meeting. Each token is a researcher. <strong>Attention</strong> is who reads whose notes on the shared whiteboard. The <strong>MLP</strong> is private thinking after the discussion. <strong>Long context</strong> is a bigger whiteboard; <strong>agents</strong> let the lab use instruments; <strong>SSMs/Mamba</strong> ask whether a compact lab notebook can replace rereading the whole board.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Keep these fresh; this note points back to earlier overview/mechanics notes instead of reteaching everything.</p>
+  <ul>
+    <li><strong>Dot product</strong> — measures vector alignment; here it scores how much a query token should read a key token. See the deep mechanics in <a class="ref" href="02-transformer-mechanics.html">Note 2</a>.</li>
+    <li><strong>Softmax</strong> — turns raw scores into nonnegative weights summing to 1; it makes attention a weighted average instead of a hard lookup.</li>
+    <li><strong>Matrix-multiply shapes</strong> — if tokens are stored as a matrix \\(X\in\mathbb{R}^{T\times d}\\), multiplying by learned weights produces Q/K/V matrices with one row per token.</li>
+    <li><strong>Embedding / token</strong> — text, patches, audio chunks, or other inputs become vectors; Notes <a class="ref" href="26-transformers-overview-v4.html">26</a> and <a class="ref" href="34-transformers-overview-v5.html">34</a> are the prior CS25 overview snapshots.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why an overview now?</h2>
+<p>In the transcript, Steven and Karan open by saying this sixth iteration is about both the architecture behind modern AI and “what’s coming next.” That is the right framing: the field is no longer debating whether transformers work. It is debating where the remaining bottlenecks are.</p>
+
+<h3 id="s1a">1.1 The V6 map: from architecture to systems</h3>
+<p>The lecture arc is: early ML → deep/self-supervised learning → embeddings/RNNs → transformers → pre-training/data → post-training/reasoning → agents/multimodal applications → weaknesses → possible post-transformer architectures. The overview is therefore a <em>state-of-the-field briefing</em>, not only a model diagram.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Hand-engineered features"] --> B["Deep learning on raw data"]
+    B --> C["Self-supervised pre-training"]
+    C --> D["Transformer foundation models"]
+    D --> E["Post-training and reasoning"]
+    E --> F["Agents, tools, multimodality"]
+    F --> G["Efficiency and alternatives"]
+</div>
+<figcaption>The V6 overview shifts from “how attention works” to “what the transformer ecosystem is becoming.”</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">What changed since the earlier overviews?</span>
+  <p>Notes <a class="ref" href="26-transformers-overview-v4.html">26</a> and <a class="ref" href="34-transformers-overview-v5.html">34</a> captured earlier snapshots: scaling, general foundation models, and broad applications. V6 adds the frontier stack: test-time compute for reasoning, RL-style post-training, tool-using agents, native multimodality, long-context systems, serving efficiency, and serious interest in state-space / hybrid alternatives.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the lecture’s “why now” in one sentence?</summary>
+<p>Because transformers are now the operating layer of modern AI, and the frontier has moved from “can we scale them?” to “can we make them reason reliably, use tools, handle long/multimodal context efficiently, stay aligned, and perhaps be replaced or augmented?”</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Fast mechanics recap: self-attention as content-based routing</h2>
+<p>Suppose the current token is <code>bank</code>. It should route information differently in “river bank” versus “bank account.” Static embeddings cannot solve that alone; the token must read its context. Self-attention is the routing rule: each token creates a query, compares it with other tokens’ keys, and mixes their values.</p>
+
+<h3 id="s2a">2.1 The block: communication, then computation</h3>
+<p>For an input matrix \\(X\in\mathbb{R}^{T\times d}\\), learned projections make \\(Q=XW_Q\\), \\(K=XW_K\\), and \\(V=XW_V\\). A decoder-only transformer masks future positions, so token \\(t\\) can read tokens \\(\le t\\), not future answers.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — scaled dot-product attention</span>
+  <p>$$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\tfrac{QK^\top}{\sqrt{d_k}}\right)V$$</p>
+  <p>Here \\(Q\\) asks “what am I looking for?”, \\(K\\) advertises “what information do I contain?”, \\(V\\) is the information to pass along, and \\(d_k\\) is the key/query width used to keep score magnitudes stable.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    X["tokens + positions<br/>(T × d)"] --> QKV["linear maps → Q, K, V"]
+    QKV --> S["causal scores<br/>QKᵀ / √dₖ"]
+    S --> W["softmax weights"]
+    W --> A["weighted values<br/>WV"]
+    A --> R1["+ residual, norm"]
+    R1 --> M["MLP: private computation"]
+    M --> R2["+ residual → next block"]
+</div>
+<figcaption>In the lab analogy: attention is the group discussion; the MLP is each researcher thinking privately after the discussion.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Attention is memory.” More precisely, attention is a <em>read operation</em> over token representations. The memory-like object during inference is the KV-cache: stored keys/values from previous tokens. This distinction matters when comparing transformers with SSMs, which carry a compact recurrent state instead.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does a decoder-only model need a causal mask?</summary>
+<p>During next-token prediction, position \\(t\\) must not read future tokens \\(t+1, t+2,\dots\\). The causal mask sets those future scores to \\(-\infty\\) before softmax, giving them zero weight.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The current frontier the talk emphasizes</h2>
+<p>The V6 frontier is a stack. Better base models still matter, but the visible leap comes from how models spend compute at inference time, how they are post-trained, what external systems they can use, what modalities they ingest, and how efficiently they serve long sequences.</p>
+
+<h3 id="s3a">3.1 Reasoning models and test-time compute</h3>
+<p>Standard prompting asks for an answer. Chain-of-thought-style reasoning asks the model to spend more tokens decomposing the problem before answering. Tree-of-thought and search variants spend even more test-time compute by exploring multiple candidate reasoning paths and selecting among them.</p>
+
+<div class="box eqn">
+  <span class="lbl">Compute shift — not a theorem, a useful accounting identity</span>
+  <p>$$\text{Total capability budget}\approx C_{\text{pretrain}}+C_{\text{post-train}}+C_{\text{test-time}}+C_{\text{tools}}$$</p>
+  <p>The point is conceptual: V6 systems no longer rely only on pre-training scale. They also buy performance with reasoning tokens, RL-style feedback, retrieval, tools, and environment interaction.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P["User problem"] --> D["Decompose"]
+    D --> R1["Reasoning path A"]
+    D --> R2["Reasoning path B"]
+    D --> T["Tool or code call"]
+    R1 --> J["Judge / verifier"]
+    R2 --> J
+    T --> J
+    J --> Ans["Final answer"]
+</div>
+<figcaption>Test-time compute turns a single forward answer into a small search-and-verification process.</figcaption>
+</figure>
+
+<h3>3.2 RL for reasoning and process supervision</h3>
+<p>The transcript highlights post-training: RLHF, Direct Preference Optimization (DPO), AI feedback, DeepSeek-style GRPO, and process rewards. The key move is to reward not only the final answer but the <em>trajectory</em>: are the intermediate steps useful, faithful, and robust?</p>
+<ul>
+  <li><strong>Outcome reward</strong>: “Did the final answer work?” Useful but sparse.</li>
+  <li><strong>Process reward</strong>: “Was each step on track?” More expensive to label, but can reduce reward hacking and brittle reasoning traces.</li>
+  <li><strong>Group-relative updates</strong>: compare multiple sampled answers rather than one pair, giving richer preference signal.</li>
+</ul>
+
+<h3>3.3 Agents and tool use</h3>
+<p>An agent wraps a model in a loop: observe the environment, plan, act, inspect results, revise. The lecture’s coding-agent example is concrete: ask the agent to build something; it writes code, runs tests, observes failure, and edits again. Tool use also makes reasoning less purely verbal: a model can call Python, retrieve documents, use a browser, query a database, or operate an app.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    Goal["Human goal"] --> Observe["Observe state"]
+    Observe --> Plan["Plan / reason"]
+    Plan --> Act["Act with tools"]
+    Act --> Result["Observe result"]
+    Result -->|"if not done"| Plan
+    Result -->|"done"| Done["Deliver"]
+</div>
+<figcaption>The agent frontier is the transformer lab leaving the whiteboard and using instruments.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why do tools help math and code reasoning?</summary>
+<p>They move fragile intermediate work into systems with exact execution or retrieval. A model may propose a calculation; Python can execute it. A model may need a fact; retrieval can ground it. The model’s role becomes planning, checking, and integrating, not doing every operation in hidden activations.</p></details>
+
+<h3>3.4 Native multimodality and domain foundation models</h3>
+<p>The talk surveys transformers beyond language: vision transformers split images into patches; CLIP-style contrastive learning aligns text and image representations; medical and neuroscience models adapt the transformer recipe to data such as fMRI. The V6 frontier is increasingly <strong>native</strong> multimodality: models trained to reason across text, image, audio, video, action, and structured scientific signals rather than bolting a captioner onto a text model.</p>
+
+<div class="box intuition">
+  <span class="lbl">Why “native” matters</span>
+  <p>If the lab only receives written reports, it can discuss images indirectly. If the lab has microscopes, cameras, audio, and instruments in the room, the shared whiteboard can contain grounded observations. Native multimodal training makes the whiteboard itself cross-modal.</p>
+</div>
+
+<h3>3.5 Very long context and memory</h3>
+<p>Long-context transformers can ingest huge prompts, but the lecture warns that context is not the same as learning. Many systems are still stateless across sessions. Current memory often lives outside the model: vector databases, summaries, structured lists/graphs, or compressed context. The hard question is conflict-aware updating: what should happen when new information contradicts old memory?</p>
+
+<div class="box eqn">
+  <span class="lbl">Context cost anchor</span>
+  <p>$$\text{attention scores per head} \in \mathbb{R}^{T\times T},\qquad \text{KV-cache size} \propto L\,T\,d$$</p>
+  <p>\\(T\\) is sequence length, \\(L\\) is the number of layers, and \\(d\\) is model width. Longer context stresses both computation and serving memory.</p>
+</div>
+
+<h3>3.6 Efficiency: MoE, KV-cache, FlashAttention</h3>
+<p>Serving frontier models is a systems problem. Three ideas show the pattern:</p>
+<ul>
+  <li><strong>Mixture-of-Experts (MoE)</strong> activates only some expert sub-networks per token, increasing parameter count without paying every parameter on every token.</li>
+  <li><strong>KV-cache engineering</strong> stores past keys/values for fast autoregressive decoding, but memory bandwidth and cache size become bottlenecks.</li>
+  <li><strong>FlashAttention</strong> reorganizes exact attention computation to reduce memory traffic, making attention faster without changing the mathematical result.</li>
+</ul>
+
+<h3>3.7 Architecture alternatives: SSMs, Mamba, linear attention, hybrids</h3>
+<p>The lecture closes by saying CS25 is “Transformers United,” but V6 must think outside the box. State-space models maintain a compressed internal state over time, often scaling linearly with sequence length. Mamba is a selective SSM: the update can depend on the input, improving what the state chooses to keep. Linear attention approximations and kernelized attention try to remove the quadratic score matrix. Hybrids mix attention’s precise lookup with SSM/recurrent efficiency. This previews the V6 SSM talk in <a class="ref" href="44-state-space-models-tradeoffs.html">Note 44</a>.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    Frontier["Long-sequence architecture frontier"] --> Attn["Transformer attention<br/>precise content lookup"]
+    Frontier --> Lin["Linear attention<br/>avoid full T×T matrix"]
+    Frontier --> SSM["State-space / Mamba<br/>compressed recurrent state"]
+    Frontier --> Hyb["Hybrids<br/>attention + recurrent modules"]
+    Attn --> Trade["strong recall, higher cost"]
+    Lin --> Trade
+    SSM --> Trade2["linear scaling, lossy state"]
+    Hyb --> Trade3["practical compromise"]
+</div>
+<figcaption>V6 treats architecture as an open design space, not a solved transformer monoculture.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what does an SSM trade away relative to attention?</summary>
+<p>It trades some precise, content-addressed access to every previous token for a compact state that is cheaper to update over long sequences. That can be excellent for streaming and long contexts, but exact recall may be harder.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked micro-example — two-token scaled dot-product attention</h2>
+<p>We compute one tiny attention head by hand. Let there be two tokens, key/query width \\(d_k=2\\), and value width 2:</p>
+<div class="box eqn">
+  <span class="lbl">Setup</span>
+  <p>$$Q=K=\begin{bmatrix}1&0\\0&1\end{bmatrix},\qquad V=\begin{bmatrix}1&2\\3&0\end{bmatrix}$$</p>
+  <p>Token 1’s value is \\([1,2]\\); token 2’s value is \\([3,0]\\). Because \\(Q=K=I\\), each token matches itself more than the other token.</p>
+</div>
+
+<p><strong>Step 1 — raw dot products.</strong></p>
+<p>$$QK^\top=\begin{bmatrix}1&0\\0&1\end{bmatrix}$$</p>
+
+<p><strong>Step 2 — scale by \\(\sqrt{d_k}=\sqrt{2}\approx1.414\\).</strong></p>
+<p>$$\frac{QK^\top}{\sqrt{2}}=\begin{bmatrix}0.707&0\\0&0.707\end{bmatrix}$$</p>
+
+<p><strong>Step 3 — softmax each row.</strong> For row 1:</p>
+<p>$$\text{softmax}([0.707,0])=\left[\frac{e^{0.707}}{e^{0.707}+e^0},\frac{e^0}{e^{0.707}+e^0}\right]\approx[0.670,0.330]$$</p>
+<p>By symmetry, row 2 is \\([0.330,0.670]\\), so</p>
+<p>$$W\approx\begin{bmatrix}0.670&0.330\\0.330&0.670\end{bmatrix}$$</p>
+
+<p><strong>Step 4 — weighted values.</strong></p>
+<p>$$WV\approx\begin{bmatrix}0.670&0.330\\0.330&0.670\end{bmatrix}\begin{bmatrix}1&2\\3&0\end{bmatrix}=\begin{bmatrix}1.66&1.34\\2.34&0.66\end{bmatrix}$$</p>
+<p>Token 1 mostly keeps its own value but borrows some from token 2; token 2 does the reverse. This is content-based routing in numbers.</p>
+
+<details class="check"><summary>✓ Check yourself — why divide by \\(\sqrt{d_k}\\)?</summary>
+<p>As \\(d_k\\) grows, random dot products tend to have larger variance. Without scaling, softmax can become too peaky early: one token gets almost all the weight and gradients become less useful. Dividing by \\(\sqrt{d_k}\\) keeps score magnitudes in a range where softmax can compare alternatives smoothly.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one decoder-only block</h2>
+<p>Trace a concrete sequence of \\(T=4\\) tokens through one decoder-only block with model width \\(d=8\\), one attention head for simplicity, and \\(d_k=8\\). Real models use many heads and many stacked blocks; the shape logic is the same.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · input</td><td>Token IDs become embeddings; positional information is added.</td><td class="tt">tokens+pos: 4×8</td></tr>
+  <tr><td>1 · QKV</td><td>Three learned linear maps produce queries, keys, and values.</td><td class="tt">Q,K,V: 4×8</td></tr>
+  <tr><td>2 · causal scores</td><td>Compute \\(QK^\top/\sqrt{8}\\); mask future positions.</td><td class="tt">scores: 4×4</td></tr>
+  <tr><td>3 · softmax</td><td>Each row becomes attention weights over allowed previous/current tokens.</td><td class="tt">weights: 4×4</td></tr>
+  <tr><td>4 · attention output</td><td>Weights multiply values, mixing information across positions.</td><td class="tt">attn: 4×8</td></tr>
+  <tr><td>5 · residual + norm</td><td>Add the attention result back to the block input, then normalize.</td><td class="tt">4×8</td></tr>
+  <tr><td>6 · MLP</td><td>Apply a position-wise feed-forward network: private computation per token.</td><td class="tt">4×8 → 4×m → 4×8</td></tr>
+  <tr><td>7 · residual</td><td>Add the MLP result back; pass to the next block or output head.</td><td class="tt">4×8</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Communication vs computation</span>
+  <p>Attention is communication: tokens read from other tokens on the shared whiteboard. The MLP is computation: each token transforms what it now knows. Decoder-only language models alternate these two moves dozens of times, then predict the next token from the final representation.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does the \\(T\times T\\) bottleneck appear?</summary>
+<p>At the score and weight matrices. For \\(T=4\\), it is tiny: \\(4\times4\\). For million-token contexts, the full pairwise matrix is the core reason vanilla attention is expensive.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Open problems after V6</h2>
+<p>The lecture does not present “AGI solved.” It ends with weaknesses and research directions. The useful way to remember them is by asking what the lab still cannot do reliably.</p>
+
+<ul>
+  <li><strong>Reasoning reliability</strong> — longer chains can help, but they can also be unfaithful, brittle, or optimized for looking plausible.</li>
+  <li><strong>Efficiency and serving</strong> — frontier models are expensive to train and run; context length, KV-cache memory, latency, and energy all matter.</li>
+  <li><strong>Context length and memory</strong> — a huge prompt is not the same as durable learning. Systems need reliable updating, forgetting, and conflict resolution.</li>
+  <li><strong>Evaluation</strong> — static benchmarks saturate; agentic, multimodal, and long-horizon tasks need better tests and clearer failure definitions.</li>
+  <li><strong>Alignment and safety</strong> — models can reward-hack, take shortcuts, generalize badly out of distribution, or produce explanations that are not faithful to the actual computation.</li>
+  <li><strong>World models and alternatives</strong> — JEPA-style world modeling, SSMs/Mamba, linear attention, and hybrids ask whether next-token prediction plus attention is enough.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“More context means the model knows more.” Context can provide temporary evidence, but it does not necessarily update the model’s weights or long-term behavior. The transcript explicitly distinguishes inference-time context/memory from true continual learning.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — hallucination according to the talk is not merely “wrong text.” What is the deeper framing?</summary>
+<p>The talk frames hallucination through world models: a model has an internal learned world model, while the task has a reference world model plus a view and conflict policy. A hallucination is a claim false relative to that task-grounded reference, not simply any surprising output.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Try to answer from memory; jump back only if a link feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does CS25 V6 need an overview rather than only a mechanics lecture? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Explain self-attention as content-based routing using query, key, and value. <a class="ref" href="#s2">(§2)</a></li>
+    <li>What does test-time compute buy that pre-training alone does not? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the two-token attention example and explain the role of \\(\sqrt{d_k}\\). <a class="ref" href="#worked">(worked example)</a></li>
+    <li>In the trace, which part is communication and which part is computation? <a class="ref" href="#trace">(trace)</a></li>
+    <li>Teach it back: explain the V6 frontier to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Self-attention</td><td>A mechanism where each token computes how much to read from other tokens in the same sequence.</td></tr>
+  <tr><td>Decoder-only transformer</td><td>A transformer architecture trained to predict the next token using only previous/current tokens.</td></tr>
+  <tr><td>Test-time compute</td><td>Extra computation spent during inference, such as longer reasoning, search, verification, or tool calls.</td></tr>
+  <tr><td>Process supervision</td><td>Training signal that evaluates intermediate reasoning steps, not only final answers.</td></tr>
+  <tr><td>Agent</td><td>A model-driven loop that observes, plans, acts with tools, observes results, and iterates toward a goal.</td></tr>
+  <tr><td>KV-cache</td><td>Stored keys and values from previous tokens used to speed autoregressive decoding.</td></tr>
+  <tr><td>MoE</td><td>Mixture-of-Experts: a model where only selected expert sub-networks activate for each token.</td></tr>
+  <tr><td>FlashAttention</td><td>An exact attention algorithm optimized to reduce memory traffic and improve speed.</td></tr>
+  <tr><td>State-space model (SSM)</td><td>A sequence model that updates a compact state over time instead of attending to every past token.</td></tr>
+  <tr><td>Mamba</td><td>A selective SSM architecture that makes state updates input-dependent, improving long-sequence modeling.</td></tr>
+  <tr><td>World model</td><td>A representation of how an environment or domain works, used for prediction, planning, and judging hallucination.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly connected to the lecture</h4>
+<ol class="refs">
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv</a> — original transformer architecture and scaled dot-product attention.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">arXiv</a> — canonical test-time reasoning prompt result.</li>
+  <li>Yao et al. (2023). <strong>Tree of Thoughts.</strong> <a class="ref" href="https://arxiv.org/abs/2305.10601">arXiv</a> — search over multiple reasoning paths.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">arXiv</a> — RLHF for instruction following.</li>
+  <li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290">arXiv</a> — preference optimization without a separate RL reward model.</li>
+  <li>Dao et al. (2022). <strong>FlashAttention.</strong> <a class="ref" href="https://arxiv.org/abs/2205.14135">arXiv</a> — efficient exact attention via IO-aware computation.</li>
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16x16 Words.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929">arXiv</a> — Vision Transformer patching idea.</li>
+  <li>Radford et al. (2021). <strong>Learning Transferable Visual Models From Natural Language Supervision.</strong> <a class="ref" href="https://arxiv.org/abs/2103.00020">arXiv</a> — CLIP-style text-image alignment.</li>
+  <li>Gu and Dao (2023). <strong>Mamba: Linear-Time Sequence Modeling with Selective State Spaces.</strong> <a class="ref" href="https://arxiv.org/abs/2312.00752">arXiv</a> — selective SSM architecture previewed by the V6 SSM talk.</li>
+  <li>LeCun (2022). <strong>A Path Towards Autonomous Machine Intelligence.</strong> <a class="ref" href="https://openreview.net/forum?id=BZ5a1r-kVsf">OpenReview</a> — JEPA/world-model direction mentioned near the end of the overview.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="02-transformer-mechanics.html">Note 2</a> — deep mechanics of transformer blocks and attention.</li>
+  <li><a class="ref" href="26-transformers-overview-v4.html">Note 26</a> and <a class="ref" href="34-transformers-overview-v5.html">Note 34</a> — earlier overview snapshots to compare with V6.</li>
+  <li><a class="ref" href="44-state-space-models-tradeoffs.html">Note 44</a> — the V6 state-space models / Mamba follow-up.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="41-video-generation.html">◀ Previous · Video generation</a>
+  <a class="r" href="43-representation-to-world-modeling.html">Next · Representation to world modeling ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 2 of 5 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

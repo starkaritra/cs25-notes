@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 34 — Overview of Transformers (V5)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why an overview now?</a>
+  <a href="#s1a" class="sub">1.1 What changed by 2025</a>
+  <a href="#s1b" class="sub">1.2 The course map</a>
+  <a href="#s2">2 · Mechanics recap</a>
+  <a href="#s2a" class="sub">2.1 Attention as routing</a>
+  <a href="#s2b" class="sub">2.2 Decoder-only blocks</a>
+  <a href="#s3">3 · The 2025 frontier</a>
+  <a href="#s3a" class="sub">3.1 Reasoning + test-time compute</a>
+  <a href="#s3b" class="sub">3.2 RL for reasoning</a>
+  <a href="#s3c" class="sub">3.3 Agents, tools, and memory</a>
+  <a href="#s3d" class="sub">3.4 Native multimodality</a>
+  <a href="#s3e" class="sub">3.5 Long context + efficiency</a>
+  <a href="#s3f" class="sub">3.6 Beyond attention</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Open problems</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 7 · Note 4 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>Overview of Transformers (CS25 V5, 2025)</h1>
+  <p class="lead">The V5 opener resets the transformer map for 2025: the mechanics are familiar, but the frontier has moved toward reasoning, post-training, agents, multimodality, long context, efficiency, and architectures that ask whether attention is the final answer.</p>
+  <div class="meta">
+    <span class="pill">🎓 Steven, Karan, Chelsea, and Jenny (CS25 V5 instructors)</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=JKbtWimlzAE" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>In earlier CS25 versions, an overview could still feel like an architecture lecture. In 2025, transformers are the operating substrate for chat assistants, code models, image/video systems such as Sora-like generators, scientific models, medical-imaging pipelines, and tool-using agents. The lecture therefore asks a sharper question: if the block is now familiar, <strong>where is progress actually coming from?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Keep one picture: a transformer is a <strong>research lab</strong>. Tokens are researchers at desks; attention is who each researcher consults; the residual stream is the shared whiteboard; the MLP is private scratch-work. In 2025 the lab has gained a budget for overtime, external tools, new sensors, specialist teams, and a manager that can reward correct reasoning.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>This note keeps mechanics tight. For the deeper pass, revisit <a class="ref" href="XfpMkf4rD6E.html">Note 2</a>; for the V4 overview, compare <a class="ref" href="26-v4-overview.html">Note 26</a>.</p>
+  <ul>
+    <li><strong>Attention / dot product / softmax</strong> — dot products score query-key matches; softmax turns scores into routing weights; values are mixed by those weights.</li>
+    <li><strong>Chain-of-thought</strong> — ask or train a model to emit intermediate reasoning tokens before the final answer; these tokens cost inference compute but can improve hard-task accuracy.</li>
+    <li><strong>RL / reward</strong> — reinforcement learning adjusts behavior toward outputs with higher reward; in reasoning, rewards are often verifiable answers such as math/code correctness.</li>
+    <li><strong>MoE</strong> — mixture-of-experts routes each token through a few specialist subnetworks instead of activating every parameter; see <a class="ref" href="05-mixture-of-experts.html">Note 5</a> and <a class="ref" href="29-mixtral-moe.html">Note 29</a>.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why an overview now?</h2>
+<p>The lecture begins with the reason CS25 exists: transformers moved from a research architecture to a basic technology of daily life. The 2025 twist is that the obvious scaling story is no longer enough. The instructors split the opener into mechanics, pre-training/data strategy, post-training, applications, and remaining weaknesses.</p>
+
+<h3 id="s1a">1.1 What changed by 2025</h3>
+<p>Karan's quick mechanics pass names models such as GPT-4o, o3, and DeepSeek alongside vision, speech, biology, and video systems. Steven then emphasizes data strategy: not only <em>how much</em> data, but what kind, in what mixture, and at what phase. Chelsea's section shifts to post-training: chain-of-thought, tree-of-thought, program-of-thought, RLHF, DPO, RLAIF, GRPO, self-refinement, ReAct, and tree-search agents.</p>
+<p>The big update from <a class="ref" href="26-v4-overview.html">V4</a> is therefore not “transformers still work.” It is that many frontier gains now come from <strong>training and inference procedures around</strong> the block: better data curricula, better rewards, more deliberate reasoning at test time, and systems that connect the model to tools and memory.</p>
+
+<h3 id="s1b">1.2 The course map</h3>
+<p>The instructors also frame the quarter: guest lectures will cover state-of-the-art transformers across language, vision, biology, robotics, agents, and more. This note is the map you keep open while watching the rest: it tells you which ideas are core mechanics and which ideas are 2025 frontier layers.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    A["2017: Transformer block"] --> B["Pre-training at scale"]
+    B --> C["Post-training<br/>(preferences + RL)"]
+    C --> D["Reasoning models<br/>(o1/o3, DeepSeek-R1)"]
+    D --> E["Agents + tools + memory"]
+    B --> F["Multimodal models<br/>(text, image, audio, video)"]
+    B --> G["Efficiency<br/>(MoE, KV-cache, FlashAttention)"]
+    G --> H["Alternatives<br/>(SSMs / Mamba)"]
+</div><figcaption>The V5 overview treats the transformer as the hub; the frontier is increasingly in the ecosystem around it.</figcaption></figure>
+
+<details class="check"><summary>✓ Check yourself — name two non-architecture sources of progress in the lecture.</summary>
+<p>Data strategy during pre-training and post-training with feedback/RL are two. Test-time compute, tool use, retrieval, and multimodal data are also valid.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Fast mechanics recap: tokens ask each other for context</h2>
+<p>Suppose the token <code>bank</code> appears in “the canoe reached the bank.” A static embedding would blur riverbank and financial bank. A transformer lets the token consult its neighbors, so meaning becomes contextual.</p>
+
+<h3 id="s2a">2.1 Self-attention as content-based routing</h3>
+<p>Each token creates three learned views: a <strong>query</strong> (“what am I looking for?”), a <strong>key</strong> (“what do I match?”), and a <strong>value</strong> (“what information do I carry?”). In the lab analogy, a researcher writes a question, scans everyone else's abstracts, and copies useful notes from the best matches.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — scaled dot-product attention</span>
+  <p>$$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\tfrac{QK^\top}{\sqrt{d_k}}\right)V$$</p>
+  <p>
+    \(Q\) is the matrix of queries, \(K\) keys, \(V\) values, and \(d_k\) the key/query width. \(QK^\top\) gives every token-to-token match score; division by \(\sqrt{d_k}\) keeps scores numerically tame; softmax converts scores to weights; multiplying by \(V\) returns the routed information.
+  </p>
+</div>
+
+<figure><div class="mermaid">
+flowchart TB
+    X["tokens + positions<br/>(T × d)"] --> Q["queries Q"]
+    X --> K["keys K"]
+    X --> V["values V"]
+    Q --> S["scores QKᵀ / √d_k"]
+    K --> S
+    S --> M["causal mask<br/>(no future tokens)"]
+    M --> W["softmax weights"]
+    W --> O["weighted value mix<br/>(T × d)"]
+    V --> O
+</div><figcaption>A decoder-only attention head routes information from earlier tokens to each current token.</figcaption></figure>
+
+<h3 id="s2b">2.2 Decoder-only blocks</h3>
+<p>The modern LLM core is usually decoder-only: tokens flow through masked self-attention, an MLP, residual connections, normalization, and then repeat for many layers. At the end, the model predicts the next token, appends it, and runs again.</p>
+<p>Multi-head attention is several committees in the lab asking different questions at once: one head might route syntax, another entity identity, another arithmetic setup. More layers let the shared whiteboard accumulate progressively more abstract features.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Attention is a database lookup.”</strong> It is closer to differentiable, content-based routing. The model does not pick one earlier token; it forms a weighted mixture, and those weights are learned indirectly through next-token prediction and later post-training.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does a decoder-only model need a causal mask?</summary>
+<p>During next-token training and generation, position \(t\) must not read tokens after \(t\). The causal mask blocks future positions so the model learns to predict from the prefix only.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The 2025 frontier: the block is stable, the workflow is changing</h2>
+<p>The lecture's deepest 2025 story is that raw pre-training still matters, but many headline improvements now happen after or around it: at post-training time, at inference time, and at system-design time.</p>
+
+<h3 id="s3a">3.1 Reasoning models and test-time compute</h3>
+<p>Reasoning models such as OpenAI's o1/o3 family and DeepSeek-R1 popularized a new scaling axis: spend more compute <em>while answering</em>. Instead of one short completion, the model may generate longer reasoning traces, try multiple paths, verify an answer, or search over candidate solutions.</p>
+<p>In the lab analogy, this is overtime. A researcher can answer immediately, or the lab can fund more scratch-work, more independent attempts, and more checking. The promise is better math/code/problem-solving; the cost is latency, tokens, and money.</p>
+
+<div class="box eqn">
+  <span class="lbl">Inference-time scaling — independent attempts</span>
+  <p>$$\text{pass@}k = 1-(1-p)^k$$</p>
+  <p>If one attempt solves a verifiable problem with probability \(p\), then \(k\) independent attempts fail only if all \(k\) fail. This is not a complete theory of reasoning models, but it captures why “try more / think longer” can buy accuracy.</p>
+</div>
+
+<h3 id="s3b">3.2 RL for reasoning: from preference to verifiable reward</h3>
+<p>The transcript reviews RLHF, DPO, RLAIF, and then GRPO, the DeepSeek-associated method that ranks groups of responses rather than only pairs. The reasoning-specific idea is especially powerful when the reward is <strong>verifiable</strong>: a math answer is correct, a unit test passes, a proof checker accepts, or a code solution matches expected behavior.</p>
+<p>Preference rewards ask “which answer do humans like?” Verifiable rewards ask “did the attempted solution work?” That can scale supervision for reasoning because the system can generate many attempts and score them with a checker.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    P["problem"] --> A1["attempt 1<br/>reasoning tokens"]
+    P --> A2["attempt 2<br/>reasoning tokens"]
+    P --> A3["attempt 3<br/>reasoning tokens"]
+    A1 --> V["verifier<br/>(answer / tests / checker)"]
+    A2 --> V
+    A3 --> V
+    V --> R["reward signal"]
+    R --> U["policy update<br/>(RL for reasoning)"]
+</div><figcaption>Reasoning RL becomes easier when correctness can be checked automatically.</figcaption></figure>
+
+<details class="check"><summary>✓ Check yourself — why are math and code attractive for RL reasoning?</summary>
+<p>They often provide cheap, objective feedback: a final numeric answer can be checked, and code can be run against tests. That makes reward less dependent on slow human preference labels.</p></details>
+
+<h3 id="s3c">3.3 Agents, tools, and memory</h3>
+<p>Chelsea defines an AI agent as a system that perceives an environment, chooses actions toward a goal, acts iteratively, tracks state, uses memory, and may call tools. ReAct combines reasoning with actions such as retrieval or API calls; Language Agent Tree Search expands this into multiple planning branches with self-reflection and search.</p>
+<p>In lab terms, the transformer is no longer only a thinker. It can ask a calculator, call a search engine, query a database, run code, revise the plan, and keep notes for the next step. The unresolved problem is reliability: an agent that can act is useful only if its plans, tool calls, and self-evaluations are trustworthy.</p>
+
+<h3 id="s3d">3.4 Multimodal and native multimodality</h3>
+<p>The lecture moves from language to vision transformers, CLIP-style image-text alignment, GPT-4o-like vision-language systems, video, speech, and neuroscience/fMRI applications. The key trick is tokenization: images become patches, brain time series become parcels over time, audio/video become sequences, and attention routes across them.</p>
+<p>The 2025 frontier is <strong>native multimodality</strong>: not a text model with a bolt-on image encoder, but a system trained to reason across text, images, audio, and video as first-class streams. That matters for embodied systems, medical diagnostics, tutoring, and real-time communication.</p>
+
+<h3 id="s3e">3.5 Long context and efficiency</h3>
+<p>Long context promises models that can read books, repos, records, and long videos. But vanilla attention scales quadratically in sequence length because it forms all pairwise scores. Efficiency work therefore becomes part of the frontier, not an implementation detail.</p>
+<ul>
+  <li><strong>KV-cache</strong> stores previous keys and values during generation so each new token does not recompute the whole prefix.</li>
+  <li><strong>FlashAttention</strong> computes exact attention with memory-aware tiling, reducing bandwidth bottlenecks on GPUs.</li>
+  <li><strong>MoE</strong> activates only a subset of experts per token, increasing parameter count without paying full dense compute every time.</li>
+  <li><strong>Distillation and small models</strong> bring capabilities closer to phones, local devices, and lower-cost deployment.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Why long context is expensive</span>
+  <p>$$\text{attention score matrix size} = T\times T \quad \Rightarrow \quad \mathcal{O}(T^2)\text{ pairwise scores}$$</p>
+  <p>For sequence length \(T\), every token can score every other token. Doubling context roughly quadruples the raw score matrix, before hardware-aware optimizations.</p>
+</div>
+
+<h3 id="s3f">3.6 Alternatives to attention: preview of V6</h3>
+<p>Steven explicitly points beyond the transformer: if pre-training scale is saturating, new architectures may matter again. State-space models such as Mamba replace explicit all-pairs attention with learned recurrent state updates that can process long sequences more efficiently. They are not a drop-in answer to every LLM problem, but they reopen the architectural question for V6: do we need attention everywhere, or only where content-addressable routing is worth the cost?</p>
+
+<details class="check"><summary>✓ Check yourself — when would attention be worth its quadratic cost?</summary>
+<p>When a token may need to retrieve information from many arbitrary earlier positions by content, such as resolving references, comparing distant facts, or cross-modal alignment. If local or compressible state is enough, state-space or other efficient alternatives may be attractive.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked micro-example — test-time compute by the numbers</h2>
+<p>Take a verifiable math problem. Suppose one independent reasoning attempt solves it with probability \(p=0.4\). If we sample \(k\) attempts and accept any verified correct answer, the only way to fail is for every attempt to fail.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$\text{pass@}k = 1-(1-p)^k$$</p>
+  <p>For \(p=0.4\), the failure probability per attempt is \(1-p=0.6\).</p>
+  <p>$$\text{pass@}1 = 1-0.6^1 = 1-0.6 = 0.40$$</p>
+  <p>$$\text{pass@}3 = 1-0.6^3 = 1-0.216 = 0.784 \approx 0.78$$</p>
+  <p>$$\text{pass@}5 = 1-0.6^5 = 1-0.07776 = 0.92224 \approx 0.92$$</p>
+  <p>So “think longer / try more” can trade inference compute for accuracy: five attempts are much more likely to contain a correct solution, but they can cost roughly five times the generated reasoning tokens before verification overhead.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the cost tradeoff if each attempt emits 800 reasoning tokens?</summary>
+<p>One attempt costs about 800 reasoning tokens; three cost about 2,400; five cost about 4,000, plus verifier overhead. Accuracy rose from 0.40 to about 0.92, but latency and token cost also rose substantially.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one decoder-only block plus the reasoning loop</h2>
+<p>Follow one prompt prefix through a decoder-only transformer. The shapes use \(T\) tokens and hidden width \(d\).</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/Output</th></tr>
+  <tr><td>0 · input</td><td>Tokenize the prompt and add positional information.</td><td class="tt">tokens+pos (T×d)</td></tr>
+  <tr><td>1 · QKV</td><td>Linear projections create queries, keys, and values for each head.</td><td class="tt">Q,K,V (T×d_k per head)</td></tr>
+  <tr><td>2 · causal scores</td><td>Compute \(QK^\top/\sqrt{d_k}\) and mask future positions.</td><td class="tt">scores (T×T)</td></tr>
+  <tr><td>3 · softmax</td><td>Turn scores into routing weights over allowed previous tokens.</td><td class="tt">weights (T×T)</td></tr>
+  <tr><td>4 · attention output</td><td>Mix values using the weights, concatenate heads, project back.</td><td class="tt">attn (T×d)</td></tr>
+  <tr><td>5 · residual</td><td>Add attention output to the shared stream.</td><td class="tt">stream (T×d)</td></tr>
+  <tr><td>6 · MLP</td><td>Apply position-wise nonlinear transformation: private scratch-work for each token.</td><td class="tt">MLP (T×d)</td></tr>
+  <tr><td>7 · residual</td><td>Add MLP output back; repeat blocks.</td><td class="tt">stream (T×d)</td></tr>
+  <tr><td>8 · logits</td><td>Map final hidden states to next-token probabilities.</td><td class="tt">vocab logits</td></tr>
+  <tr><td>9 · reasoning loop</td><td>Generate reasoning tokens, optionally sample more attempts, verify, then emit final answer.</td><td class="tt">... → reasoning tokens → answer</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Train-time vs test-time compute</span>
+  <p>Train-time compute changes the lab's weights: it makes the researchers better before deployment. Test-time compute gives the same lab more time, scratch-paper, branches, and tool calls for one problem. Reasoning models exploit both, but the 2025 frontier made the second knob much more visible.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does the model “learn” in this trace?</summary>
+<p>During ordinary inference, weights do not update; the trace only creates activations and new tokens. Learning happens during pre-training, fine-tuning, RL, or explicit continual-learning/model-editing methods.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Open problems: what the lecture says is still missing</h2>
+<p>The instructors close by naming weaknesses that still separate today's systems from robust, human-like intelligence. The list is not anti-transformer; it is the research agenda that makes the rest of CS25 necessary.</p>
+
+<h3 id="s6a">6.1 Reliability, hallucination, and evaluation</h3>
+<p>Reasoning traces can be persuasive without being correct. Agents can plan confidently and still call the wrong tool. Multimodal systems can ground poorly. Better evaluations must test not only final answers, but calibration, robustness, long-horizon behavior, and whether a model knows when it is uncertain.</p>
+
+<h3 id="s6b">6.2 Cost and controllability</h3>
+<p>Test-time compute improves some tasks but can make inference expensive. Long context and large multimodal inputs raise memory and latency costs. Interpretability and mechanistic work matter because developers need to know why a model produced an answer, not only that it produced one.</p>
+
+<h3 id="s6c">6.3 Alignment and continual learning</h3>
+<p>The lecture highlights alignment, pluralistic preferences, ethical reasoning, and the lack of true continual learning. RAG can retrieve new facts, but it does not update the model's “brain.” Fine-tuning updates weights but risks catastrophic forgetting. Model editing, MEMIT, lifelong MoE, prompt memories, and progressive prompts are attempts to close this gap, each with limits.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If we add enough reasoning tokens, reliability is solved.”</strong> More attempts can raise pass rates when a verifier exists, but many real tasks lack clean verification. For open-ended advice, safety, medicine, law, and long-horizon agency, more fluent reasoning can still be wrong or misaligned.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is continual learning harder than RAG?</summary>
+<p>RAG adds an external memory lookup; continual learning changes the model's internal capabilities or facts without destroying old skills. That requires targeted, stable updates and protection against catastrophic forgetting.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not reread first. Try to answer, then jump back if one is shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does the V5 overview spend less time on vanilla mechanics than an earlier transformer lecture? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Explain attention as content-based routing using query, key, and value. <a class="ref" href="#s2">(§2)</a></li>
+    <li>Why can pass@\(k\) improve when we sample more reasoning attempts? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>What is the difference between train-time compute and test-time compute? <a class="ref" href="#trace">(trace)</a></li>
+    <li>Name one reason agents are powerful and one reason they are risky. <a class="ref" href="#s3c">(§3.3)</a></li>
+    <li>Teach it back: explain the 2025 transformer frontier to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Self-attention</td><td>A way for tokens in the same sequence to route information to each other by learned similarity.</td></tr>
+  <tr><td>Decoder-only model</td><td>A transformer language model that predicts the next token from previous tokens using causal masking.</td></tr>
+  <tr><td>Test-time compute</td><td>Extra computation spent during inference: longer reasoning traces, multiple samples, search, or tool calls.</td></tr>
+  <tr><td>Chain-of-thought</td><td>Intermediate reasoning tokens generated before a final answer.</td></tr>
+  <tr><td>GRPO</td><td>Group Relative Policy Optimization, an RL method that compares groups of outputs and was popularized by DeepSeek reasoning work.</td></tr>
+  <tr><td>Verifier</td><td>A checker that can score whether an answer or action succeeded, such as tests, exact answers, or proof validation.</td></tr>
+  <tr><td>Agent</td><td>A model-centered system that pursues goals through iterative decisions, memory, and actions such as tool calls.</td></tr>
+  <tr><td>Native multimodality</td><td>Training and operating across modalities such as text, image, audio, and video as first-class inputs/outputs.</td></tr>
+  <tr><td>KV-cache</td><td>Stored keys and values from previous tokens that make autoregressive generation faster.</td></tr>
+  <tr><td>FlashAttention</td><td>A memory-efficient exact attention algorithm that reduces GPU memory traffic.</td></tr>
+  <tr><td>MoE</td><td>Mixture-of-experts: route each token through selected specialist subnetworks instead of one dense network.</td></tr>
+  <tr><td>State-space model</td><td>An alternative sequence architecture that maintains a learned recurrent state rather than all-pairs attention.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources and ideas named in the lecture</h4>
+<ol class="refs">
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv</a> — the original transformer paper.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">arXiv</a> — the canonical CoT prompting result.</li>
+  <li>Yao et al. (2023). <strong>Tree of Thoughts: Deliberate Problem Solving with Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2305.10601">arXiv</a> — multiple reasoning trajectories and search.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">arXiv</a> — RLHF for instruction-following.</li>
+  <li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290">arXiv</a> — preference optimization without a separate RL reward-model loop.</li>
+  <li>DeepSeek-AI (2025). <strong>DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2501.12948">arXiv</a> — reasoning-focused RL and GRPO-style training.</li>
+  <li>Yao et al. (2022). <strong>ReAct: Synergizing Reasoning and Acting in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2210.03629">arXiv</a> — connecting reasoning traces to external actions.</li>
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16x16 Words.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929">arXiv</a> — Vision Transformers.</li>
+  <li>Radford et al. (2021). <strong>Learning Transferable Visual Models From Natural Language Supervision.</strong> <a class="ref" href="https://arxiv.org/abs/2103.00020">arXiv</a> — CLIP and image-text contrastive learning.</li>
+  <li>Dao et al. (2022). <strong>FlashAttention.</strong> <a class="ref" href="https://arxiv.org/abs/2205.14135">arXiv</a> — hardware-aware efficient attention.</li>
+  <li>Gu and Dao (2023). <strong>Mamba: Linear-Time Sequence Modeling with Selective State Spaces.</strong> <a class="ref" href="https://arxiv.org/abs/2312.00752">arXiv</a> — state-space alternative to attention-heavy sequence modeling.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="XfpMkf4rD6E.html">CS25 Note 2</a> — deeper attention and transformer mechanics.</li>
+  <li><a class="ref" href="26-v4-overview.html">CS25 Note 26</a> — compare the 2024 frontier with the 2025 frontier.</li>
+  <li><a class="ref" href="29-mixtral-moe.html">CS25 Note 29</a> — MoE and sparse expert routing.</li>
+  <li><a class="ref" href="https://cs25.stanford.edu/">Stanford CS25 course site</a> — lecture lineup and updates.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="33-hyung-won-chung.html">◀ Previous note</a>
+  <a class="r" href="35-rl-codesign-product.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 34 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

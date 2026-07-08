@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 05 — Mixture of Experts & Switch Transformer</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why sparse scaling?</a>
+  <a href="#s1a" class="sub">1.1 Dense vs sparse compute</a>
+  <a href="#s2">2 · Router and experts</a>
+  <a href="#s2a" class="sub">2.1 Top-k and Switch top-1</a>
+  <a href="#s3">3 · Capacity and balance</a>
+  <a href="#s3a" class="sub">3.1 Load-balancing loss</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Systems and scaling</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 2 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V1 — LECTURE 5</div>
+  <h1>Mixture of Experts (MoE) &amp; the Switch Transformer</h1>
+  <p class="lead">MoE makes a transformer huge in parameters without making every token pay for every parameter: a learned router sends each token to a small expert subset.</p>
+  <div class="meta">
+    <span class="pill">🎓 Barret Zoph &amp; Irwan Bello</span>
+    <span class="pill">⏱ ≈50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=U8J32Z3qV8s" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Dense transformers have a simple bargain: more parameters usually means more capability, but every token must run through the same giant stack. Sparsely-gated Mixture of Experts asks for a better bargain: can we store many specialized FFNs, activate only one or two per token, and keep the <strong>FLOPs per token roughly constant</strong> while the total parameter count climbs into the hundreds of billions or trillions?</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Picture a hospital triage desk. Every patient first meets the same receptionist-router; then the router sends them to the right specialist clinic. The hospital can employ many specialists, but each patient only visits one or two, so the visit cost stays small while the hospital’s total knowledge grows.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow the note smoothly if these are fresh:</p>
+  <ul>
+    <li><strong>Softmax</strong> — turns logits into positive probabilities that sum to 1; the router uses it to score experts.</li>
+    <li><strong>Transformer FFN / MLP block</strong> — the per-token dense sublayer after attention; MoE usually replaces this block with many alternative FFNs.</li>
+    <li><strong>FLOPs per token</strong> — the approximate arithmetic cost to process one token; sparse routing tries to keep this near dense-model cost.</li>
+    <li><strong>Parameter-vs-compute distinction</strong> — parameters are stored knowledge; compute is what you execute on this input. MoE increases the first much more than the second.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The scaling problem MoE tries to solve</h2>
+<p>Suppose a dense transformer FFN has one set of weights. Whether the token is <em>France</em>, <em>mitochondria</em>, or <em>for-loop</em>, it passes through the same FFN. Scaling the FFN gives every token more capacity, but every token also pays the larger compute bill.</p>
+
+<h3 id="s1a">1.1 Dense vs sparse compute</h3>
+<p>MoE keeps the shared attention pathway, but swaps some FFN layers for a bank of experts. Each expert is itself an FFN. The router decides which expert gets the current token.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — parameter count decoupled from active compute</span>
+  <p>For an FFN with model width \(d\) and hidden width \(d_{ff}\), a dense FFN has about \(2dd_{ff}\) weights and costs about \(2dd_{ff}\) multiply-adds per token. With \(N\) experts and top-\(k\) routing:</p>
+  <p>$$\text{stored FFN parameters} \approx N\cdot 2dd_{ff},\qquad \text{active FFN compute per token} \approx k\cdot 2dd_{ff}.$$</p>
+  <p>Here \(N\) is the number of specialist clinics and \(k\) is how many a token visits. The Switch Transformer sets \(k=1\), so adding experts mainly adds stored capacity, not per-token work.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>The lecture’s central move is not “make a smaller model.” It is “make a much larger model where each token activates a small block.” That is why MoE is sparse <em>within a huge parameter matrix</em>, not sparse in the pruning sense of deleting capacity.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if \(N=64\) and \(k=1\), what changes when you double \(N\)?</summary>
+<p>The stored expert parameters roughly double. The FFN compute for one token is almost unchanged because it still runs one expert. Memory and communication pressure may rise, but per-token expert FLOPs do not double.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Router and experts: the core mechanism</h2>
+<p>Take one token representation \(x_t\in\mathbb{R}^d\). Before it reaches the expert bank, a small router computes a score for each expert. Those scores become probabilities, and the highest probability expert or experts receive the token.</p>
+
+<h3 id="s2a">2.1 Top-k routing and the Switch simplification</h3>
+<p>Shazeer et al. popularized sparsely-gated MoE with top-2-style routing; Switch Transformer simplifies the decision to top-1. The simplification matters: one destination per token reduces communication, makes capacity accounting easier, and was empirically strong at low capacity factors.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — routing</span>
+  <p>$$p(x_t)=\operatorname{softmax}(x_t W_r),\qquad S_t=\operatorname{TopK}(p(x_t),k),\qquad y_t=\sum_{i\in S_t}p_i(x_t)\,E_i(x_t).$$</p>
+  <p>\(W_r\in\mathbb{R}^{d\times N}\) is the router matrix, \(p_i(x_t)\) is the router probability for expert \(i\), \(E_i\) is expert \(i\)’s FFN, and \(S_t\) is the selected expert set. Switch uses \(k=1\), so \(y_t=p_jE_j(x_t)\) for the single winning expert \(j\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    T["token representation x_t"] --> R["router softmax over N experts"]
+    R --> P{"top-k choice"}
+    P -->|"Switch top-1"| E1["selected expert E_j (FFN)"]
+    P -->|"MoE top-2"| E2["selected experts E_a and E_b"]
+    E1 --> C["weighted combine p_j E_j(x_t)"]
+    E2 --> C
+    C --> Y["output y_t"]
+</div>
+<figcaption>The receptionist-router chooses the specialist clinic; only the selected expert FFN runs for this token.</figcaption>
+</figure>
+
+<div class="svgcard">
+<svg viewBox="0 0 820 230" role="img" aria-label="A light card sketch contrasting dense FFN and Switch MoE FFN" width="100%">
+  <rect x="20" y="25" width="340" height="170" rx="18" fill="#fffaf0" stroke="#1b1f24" stroke-width="2"/>
+  <text x="190" y="55" text-anchor="middle" font-size="20" fill="#1b1f24" font-weight="700">Dense FFN</text>
+  <circle cx="80" cy="115" r="24" fill="#eaf2ff" stroke="#2f6df6" stroke-width="2"/>
+  <text x="80" y="121" text-anchor="middle" font-size="15" fill="#1b1f24">x</text>
+  <rect x="155" y="85" width="115" height="60" rx="12" fill="#eef7ee" stroke="#1b1f24"/>
+  <text x="212" y="120" text-anchor="middle" font-size="15" fill="#1b1f24">one FFN</text>
+  <path d="M105 115 L150 115" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M272 115 L322 115" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="190" y="175" text-anchor="middle" font-size="14" fill="#4b4032">all tokens use same weights</text>
+
+  <rect x="460" y="25" width="340" height="170" rx="18" fill="#fffaf0" stroke="#1b1f24" stroke-width="2"/>
+  <text x="630" y="55" text-anchor="middle" font-size="20" fill="#1b1f24" font-weight="700">Switch MoE FFN</text>
+  <circle cx="510" cy="115" r="24" fill="#eaf2ff" stroke="#2f6df6" stroke-width="2"/>
+  <text x="510" y="121" text-anchor="middle" font-size="15" fill="#1b1f24">x</text>
+  <rect x="565" y="74" width="80" height="82" rx="12" fill="#f5e8ff" stroke="#1b1f24"/>
+  <text x="605" y="108" text-anchor="middle" font-size="14" fill="#1b1f24">router</text>
+  <text x="605" y="128" text-anchor="middle" font-size="13" fill="#1b1f24">top-1</text>
+  <rect x="690" y="45" width="76" height="30" rx="8" fill="#eef7ee" stroke="#1b1f24"/>
+  <rect x="690" y="88" width="76" height="30" rx="8" fill="#dff4ff" stroke="#2f6df6" stroke-width="2"/>
+  <rect x="690" y="131" width="76" height="30" rx="8" fill="#eef7ee" stroke="#1b1f24"/>
+  <text x="728" y="65" text-anchor="middle" font-size="13" fill="#1b1f24">E1</text>
+  <text x="728" y="108" text-anchor="middle" font-size="13" fill="#1b1f24">E2 runs</text>
+  <text x="728" y="151" text-anchor="middle" font-size="13" fill="#1b1f24">E3</text>
+  <path d="M535 115 L560 115" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M645 115 C660 115, 672 103, 686 103" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="630" y="175" text-anchor="middle" font-size="14" fill="#4b4032">many stored experts; one active path</text>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#1b1f24"/></marker></defs>
+</svg>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Sparse” here does not mean the model has fewer parameters. It often has vastly more. The sparsity is conditional activation: a token sees a small slice of a giant expert bank.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is top-1 cheaper to communicate than top-2?</summary>
+<p>Top-1 sends each token to one expert device and returns one expert output. Top-2 sends it to two destinations and must combine two results, which usually means more all-to-all traffic and more capacity slots.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Capacity factor, overflow, and load balancing</h2>
+<p>Routers are learned. Without guardrails, a router can discover that one expert looks best early in training and send too many tokens there. Real devices cannot accept an unbounded number of tokens per expert, so MoE needs capacity rules.</p>
+
+<h3 id="s3a">3.1 Expert capacity</h3>
+<p>For a batch with \(S=B\times T\) tokens and \(N\) experts, a common static capacity is:</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — capacity factor</span>
+  <p>$$C=\left\lceil \frac{S}{N}\cdot \text{capacity\_factor}\right\rceil.$$</p>
+  <p>\(C\) is the number of token slots reserved per expert. If more than \(C\) tokens choose an expert, the extra tokens overflow: they may be dropped from the expert computation and passed through a residual path, depending on implementation.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    B["batch tokens S = B×T"] --> R["router assignments"]
+    R --> A["expert 1 capacity C"]
+    R --> D["expert 2 capacity C"]
+    R --> E["expert 3 capacity C"]
+    R --> F["expert 4 capacity C"]
+    A --> O["overflow tokens may be dropped"]
+    D --> G["expert FFN outputs"]
+    E --> G
+    F --> G
+</div>
+<figcaption>Capacity factor is the number of chairs in each specialist clinic; too few chairs causes overflow, too many chairs costs memory and communication.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 Load-balancing loss</h3>
+<p>The lecture emphasizes that load balancing is not cosmetic. Balanced routing maps better to hardware because all experts finish at similar times and the static capacity slots are used efficiently.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — Switch auxiliary balance loss</span>
+  <p>$$L_{\text{aux}}=\alpha\,N\sum_{i=1}^{N} f_i P_i.$$</p>
+  <p>\(f_i\) is the fraction of tokens actually routed to expert \(i\), \(P_i\) is the average router probability mass assigned to expert \(i\), \(N\) is the number of experts, and \(\alpha\) controls the strength. The loss is small when traffic and probability mass are spread across experts instead of collapsing onto one clinic.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Balance without destroying specialization</span>
+  <p>The auxiliary loss is a nudge, not the main objective. If \(\alpha\) is too high, the router may care more about equal traffic than task quality. If it is too low, one expert can become overcrowded. The useful regime lets experts specialize while staying hardware-friendly.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — with \(S=16\), \(N=4\), and capacity factor \(1.25\), what is \(C\)?</summary>
+<p>\(C=\lceil(16/4)\times1.25\rceil=\lceil5\rceil=5\). Each expert gets five token slots, so the layer reserves \(4\times5=20\) expert slots for 16 tokens.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked numeric micro-example — one token, four experts</h2>
+<p>Now compute the Switch routing decision by hand. The token arrives at the router, which emits four logits for experts \(E_1\) through \(E_4\):</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$z=[2.0,\,1.0,\,0.1,\,0.5].$$</p>
+  <p>Softmax exponentiates and normalizes:</p>
+  <p>$$\exp(z)=[7.389,\,2.718,\,1.105,\,1.649],\qquad \sum_j\exp(z_j)=12.861.$$</p>
+  <p>$$p=\operatorname{softmax}(z)=[0.5745,\,0.2114,\,0.0859,\,0.1282].$$</p>
+  <p>Switch top-1 chooses \(E_1\) because \(0.5745\) is largest. If that expert returns vector \(E_1(x)\), the routed output is:</p>
+  <p>$$y=0.5745\,E_1(x).$$</p>
+  <p>For a tiny scalar illustration, if \(E_1(x)=10\), then \(y=5.745\). In the real model, \(E_1(x)\) is a \(d\)-dimensional vector and the same scalar gate multiplies the vector.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if expert 2’s logit becomes \(2.4\), who wins?</summary>
+<p>The logits are \([2.0,2.4,0.1,0.5]\). The exponentials are approximately \([7.389,11.023,1.105,1.649]\), sum \(21.166\), so the probabilities are \([0.349,0.521,0.052,0.078]\). Expert \(E_2\) wins, and Switch outputs \(0.521\,E_2(x)\).</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one batch through a Switch layer</h2>
+<p>Follow a batch through a single MoE replacement for the FFN block. Let \(B=2\), \(T=4\), model width \(d=8\), experts \(N=4\), and capacity factor \(1.0\). Then \(S=8\) tokens and \(C=\lceil8/4\rceil=2\) token slots per expert.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape / state</th></tr>
+  <tr><td>0 · input</td><td>Transformer block has token representations after attention and residual normalization.</td><td class="tt">input: B×T×d = 2×4×8</td></tr>
+  <tr><td>1 · flatten tokens</td><td>The router treats the batch as \(S=B\times T\) token vectors.</td><td class="tt">tokens: S×d = 8×8</td></tr>
+  <tr><td>2 · router logits</td><td>Multiply by router weights to score each expert.</td><td class="tt">logits: S×N = 8×4</td></tr>
+  <tr><td>3 · softmax + top-1</td><td>Convert scores to probabilities and choose the largest expert per token.</td><td class="tt">assignments: 8 expert IDs + 8 gate probs</td></tr>
+  <tr><td>4 · dispatch with capacity</td><td>Tokens are grouped by expert. With \(C=2\), the third token assigned to the same expert overflows here.</td><td class="tt">expert input buffers: N×C×d = 4×2×8</td></tr>
+  <tr><td>5 · expert FFN</td><td>Each expert runs its own FFN on the tokens in its buffer; empty slots are masked.</td><td class="tt">expert outputs: 4×2×8</td></tr>
+  <tr><td>6 · combine</td><td>Each output is multiplied by its gate probability and placed back in the original token order.</td><td class="tt">combined tokens: S×d = 8×8</td></tr>
+  <tr><td>7 · reshape output</td><td>The layer returns to the transformer block shape.</td><td class="tt">output: B×T×d = 2×4×8</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The dynamic part is the assignment; the tensors sent to hardware are made static with capacity slots. That is why token dropping, padding, and all-to-all dispatch are not side details — they are the bridge from a learned router to real accelerators.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where exactly can token dropping happen in the trace?</summary>
+<p>At step 4, dispatch with capacity. Once an expert’s \(C\) slots are full, later tokens assigned to that expert cannot enter its FFN buffer unless the implementation reroutes them or increases capacity.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Switch Transformer specifics, systems costs, and limits</h2>
+<p>Switch Transformer is a practical recipe, not only an architectural slogan: use top-1 routing, replace some FFN layers with sparse layers, balance expert loads, keep router math stable, and distribute experts across devices.</p>
+
+<h3 id="s6a">6.1 What Switch changes</h3>
+<ul>
+  <li><strong>Top-1 routing:</strong> one expert per token, simpler than top-2 and often faster at low capacity factors.</li>
+  <li><strong>Capacity factor:</strong> controls the overflow-vs-cost tradeoff; lower values reduce communication and padding but risk dropping tokens.</li>
+  <li><strong>Expert parallelism:</strong> different devices hold different experts, so parameter count scales with device count.</li>
+  <li><strong>Selective precision:</strong> much of the model can use bfloat16, while router softmax computations are cast to float32 for stability because exponentials amplify rounding errors.</li>
+  <li><strong>Scale:</strong> the paper reports T5-based sparse models up to about <strong>1.6T parameters</strong>, with strong pretraining speedups such as up to roughly 7× over a T5-base dense baseline in the discussed setup.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X0["device 0 tokens"] --> A["all-to-all dispatch"]
+    X1["device 1 tokens"] --> A
+    X2["device 2 tokens"] --> A
+    X3["device 3 tokens"] --> A
+    A --> E0["device 0 expert shard"]
+    A --> E1["device 1 expert shard"]
+    A --> E2["device 2 expert shard"]
+    A --> E3["device 3 expert shard"]
+    E0 --> B["all-to-all combine"]
+    E1 --> B
+    E2 --> B
+    E3 --> B
+    B --> Y["tokens restored to original order"]
+</div>
+<figcaption>The system bottleneck is often not the expert FFN arithmetic; it is moving token activations to the devices that own the selected experts and then moving outputs back.</figcaption>
+</figure>
+
+<h3 id="s6b">6.2 The systems angle</h3>
+<p>Expert parallelism is attractive because each device can own different parameters. But if a token on device 0 chooses an expert on device 3, the activation must cross the network. That <strong>all-to-all communication</strong> can dominate runtime as expert counts grow. Sharding plans therefore co-design model dimensions, expert placement, data parallelism, and model parallelism.</p>
+
+<h3 id="s6c">6.3 Limitations and honest tradeoffs</h3>
+<div class="box pitfall">
+  <span class="lbl">Common failure modes</span>
+  <ul>
+    <li><strong>Training instability:</strong> sparse routing and low precision can diverge unless the router is handled carefully.</li>
+    <li><strong>Memory footprint:</strong> inactive experts still must live somewhere; MoE is weak when you are strictly parameter-memory constrained.</li>
+    <li><strong>Fine-tuning and overfitting:</strong> many parameters can overfit small downstream tasks; the lecture discusses stronger expert dropout and task-specific choices about auxiliary loss.</li>
+    <li><strong>Communication overhead:</strong> all-to-all traffic can erase compute savings if routing or sharding is poorly matched to hardware.</li>
+    <li><strong>Reasoning vs knowledge tradeoff:</strong> the lecture reports sparse models can shine on knowledge-heavy tasks while very sparse, low-FLOP models may lag dense models on some reasoning-heavy fine-tuning comparisons.</li>
+  </ul>
+</div>
+
+<div class="box check">
+  <span class="lbl">Design rule of thumb</span>
+  <p>MoE is most compelling when you want high-throughput pretraining or serving, have enough devices to store experts, and can afford the network traffic. If the goal is the best model that fits on one tiny device, dense or distilled dense models may be better.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did “no token left behind” not automatically help?</summary>
+<p>If the router strongly wanted expert 1, sending an overflow token to its second-best expert may apply the wrong specialist. The lecture notes that rerouting dropped tokens did not empirically improve performance and could hurt, suggesting that “some expert computation” is not always better than the chosen expert being unavailable.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read yet. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does MoE decouple stored parameters from FLOPs per token? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Given router logits, how do you compute the Switch expert and output scale? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>What does capacity factor buy, and what does it cost? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Where does all-to-all communication enter the layer? <a class="ref" href="#trace">(trace)</a></li>
+    <li>Teach it back: explain Switch Transformer to a beginner using the hospital triage analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Mixture of Experts (MoE)</td><td>A layer with many expert subnetworks plus a router that activates only a small subset for each token.</td></tr>
+  <tr><td>Expert</td><td>An independent FFN/MLP block, usually replacing a transformer feed-forward sublayer.</td></tr>
+  <tr><td>Router / gate</td><td>A learned small network that maps a token representation to probabilities over experts.</td></tr>
+  <tr><td>Top-k routing</td><td>Sending a token to the \(k\) experts with highest router probabilities.</td></tr>
+  <tr><td>Switch routing</td><td>Top-1 routing: each token is sent to a single expert.</td></tr>
+  <tr><td>Capacity factor</td><td>A multiplier that sets how many token slots each expert reserves for a batch.</td></tr>
+  <tr><td>Token dropping / overflow</td><td>What happens when more tokens choose an expert than its capacity allows.</td></tr>
+  <tr><td>Load-balancing loss</td><td>An auxiliary training term that discourages all tokens from using the same expert.</td></tr>
+  <tr><td>Expert parallelism</td><td>Distributing different experts across different devices.</td></tr>
+  <tr><td>All-to-all communication</td><td>The distributed exchange that sends token activations to selected expert devices and returns outputs.</td></tr>
+  <tr><td>Selective precision</td><td>Using low precision for most computation while keeping numerically sensitive router operations in float32.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Shazeer et al. (2017). <strong>Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer.</strong> <a class="ref" href="https://arxiv.org/abs/1701.06538">arXiv:1701.06538</a> — the modern sparse MoE layer that popularized top-k gating.</li>
+  <li>Fedus, Zoph, and Shazeer (2021). <strong>Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity.</strong> <a class="ref" href="https://arxiv.org/abs/2101.03961">arXiv:2101.03961</a> — the main paper behind this lecture.</li>
+  <li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">arXiv:2001.08361</a> — motivation for scaling model size and compute predictably.</li>
+  <li>Raffel et al. (2019). <strong>Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1910.10683">arXiv:1910.10683</a> — T5, the dense backbone used for many Switch comparisons.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Lepikhin et al. (2020). <strong>GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding.</strong> <a class="ref" href="https://arxiv.org/abs/2006.16668">arXiv:2006.16668</a> — expert parallelism and sharding at large scale.</li>
+  <li>Riquelme et al. (2021). <strong>Scaling Vision with Sparse Mixture of Experts.</strong> <a class="ref" href="https://arxiv.org/abs/2106.05974">arXiv:2106.05974</a> — the vision direction mentioned near the end of the talk.</li>
+  <li>Shazeer (2020). <strong>GLU Variants Improve Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/2002.05202">arXiv:2002.05202</a> — useful background on FFN variants, the sublayer MoE commonly replaces.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="06-perceiver.html">Next: Perceiver ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 05 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. External fonts, Mermaid, and MathJax load from CDNs.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 50 — From Language Models to Native Multimodal Intelligence</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The misconception</a>
+  <a href="#s1a" class="sub">1.1 Late fusion vs native</a>
+  <a href="#s2">2 · One stream, many modalities</a>
+  <a href="#s2a" class="sub">2.1 Tokenizing images/audio/video</a>
+  <a href="#worked">3 · Worked example</a>
+  <a href="#s4">4 · Understanding and generation</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Limits and the road ahead</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 10 · Note 5 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>From Language Models to Native Multimodal Intelligence</h1>
+  <p class="lead">Victoria Lin's lecture reframes multimodality as language modeling over mixed streams: text, images, audio, video, and actions can be tokens in one learned world, not accessories bolted onto a text model.</p>
+  <div class="meta">
+    <span class="pill">🎓 Victoria Lin · Thinking Machines Lab</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=NDdc39KYqDU" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Most of the useful world is not plain text. A robot sees motion, a student reads diagrams, a doctor compares scans and reports, and a designer alternates between words and sketches. The tempting shortcut is: keep a strong language model, attach a vision encoder, and call the result multimodal. Lin's core point is sharper: the next generation of systems needs to learn from multiple modalities <strong>from the start</strong>, so cross-modal structure is represented inside the model rather than translated at the boundary.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a native multimodal model as a <strong>single orchestra score</strong>. Text, image patches, audio frames, and action tokens are different instruments, but the conductor reads one score and learns how they enter together. A bolt-on model is more like a translator standing between two separate orchestras: useful, but many timing and harmony cues never reach the shared performance.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and jump to the linked note where useful.</p>
+  <ul>
+    <li><strong>LLM next-token prediction</strong> — a transformer predicts a probability distribution over the next token; here that token may be text, image code, audio code, or an action.</li>
+    <li><strong>Bolt-on multimodal connector</strong> — many systems encode an image, project it through an adapter, and feed it to a text LLM; see <a class="ref" href="31-llms-to-multimodal.html">Note 31</a> for the late-fusion bridge.</li>
+    <li><strong>Tokenization</strong> — converting raw signals into model-sized units; text uses BPE-like pieces, images can use patches or learned codes, audio can use frames/codes.</li>
+    <li><strong>VQ-VAE / discrete image tokens</strong> — an image patch embedding can be replaced by the nearest entry in a learned codebook, turning images into IDs the transformer can predict.</li>
+    <li><strong>Early vs late fusion</strong> — early fusion trains one model on interleaved modalities; late fusion joins specialized components after they have already learned mostly separate representations.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The misconception: multimodal ≠ LLM + image adapter</h2>
+<p>Suppose a model sees a picture of a cat on a sofa and answers, "the cat is sleeping." In a late-fusion system, the picture may first become a compact visual embedding, then a connector maps that embedding into the language model's token space. The LLM is still mostly a text reasoner being conditioned by a visual summary. That is powerful, and it made many image-question-answering systems practical. But it is not the same as training the model's core on image, text, audio, and video as first-class sequence elements.</p>
+
+<h3 id="s1a">1.1 Late/bolt-on fusion vs native/early fusion</h3>
+<p>The contrast is not "bad vs good." Late fusion is efficient and often excellent for understanding tasks. Native early fusion changes the training philosophy: instead of asking a frozen text model to accept converted visual features, we train one transformer over a mixed stream so that attention, representations, and objectives can couple modalities throughout the depth of the network.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    subgraph L["Late fusion / bolt-on"]
+      I1["Image"] --> V1["Vision encoder"] --> A1["Adapter / projector"] --> T1["Mostly text LLM"] --> O1["Text answer"]
+    end
+    subgraph N["Native early fusion"]
+      X1["Text tokens"] --> S1["One mixed token stream"]
+      X2["Image/audio/video tokens"] --> S1
+      S1 --> T2["Transformer pretrained jointly"] --> O2["Text, image, audio, or interleaved output"]
+    end
+</div>
+<figcaption>Late fusion translates modalities into a text model's interface; native early fusion asks the transformer to learn the joint score from the beginning.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Multimodal = LLM + an image adapter."</strong> That mental model explains many deployed vision-language products, but it misses Lin's target: a native multimodal model treats modalities as part of the same modeling problem, which enables deeper cross-modal reasoning and any-to-any generation.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does late fusion bottleneck information?</summary>
+<p>At the connector boundary. The visual encoder and adapter must compress the image into a form the text LLM can use. If spatial layout, fine visual detail, or temporal cues are not preserved in that representation, later text reasoning cannot recover them.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>One stream, many modalities</h2>
+<p>Lin's language-model analogy is the simplest doorway: LLMs became powerful by predicting the next symbolic token at scale. Native multimodal models ask whether the same training logic can extend beyond symbols. The first move is to represent each modality as tokens, then train on interleaved sequences such as: <code>[text: describe]</code>, <code>[image-code: 1842]</code>, <code>[image-code: 77]</code>, <code>[text: because]</code>, and so on.</p>
+
+<h3 id="s2a">2.1 Tokenizing images, audio, and video</h3>
+<p>Text tokenization is familiar: byte-pair or unigram tokenizers break strings into IDs. Images can be patchified into fixed-size tiles such as 16×16 pixels, then encoded as continuous vectors or quantized through a VQ-VAE codebook into discrete image-code IDs. Audio can be transformed into spectral frames or neural codec tokens. Video can be viewed, approximately, as a sequence of image frames plus time.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — unified sequence modeling</span>
+  <p>$$p(x_{1:T}) = \prod_{t=1}^{T} p\!\left(x_t \mid x_{<t}\right), \qquad x_t \in \mathcal{V}_{text} \cup \mathcal{V}_{image} \cup \mathcal{V}_{audio}$$</p>
+  <p>Here \(x_t\) is the token at position \(t\). The vocabulary is a union of modality vocabularies: ordinary text IDs, image-code IDs, and audio-code IDs. In continuous variants, \(x_t\) may be an embedding segment rather than a discrete ID, but the transformer still processes a sequence.</p>
+</div>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 300" role="img" aria-label="Native multimodal token stream schematic">
+  <rect x="22" y="34" width="150" height="64" rx="14" fill="#ffffff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="97" y="62" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">Text</text>
+  <text x="97" y="84" text-anchor="middle" font-size="13" fill="#1b1f24">BPE IDs</text>
+  <rect x="22" y="120" width="150" height="64" rx="14" fill="#eef4ff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="97" y="148" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">Image</text>
+  <text x="97" y="170" text-anchor="middle" font-size="13" fill="#1b1f24">patch/code IDs</text>
+  <rect x="22" y="206" width="150" height="64" rx="14" fill="#f3efff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="97" y="234" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">Audio</text>
+  <text x="97" y="256" text-anchor="middle" font-size="13" fill="#1b1f24">codec IDs</text>
+  <path d="M178 66 C230 66, 245 118, 292 118" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M178 152 C230 152, 245 132, 292 132" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M178 238 C230 238, 245 146, 292 146" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="296" y="86" width="245" height="92" rx="18" fill="#fff8e6" stroke="#1b1f24" stroke-width="2"/>
+  <text x="419" y="121" text-anchor="middle" font-size="18" fill="#1b1f24" font-weight="700">Interleaved token stream</text>
+  <text x="419" y="149" text-anchor="middle" font-size="14" fill="#1b1f24">T₁, T₂, I₁, I₂, A₁, T₃, I₃...</text>
+  <path d="M548 132 L622 132" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="628" y="70" width="170" height="124" rx="20" fill="#eaf8ef" stroke="#1b1f24" stroke-width="2"/>
+  <text x="713" y="113" text-anchor="middle" font-size="18" fill="#1b1f24" font-weight="700">One transformer</text>
+  <text x="713" y="141" text-anchor="middle" font-size="14" fill="#1b1f24">joint attention</text>
+  <text x="713" y="164" text-anchor="middle" font-size="14" fill="#1b1f24">joint objective</text>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 Z" fill="#2f6df6"/></marker></defs>
+</svg>
+</div>
+<figcaption>The "money" idea: different instruments become one score, so the transformer can attend across them at every layer.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Discrete tokens are elegant; continuous embeddings are often stronger</h3>
+<p>Chameleon tests the clean hypothesis: discretize every modality, then use cross-entropy next-token training on interleaved text and image sequences. This makes image generation look like language generation. But Lin emphasizes the tradeoff: discretization can lose information for image understanding, and image-code generation can be token-inefficient. Continuous encoders such as SigLIP-style features often help understanding; VAE/diffusion-style representations often help generation.</p>
+
+<details class="check"><summary>✓ Check yourself — why might one image need hundreds or thousands of tokens?</summary>
+<p>An image contains dense spatial detail. If each token covers only a small patch or code region, a high-resolution image requires many positions. Compression helps, but too much compression drops information needed for understanding or faithful generation.</p></details>
+
+<h2 id="worked"><span class="num">3.</span>Worked example — one mixed-vocabulary softmax, by hand</h2>
+<p>Now compute the smallest honest native-multimodal step. The model has one next-token head over a combined vocabulary: text tokens plus image-code tokens. At this position, it could either continue the sentence or start emitting an image code.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Candidate next tokens and logits:</p>
+  <p>$$\ell(\text{"cat"})=2.0,\quad \ell(\text{"on"})=0.0,\quad \ell(\text{IMG\_17})=1.0,\quad \ell(\text{IMG\_42})=0.5$$</p>
+  <p>Softmax normalizer:</p>
+  <p>$$Z=e^{2.0}+e^{0.0}+e^{1.0}+e^{0.5}=7.389+1.000+2.718+1.649=12.756$$</p>
+  <p>So the next-token probabilities are:</p>
+  <p>$$p(\text{"cat"})=\frac{7.389}{12.756}=0.579,\quad p(\text{IMG\_17})=\frac{2.718}{12.756}=0.213$$</p>
+  <p>$$p(\text{IMG\_42})=\frac{1.649}{12.756}=0.129,\quad p(\text{"on"})=\frac{1.000}{12.756}=0.078$$</p>
+  <p>The same head can emit a word or an image code. If it emits text for several steps, we get a caption or reasoning trace. If it emits image-code tokens, a decoder can turn those codes into pixels.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why does a shared token space enable any-to-any generation?</summary>
+<p>Because the output distribution is not restricted to text. The model conditions on any previous mixture of modalities and chooses the next item from a combined set. Repeating that step can produce text→image, image→text, audio→text, or interleaved documents, depending on the prompt and sampled tokens.</p></details>
+<details class="check"><summary>✓ Check yourself — if the logit for IMG_17 rose from 1.0 to 2.5, what changes?</summary>
+<p>The new normalizer is \(e^2+e^0+e^{2.5}+e^{0.5}=7.389+1+12.182+1.649=22.220\). Now \(p(\text{IMG\_17})=12.182/22.220=0.548\), so the model is more likely to switch into image-code generation than to emit "cat".</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Generation: from understanding-only VLMs to Omni models</h2>
+<p>Lin separates two broad families. Many state-of-the-art products accept multimodal input but output text: image/video/audio in, answer in words out. Gemini, Qwen, and Kimi-like systems often operate this way in core chat settings. Omni models go further: they can output non-text modalities too, such as GPT-4o-style speech/image interactions, Chameleon-style interleaved documents, or unified systems with diffusion heads.</p>
+
+<h3 id="s4a">4.1 Autoregressive image tokens</h3>
+<p>In a Chameleon-like model, image patches are quantized through a codebook, so image generation becomes next-code prediction. The training loss can be ordinary cross-entropy across both text and image-code tokens.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — cross-entropy over mixed tokens</span>
+  <p>$$\mathcal{L}_{AR}= -\sum_{t=1}^{T} \log p_\theta(x_t\mid x_{<t}), \quad x_t \in \{\text{text IDs, image-code IDs}\}$$</p>
+  <p>Every term asks: given all earlier text and image tokens, how much probability did the model assign to the true next token?</p>
+</div>
+
+<h3 id="s4b">4.2 Diffusion heads and hybrid objectives</h3>
+<p>Transfusion-style models keep interleaved text-image sequences, but generate image segments with a diffusion objective instead of one discrete code at a time. Text keeps causal autoregression; image segments may use bidirectional attention and denoising. This improves image quality and token efficiency, but it reintroduces the open representation dilemma: the best encoding for understanding may differ from the best encoding for generation.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — one hybrid training sketch</span>
+  <p>$$\mathcal{L}=\mathcal{L}_{text\ AR}+\lambda\,\mathbb{E}_{t,\epsilon}\left[\lVert \epsilon-\epsilon_\theta(z_t,t,c)\rVert_2^2\right]$$</p>
+  <p>\(\mathcal{L}_{text\ AR}\) trains next text tokens. The second term trains an image generator to predict noise \(\epsilon\) from a noisy latent \(z_t\), timestep \(t\), and context \(c\). The weight \(\lambda\) balances modalities.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    P["Mixed prompt<br/>text + image"] --> M["Native multimodal backbone"]
+    M --> T["Autoregressive text tokens"]
+    M --> C["Autoregressive image-code tokens"]
+    M --> D["Diffusion image/audio head"]
+    T --> R["Reasoning, caption, plan"]
+    C --> IC["Image-code decoder"]
+    D --> DG["Denoised pixels or waveform"]
+    IC --> OUT["Interleaved multimodal output"]
+    DG --> OUT
+    R --> OUT
+</div>
+<figcaption>Native generation can be code-by-code, diffusion-based, or hybrid; the shared backbone supplies context across modalities.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why native matters</span>
+  <p>Early fusion gives the model more places to bind "the red object in the image," "the word red," and "the sound event that follows" into shared computation. That can improve grounding, enable cross-modal transfer, support interleaved planning-before-generation, and train under a single objective instead of a pipeline of handoffs.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does better understanding help generation more clearly than the reverse?</summary>
+<p>If a model understands objects, layout, text, and intent better, it can plan a more faithful image or infographic before generating. But spending many tokens learning to generate pixels does not automatically improve image-question answering; Lin notes that evidence for generation→understanding transfer is still limited.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — interleaved input to interleaved output</h2>
+<p>Follow one concrete request: the user provides a small diagram and asks, "Explain this process, then sketch the corrected version." A native model can keep the explanation and new image codes in one sequence.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Tokens/shape</th></tr>
+  <tr><td>0 · interleaved input</td><td>User text is tokenized; the input image is patchified and converted to image-code tokens or continuous image embeddings.</td><td class="tt">[T₁...T₁₂] + [I₁...I₂₅₆]</td></tr>
+  <tr><td>1 · single stream</td><td>Text and image units are concatenated with modality/position markers so attention can compare words with visual regions.</td><td class="tt">[BOS, T*, IMG*, T*]</td></tr>
+  <tr><td>2 · transformer layers</td><td>Self-attention mixes evidence: the word "arrow" can attend to the actual arrow patch; visual errors can condition text reasoning.</td><td class="tt">H ∈ R^(N×d)</td></tr>
+  <tr><td>3 · mixed output tokens</td><td>The model autoregressively emits explanation text, then switches to image-code tokens for the corrected sketch.</td><td class="tt">[T'₁...T'₈₀, IMG'₁...IMG'₂₅₆]</td></tr>
+  <tr><td>4 · detokenize</td><td>Text IDs become words; image codes go through an image decoder or diffusion head.</td><td class="tt">text + decoded image</td></tr>
+  <tr><td>5 · multimodal output</td><td>The user receives both a written explanation and a generated visual correction, aligned by the same context.</td><td class="tt">answer.md + image.png</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>In late fusion, the image often enters as a summary handed to a text model. In early fusion, the image and text tokens coexist through many layers, so the model can repeatedly revise cross-modal correspondences before it emits either words or pixels. One token stream is not cosmetic; it creates more depth for grounding.</p>
+</div>
+
+<h2 id="s6"><span class="num">6.</span>Challenges and the road ahead</h2>
+<p>The lecture ends with optimism, but not hype. Native multimodal modeling is active research, not a solved recipe. Lin highlights that today's systems are strongest for digital information processing: charts, PDFs, web images, coding-with-vision, and multimodal chat. Physical-world intelligence still adds spatial-temporal reasoning, real-time perception, control, and embodiment.</p>
+
+<h3 id="s6a">6.1 Modality competition and stability</h3>
+<p>Modalities differ in density and learning dynamics. A text token can encode a concept like "cat"; image/video tokens may spend many positions representing texture, lighting, and redundant frames. If one objective dominates, the model may overfit one instrument and drown out another. Mixture-of-Transformers-style architectures route tokens through modality-specific parameters while preserving joint attention, improving non-text generation and training controllability in Lin's examples.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Mixed sequence"] --> R["Deterministic routing by modality"]
+    R --> TX["Text QKV + FFN"]
+    R --> IM["Image QKV + FFN"]
+    R --> AU["Audio/action QKV + FFN"]
+    TX --> JA["Joint self-attention"]
+    IM --> JA
+    AU --> JA
+    JA --> O["Unified hidden states"]
+</div>
+<figcaption>Mixture of Transformers keeps modality-specialized computation but lets tokens meet in shared attention.</figcaption>
+</figure>
+
+<h3 id="s6b">6.2 Evaluation and compute</h3>
+<p>Native models are expensive: more modalities mean longer sequences, heavier data pipelines, and more failure modes. Evaluation is also harder than text perplexity. We need to measure grounding, spatial reasoning, generation quality, instruction following, safety, real-time interaction, and whether any-to-any capability genuinely transfers rather than merely coexists.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Speculation, clearly marked</span>
+  <p><strong>Speculation:</strong> the next phase may look less like one universal monolith and more like coherent native systems: shared multimodal backbones, specialized heads or routed parameters for dense modalities, and tighter links to agents/robotics. The likely direction is not "replace language," but use language as one strong abstraction inside richer perception-action loops.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why might next-frame prediction not transfer like next-token prediction?</summary>
+<p>Language is a compressed abstraction of human knowledge and reasoning, so predicting text often forces semantic structure. Video frames are dense and redundant; predicting the next frame may spend much capacity on local texture and motion rather than reusable reasoning.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What exactly is the misconception "multimodal = LLM + image adapter," and where does it break? <a class="ref" href="#s1">(§1)</a></li>
+    <li>How can text, image, audio, and video become one sequence without pretending they are identical? <a class="ref" href="#s2">(§2)</a></li>
+    <li>In the worked softmax, why can the model emit either "cat" or IMG_17 from the same head? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why might diffusion heads improve image generation while complicating the dream of one representation? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Trace an image+text prompt through a native model until it becomes text+image output. <a class="ref" href="#trace">(trace)</a></li>
+    <li>Teach it back: explain native multimodal intelligence to a beginner using the orchestra-score analogy in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Native multimodal model</td><td>A model trained from the start on multiple modalities, usually with shared sequence modeling or shared backbone computation.</td></tr>
+  <tr><td>Late fusion / bolt-on</td><td>A pipeline where a separate modality encoder feeds an adapter or connector into a mostly pretrained text LLM.</td></tr>
+  <tr><td>Early fusion</td><td>Combining modalities early in training/architecture so cross-modal interactions happen throughout the model.</td></tr>
+  <tr><td>Mixed token stream</td><td>An interleaved sequence containing tokens or embeddings from different modalities.</td></tr>
+  <tr><td>VQ-VAE codebook</td><td>A learned table of discrete codes used to quantize continuous image/audio embeddings into token IDs.</td></tr>
+  <tr><td>Omni model</td><td>A model that can both consume and generate multiple modalities, not only output text.</td></tr>
+  <tr><td>Transfusion</td><td>A hybrid approach combining autoregressive text modeling with diffusion-style image generation in a unified transformer setting.</td></tr>
+  <tr><td>Mixture of Transformers</td><td>An architecture using modality-specific transformer parameters while preserving joint attention across modalities.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources and systems named in the lecture</h4>
+<ol class="refs">
+  <li>Victoria Lin, CS25 guest lecture. <strong>Native multimodal language models.</strong> <a class="ref" href="https://www.youtube.com/watch?v=NDdc39KYqDU">video</a> — the source lecture for this note.</li>
+  <li>Team Chameleon (2024). <strong>Chameleon: Mixed-Modal Early-Fusion Foundation Models.</strong> <a class="ref" href="https://arxiv.org/abs/2405.09818">arXiv</a> — discrete-token early fusion for interleaved text and image.</li>
+  <li>Zhou et al. (2024). <strong>Transfusion: Predict the Next Token and Diffuse Images with One Multi-Modal Model.</strong> <a class="ref" href="https://arxiv.org/abs/2408.11039">arXiv</a> — combines autoregressive language modeling with diffusion-based image generation.</li>
+  <li>OpenAI (2024). <strong>Hello GPT-4o.</strong> <a class="ref" href="https://openai.com/index/hello-gpt-4o/">announcement</a> — public description of an omni model built for text, vision, and audio interaction.</li>
+  <li>Google DeepMind (2023). <strong>Gemini: A Family of Highly Capable Multimodal Models.</strong> <a class="ref" href="https://arxiv.org/abs/2312.11805">arXiv</a> — a major native-multimodal model family discussed as part of the landscape.</li>
+  <li>van den Oord, Vinyals, and Kavukcuoglu (2017). <strong>Neural Discrete Representation Learning.</strong> <a class="ref" href="https://arxiv.org/abs/1711.00937">arXiv</a> — the VQ-VAE idea behind learned discrete codebooks.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="31-llms-to-multimodal.html">CS25 Note 31 — From LLMs to Multimodal Models</a> — the late-fusion/connector foundation this final note contrasts with.</li>
+  <li>Radford et al. (2021). <strong>Learning Transferable Visual Models From Natural Language Supervision.</strong> <a class="ref" href="https://arxiv.org/abs/2103.00020">arXiv</a> — CLIP as a key precursor for vision-language representation learning.</li>
+  <li>Google Research (2023). <strong>SigLIP: Sigmoid Loss for Language Image-Text Pre-Training.</strong> <a class="ref" href="https://arxiv.org/abs/2303.15343">arXiv</a> — an example of strong continuous image representations used in modern VLMs.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="49-serving-transformers.html">◀ Previous: Serving Transformers</a>
+  <a class="r" href="index.html">Back to index ▶</a>
+</div>
+
+<div class="foot">
+  STANFORD CS25 — study notes · Note 50 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

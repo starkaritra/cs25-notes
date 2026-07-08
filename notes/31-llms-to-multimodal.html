@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 31 — From LLMs to Large Multimodal Models</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The missing sense: sight</a>
+  <a href="#s1a" class="sub">1.1 From GPT to a visual assistant</a>
+  <a href="#s1b" class="sub">1.2 The recipe in one sentence</a>
+  <a href="#s2">2 · CLIP: the visual backbone</a>
+  <a href="#s2a" class="sub">2.1 Contrastive alignment</a>
+  <a href="#s2b" class="sub">2.2 What a ViT encoder hands over</a>
+  <a href="#s3">3 · Connector design choices</a>
+  <a href="#s3a" class="sub">3.1 Linear / MLP projector: LLaVA</a>
+  <a href="#s3b" class="sub">3.2 Q-Former: BLIP-2</a>
+  <a href="#s3c" class="sub">3.3 Gated cross-attention: Flamingo</a>
+  <a href="#s4">4 · Training and systems</a>
+  <a href="#s4a" class="sub">4.1 Alignment then instruction tuning</a>
+  <a href="#s4b" class="sub">4.2 Models named in the talk</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Capabilities, evals, limits</a>
+  <a href="#s7a" class="sub">7.1 What we ask LMMs to do</a>
+  <a href="#s7b" class="sub">7.2 Where they still break</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 7 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>From Large Language Models to Large Multimodal Models</h1>
+  <p class="lead">Ming Ding's CS25 lecture explains how the LLM era reached multimodality: keep the language model's reasoning machinery, then give it a visual front end whose outputs look like tokens the LLM can read.</p>
+  <div class="meta">
+    <span class="pill">🎓 Ming Ding · Zhipu AI</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=cYfKQ6YG9Qo" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A text-only LLM can write code, summarize papers, and reason over documents, but it cannot directly inspect a chart, read a screenshot, identify a typo in a receipt, or ground an answer in image regions. Large multimodal models (LMMs) attack that missing sense: they extend a pretrained LLM so images, video frames, documents, and eventually audio can become part of the same conversation.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of the LLM as an expert translator who only understands one language: text tokens. A vision encoder is the photographer, CLIP is the bilingual dictionary between pictures and captions, and the connector is the interpreter who rewrites visual evidence into the token-dialect the translator already speaks. The whole note reuses this interpreter analogy.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh.</p>
+  <ul>
+    <li><strong>LLM / next-token prediction</strong> — a decoder-only model such as GPT predicts the next token from previous tokens; this note cross-links the language-model recipe from <a class="ref" href="qGkzHFllWDY.html">Note 3</a>.</li>
+    <li><strong>ViT and patches</strong> — a Vision Transformer splits an image into patches, embeds each patch, and processes the patch sequence; refresh with <a class="ref" href="BP5CM0YxbP8.html">Note 4</a>.</li>
+    <li><strong>CLIP / contrastive learning</strong> — train image and text encoders so matching image-caption pairs have high similarity and mismatches have low similarity; this gives vision features a language-shaped geometry.</li>
+    <li><strong>Embedding and cosine similarity</strong> — vectors represent tokens or images; cosine similarity \(\frac{x\cdot y}{\|x\|\|y\|}\) measures alignment independent of length.</li>
+    <li><strong>Tokenization</strong> — text becomes discrete token IDs; LMMs make image patches behave like additional continuous "tokens" in the LLM's embedding space.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The missing sense: sight</h2>
+<p>Start with a concrete failure. Ask a text-only chatbot: "What is wrong with this circuit diagram?" It can explain circuits in general, but unless the diagram was converted into text by another system, it never saw the evidence. The multimodal move is not to throw away GPT-like LLMs; it is to add a perceptual input channel.</p>
+
+<h3 id="s1a">1.1 From GPT to a visual assistant</h3>
+<p>Ding begins with the LLM arc: BERT/GPT/T5 era, GPT-3 scaling laws, and the ChatGPT lesson that task adaptation is cheap compared with pretraining knowledge. That matters for LMMs because the dominant recipe treats the LLM as the expensive reasoning core and adds vision around it.</p>
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>If the translator already knows how to answer questions, follow instructions, and produce fluent explanations, don't retrain that whole mind from scratch. Hire an interpreter who can turn the photograph into a sequence of facts and feature vectors the translator can use.</p>
+</div>
+
+<h3 id="s1b">1.2 The recipe in one sentence</h3>
+<p><strong>Core recipe:</strong> a frozen or lightly tuned vision encoder, usually a CLIP-style ViT, turns an image into visual features; a connector/projector maps those features into the LLM embedding space; the LLM processes visual tokens and text tokens jointly and emits text.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    IMG["image<br/>(pixels)"] --> VIT["CLIP ViT<br/>(vision encoder)"]
+    VIT --> FEAT["visual features<br/>(patch tokens)"]
+    FEAT --> PROJ["connector / projector<br/>(map to LLM dim)"]
+    TXT["question text<br/>(token IDs)"] --> EMB["text embeddings"]
+    PROJ --> JOIN["[visual tokens] + [text tokens]"]
+    EMB --> JOIN
+    JOIN --> LLM["LLM decoder<br/>(joint reasoning)"]
+    LLM --> OUT["answer tokens"]
+</div>
+<figcaption>The standard bolt-on architecture: make images look like tokens, then let the LLM do what it already knows how to do.</figcaption>
+</figure>
+<div class="box eqn">
+  <span class="lbl">Key equation — projecting vision into the LLM's language</span>
+  <p>$$Z_{\text{vis}} = P\big(E_{\text{vision}}(I)\big), \qquad H_0 = [Z_{\text{vis}};\, E_{\text{text}}(x)]$$</p>
+  <p>
+    Here \(I\) is the image, \(E_{\text{vision}}\) is a ViT/CLIP encoder, \(P\) is the connector, \(x\) is the question text, and \(H_0\) is the initial sequence fed to the LLM. The semicolon means concatenation along the token dimension.
+  </p>
+</div>
+<details class="check"><summary>✓ Check yourself — why not feed raw pixels directly into the LLM?</summary>
+<p>Raw pixels are not in the LLM's learned embedding space and would be a huge sequence. A vision encoder compresses local image structure into patch features; the connector then translates those features into the hidden dimension the LLM expects.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>CLIP: the visual backbone that makes the bridge possible</h2>
+<p>Before an LLM can use images, the visual representation needs to be language-adjacent. CLIP supplies that bridge by training on image-text pairs: real captions should be near their images, and other captions in the batch should be far away.</p>
+
+<h3 id="s2a">2.1 Contrastive alignment</h3>
+<p>In the interpreter analogy, CLIP is the dictionary training phase. It does not yet run a chat assistant, but it learns that the picture of a red bus should land near captions about red buses and far from captions about microscopes.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — contrastive image-text loss</span>
+  <p>$$\mathcal{L}_{i\to t}=-\log \frac{\exp(s(v_i,t_i)/\tau)}{\sum_j \exp(s(v_i,t_j)/\tau)},\qquad s(v,t)=\frac{v\cdot t}{\|v\|\,\|t\|}$$</p>
+  <p>
+    \(v_i\) is image embedding \(i\), \(t_i\) is its paired text embedding, \(s\) is cosine similarity, and \(\tau\) is temperature. Smaller \(\tau\) makes the softmax more decisive.
+  </p>
+</div>
+
+<h3 id="s2b">2.2 What a ViT encoder hands over</h3>
+<p>A CLIP ViT can output a single pooled image embedding, but LMMs often keep patch-level features. For a \(336\times336\) image with patch size \(14\), the image becomes \(24\times24=576\) visual positions. Those 576 features preserve where details live, which helps OCR, grounding, charts, and screenshots.</p>
+<figure>
+  <div class="svgcard">
+    <svg viewBox="0 0 760 250" width="100%" role="img" aria-label="Vision transformer patch grid becomes visual tokens">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#2f6df6"></path>
+        </marker>
+      </defs>
+      <rect x="25" y="28" width="170" height="170" rx="12" fill="#fff8e8" stroke="#1b1f24" stroke-width="2"></rect>
+      <g stroke="#dccfb4" stroke-width="1">
+        <path d="M53 28 V198 M82 28 V198 M110 28 V198 M138 28 V198 M167 28 V198"></path>
+        <path d="M25 56 H195 M25 85 H195 M25 113 H195 M25 142 H195 M25 170 H195"></path>
+      </g>
+      <text x="110" y="225" text-anchor="middle" font-size="16" fill="#1b1f24">image as patches</text>
+      <path d="M215 113 H295" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"></path>
+      <rect x="315" y="48" width="145" height="130" rx="14" fill="#eef4ff" stroke="#1b1f24" stroke-width="2"></rect>
+      <text x="388" y="95" text-anchor="middle" font-size="18" fill="#1b1f24">CLIP ViT</text>
+      <text x="388" y="122" text-anchor="middle" font-size="14" fill="#1b1f24">patch encoder</text>
+      <path d="M478 113 H555" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"></path>
+      <g fill="#f4f0ff" stroke="#1b1f24" stroke-width="1.5">
+        <rect x="580" y="50" width="24" height="110" rx="5"></rect>
+        <rect x="610" y="50" width="24" height="110" rx="5"></rect>
+        <rect x="640" y="50" width="24" height="110" rx="5"></rect>
+        <rect x="670" y="50" width="24" height="110" rx="5"></rect>
+        <rect x="700" y="50" width="24" height="110" rx="5"></rect>
+      </g>
+      <text x="652" y="190" text-anchor="middle" font-size="16" fill="#1b1f24">576 visual tokens</text>
+      <text x="652" y="213" text-anchor="middle" font-size="13" fill="#1b1f24">each has a feature vector</text>
+    </svg>
+  </div>
+  <figcaption>A patch grid is the visual equivalent of a token sequence: many local descriptors instead of one global sentence.</figcaption>
+</figure>
+<details class="check"><summary>✓ Check yourself — how many visual tokens does a 336×336 image at patch size 14 yield, and why map them to the LLM dim?</summary>
+<p>\(336/14=24\) patches per side, so \(24\times24=576\) patch tokens. The projector maps each token from the vision encoder's feature dimension into \(d_{\text{LLM}}\), so the LLM can concatenate visual and text embeddings in one sequence.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Connector design choices: three ways to hire the interpreter</h2>
+<p>The connector is where many famous LMM architectures differ. All solve the same problem — translate visual features into something the LLM can use — but they choose different amounts of compute, trainable parameters, and interaction between modalities.</p>
+
+<h3 id="s3a">3.1 Linear / MLP projector: LLaVA</h3>
+<p><strong>LLaVA</strong> made the simple recipe popular: take CLIP patch features and pass them through a learned linear layer or MLP projector. Ding highlights this as the simpler alternative to BLIP-2's Q-Former, and it quickly became a default architecture because it is easy to train and scale.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — projector connector</span>
+  <p>$$z_k = W_2\,\sigma(W_1 f_k + b_1)+b_2,\qquad z_k\in\mathbb{R}^{d_{\text{LLM}}}$$</p>
+  <p>
+    \(f_k\) is vision feature \(k\), \(z_k\) is the projected visual token, \(\sigma\) is a nonlinearity, and \(d_{\text{LLM}}\) is the LLM hidden size. A one-layer projector drops the \(W_2\sigma(\cdot)\) part.
+  </p>
+</div>
+
+<h3 id="s3b">3.2 Q-Former: BLIP-2</h3>
+<p><strong>BLIP-2</strong> inserts a trainable query transformer between the image encoder and the LLM. A small set of learned query tokens cross-attend to image features and extract a compact visual summary. This reduces the number of visual tokens, but the connector itself is more structured.</p>
+
+<h3 id="s3c">3.3 Gated cross-attention: Flamingo</h3>
+<p><strong>Flamingo</strong> keeps a strong language model and inserts gated cross-attention layers so text tokens can attend to visual features at selected points. The gate protects the pretrained language behavior: if visual information is unhelpful, the model can lean back toward its language-only path.</p>
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Connector choices"] --> B["LLaVA<br/>linear / MLP projection"]
+    A --> C["BLIP-2<br/>Q-Former queries"]
+    A --> D["Flamingo<br/>gated cross-attention"]
+    B --> E["cheap, direct, many patch tokens"]
+    C --> F["learned bottleneck, fewer visual tokens"]
+    D --> G["interleave visual access inside LLM"]
+</div>
+<figcaption>Most connector designs are trade-offs between simplicity, visual detail, and how much they disturb the language model.</figcaption>
+</figure>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Multimodal means the LLM learned vision from scratch." </strong>Usually not. Many systems import a pretrained vision encoder, align its outputs with the LLM, and fine-tune. The LLM gains a visual interface; the low-level visual features often come from CLIP/ViT-style pretraining.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — which connector is simplest to implement?</summary>
+<p>The LLaVA-style linear/MLP projector is simplest: it directly maps every CLIP visual feature into the LLM hidden dimension. Q-Former and cross-attention introduce additional transformer modules or attention layers.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Training and systems: alignment first, then instruction following</h2>
+<p>Ding's broader theme is that modern model building is often engineering plus data. In LMMs, architecture is only part of the story: the model must first learn that projected visual tokens correspond to language, then learn to follow visual instructions.</p>
+
+<h3 id="s4a">4.1 Alignment then visual instruction tuning</h3>
+<ol>
+  <li><strong>Feature alignment pretraining</strong> — train the connector, and sometimes parts of the LLM, on image-caption or image-text pairs so visual tokens land in the right semantic neighborhood.</li>
+  <li><strong>Visual instruction tuning</strong> — train on conversational examples: image + question → helpful answer, including VQA, OCR, document QA, captioning, and grounding prompts.</li>
+  <li><strong>Component freezing decisions</strong> — freeze the vision encoder to preserve robust visual features; freeze or LoRA-tune the LLM to preserve language ability; train the connector aggressively because it is the new interpreter.</li>
+</ol>
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>Alignment teaches the interpreter the vocabulary: "this patch feature means dog ear, this one means receipt total." Instruction tuning teaches the full team how to answer questions politely and usefully.</p>
+</div>
+
+<h3 id="s4b">4.2 Models named in the talk</h3>
+<p>The lecture surveys both understanding and generation. For visual understanding, Ding names <strong>BLIP-2</strong>, <strong>LLaVA</strong>, <strong>CogVLM</strong>, <strong>CogAgent</strong>, <strong>Vary</strong>, <strong>GLM-4V</strong>, and compares progress with systems such as GPT-4V, Gemini, and Claude 3. He emphasizes high resolution for screenshots, OCR, web agents, and document tasks. For generation, he connects autoregressive image tokenization (<strong>CogView</strong>, DALL·E-like, Parti-like) to diffusion (<strong>Relay Diffusion</strong>, <strong>CogView3</strong>), transformer diffusion (<strong>DiT</strong>, <strong>MM-DiT</strong>), and video generation (<strong>CogVideo</strong>, Sora-like scaling).</p>
+<table>
+  <tr><th>System</th><th>Connector / modeling idea</th><th>Why it matters</th></tr>
+  <tr><td>CLIP</td><td>Contrastive image-text encoders</td><td>Gives vision embeddings language-aligned geometry.</td></tr>
+  <tr><td>BLIP-2</td><td>Q-Former between frozen image encoder and LLM</td><td>Compact learned visual bottleneck.</td></tr>
+  <tr><td>LLaVA</td><td>Linear/MLP projector + visual instruction tuning</td><td>Simple, strong baseline for open visual chat.</td></tr>
+  <tr><td>Flamingo</td><td>Gated cross-attention into a language model</td><td>Few-shot multimodal prompting with visual context.</td></tr>
+  <tr><td>CogVLM / CogAgent</td><td>Vision experts and high-resolution cross-attention modules</td><td>Preserve language behavior while improving grounding, OCR, and web-screen tasks.</td></tr>
+  <tr><td>GLM-4V</td><td>LLaVA-like adaptation with high-resolution support</td><td>Strong OCR/document QA emphasis in Ding's talk.</td></tr>
+</table>
+<details class="check"><summary>✓ Check yourself — why might training all LLM weights during visual alignment hurt?</summary>
+<p>If the visual data distribution is narrow, updating the full LLM can overwrite or distort language-only behavior. Freezing, partial tuning, LoRA, or vision-specialist parameters help add perception while preserving the pretrained language skill.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked example — CLIP-style image-text matching</h2>
+<p>Numbers make the bridge concrete. Suppose one image embedding \(v\) is compared against three caption embeddings \(t_1,t_2,t_3\). The model scores them by cosine similarity, then softmax turns scores into probabilities.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Cosine similarity is</p>
+  <p>$$s(v,t)=\frac{v\cdot t}{\|v\|\,\|t\|}.$$</p>
+  <p>For one numeric normalization, take \(v=(1,2)\) and \(t_2=(2,3)\):</p>
+  <p>$$v\cdot t_2=1\cdot2+2\cdot3=8,$$</p>
+  <p>$$\|v\|=\sqrt{1^2+2^2}=\sqrt5\approx2.236,\qquad \|t_2\|=\sqrt{2^2+3^2}=\sqrt{13}\approx3.606,$$</p>
+  <p>$$s(v,t_2)=\frac{8}{2.236\cdot3.606}=\frac{8}{8.062}\approx0.99.$$</p>
+  <p>Now suppose the trained encoders produce three final image-caption similarities:</p>
+  <p>$$[s_1,s_2,s_3]=[0.31,0.82,0.44].$$</p>
+  <p>With temperature \(\tau=0.1\), divide scores by \(\tau\):</p>
+  <p>$$[3.1,8.2,4.4].$$</p>
+  <p>Softmax gives</p>
+  <p>$$p_j=\frac{e^{s_j/\tau}}{\sum_k e^{s_k/\tau}},$$</p>
+  <p>so the unnormalized weights are approximately \([22.20,3637.97,81.45]\), the sum is \(3741.62\), and</p>
+  <p>$$p\approx[0.006,0.972,0.022].$$</p>
+  <p>The image matches <strong>caption 2</strong>. Temperature made the already-best caption decisively best.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if \(\tau\) were 1 instead of 0.1, would caption 2 still win?</summary>
+<p>Yes. Softmax preserves the ranking because 0.82 is still the largest score, but the distribution is less sharp: \(\operatorname{softmax}([0.31,0.82,0.44])\approx[0.27,0.45,0.30]\).</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one LLaVA-style question</h2>
+<p>Follow one concrete input: an image plus the question, "What is written on the sign?" The important state is the shape of the representation at each stage.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · input</td><td>User supplies an RGB image and a text question.</td><td class="tt">image (336×336×3) + question string</td></tr>
+  <tr><td>1 · ViT patching</td><td>The vision encoder splits the image into 14×14 patches and encodes local visual content.</td><td class="tt">24×24 = 576 patches</td></tr>
+  <tr><td>2 · CLIP/ViT features</td><td>Each patch becomes a feature vector from the visual encoder.</td><td class="tt">patch features (576×1024)</td></tr>
+  <tr><td>3 · projector</td><td>An MLP/linear connector maps visual features into the LLM embedding dimension.</td><td class="tt">visual tokens (576×d_LLM)</td></tr>
+  <tr><td>4 · text tokenization</td><td>The question is tokenized and embedded by the LLM's text embedding table.</td><td class="tt">question tokens (T×d_LLM)</td></tr>
+  <tr><td>5 · concatenate</td><td>Visual tokens are placed before or around the question tokens in one sequence.</td><td class="tt">(576+T)×d_LLM</td></tr>
+  <tr><td>6 · LLM decoder</td><td>Causal transformer layers attend over visual and text context while generating.</td><td class="tt">hidden states (576+T+A)×d_LLM</td></tr>
+  <tr><td>7 · answer</td><td>The output head produces answer tokens one at a time.</td><td class="tt">"The sign says ..."</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The unifying trick is not mystical: the image becomes <em>tokens the LLM understands</em>. Once the connector has translated visual evidence into \(d_{\text{LLM}}\)-dimensional vectors, the same decoder machinery can condition on both modalities.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where does OCR ability enter this pipeline?</summary>
+<p>OCR depends on high-resolution visual features that preserve small text, training examples that reward reading text correctly, and a connector/LLM that can bind those visual features to answer tokens. If resolution collapses the letters, the LLM cannot recover them by reasoning alone.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>Capabilities, evals, and limitations</h2>
+<p>Once the image stream reaches the LLM, many tasks become promptable. The same model can answer a question about a chart, caption a photo, identify a UI button, or reason over a document screenshot — but that flexibility makes evaluation harder.</p>
+
+<h3 id="s7a">7.1 What we ask LMMs to do</h3>
+<ul>
+  <li><strong>VQA</strong> — answer questions about images, diagrams, scenes, or documents.</li>
+  <li><strong>Captioning</strong> — summarize visible content in natural language.</li>
+  <li><strong>OCR and document understanding</strong> — read text in screenshots, PDFs, tables, receipts, forms, and handwritten notes.</li>
+  <li><strong>Grounding</strong> — connect phrases to boxes, regions, coordinates, or UI elements.</li>
+  <li><strong>Chart and scientific figure understanding</strong> — extract trends, compare values, and avoid confusing visual marks.</li>
+  <li><strong>Web and agent tasks</strong> — Ding's CogAgent example uses screenshots to decide where to click or type.</li>
+</ul>
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["benchmark prompt<br/>(image + question)"] --> M["LMM"]
+    M --> A["answer"]
+    A --> E1["exact / semantic score"]
+    A --> E2["grounding check"]
+    A --> E3["human preference"]
+    A --> E4["hallucination audit"]
+</div>
+<figcaption>Evaluation is multi-headed: correctness, visual grounding, helpfulness, and hallucination all matter.</figcaption>
+</figure>
+
+<h3 id="s7b">7.2 Where they still break</h3>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"If an LMM gives a fluent answer, it must have looked carefully."</strong> Fluency is inherited from the LLM. Visual grounding can still fail: the model may hallucinate objects, misread small text, count incorrectly, or answer from language priors rather than pixels.</p>
+</div>
+<ul>
+  <li><strong>Visual hallucination</strong> — naming objects or facts not present in the image.</li>
+  <li><strong>Resolution and detail</strong> — small text, dense charts, and web screenshots require many visual tokens or high-resolution modules.</li>
+  <li><strong>Modality fusion</strong> — the model may ignore the image when the text prior is strong, or ignore the question when visual features dominate.</li>
+  <li><strong>Evaluation gaps</strong> — multiple valid phrasings, ambiguous images, and missing grounding annotations make automatic scoring brittle.</li>
+  <li><strong>Video and physical understanding</strong> — Ding predicts video understanding will matter, but notes that learning physical rules may need better self-supervised signals than annotated text-video pairs alone.</li>
+</ul>
+<div class="box check">
+  <span class="lbl">Research taste from the lecture</span>
+  <p>Ding's advice is pragmatic: multimodal progress is increasingly about data quality, high-resolution systems, benchmarks, and infra. Architecture still matters, but a clever connector without the right data and evaluation loop will not become a reliable visual assistant.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — name two reasons high resolution matters for LMMs.</summary>
+<p>It preserves small visual evidence such as text, icons, table cells, and chart ticks; and it supports grounding actions in screenshots or documents where a tiny region can change the answer.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why are text-only LLMs insufficient for charts, receipts, screenshots, and images? <a class="ref" href="#hook">(hook)</a></li>
+    <li>What are the three components in the dominant LMM recipe: vision encoder, connector, and LLM? <a class="ref" href="#s1b">(§1.2)</a></li>
+    <li>How does CLIP's contrastive objective make image features language-adjacent? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Compare LLaVA, BLIP-2, and Flamingo by connector design. <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the CLIP matching softmax and explain the role of temperature. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Trace one image-question pair from pixels to answer tokens. <a class="ref" href="#trace">(trace)</a></li>
+    <li>Teach it back: explain "turn images into tokens the LMM understands" to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Large multimodal model (LMM)</td><td>An assistant model that can condition on more than text, usually images plus text, and produce language outputs.</td></tr>
+  <tr><td>Vision encoder</td><td>A model, often CLIP ViT, that converts pixels into feature vectors.</td></tr>
+  <tr><td>Visual token</td><td>A projected image-patch feature placed in the LLM's embedding sequence.</td></tr>
+  <tr><td>Connector / projector</td><td>The trainable bridge that maps vision features into the LLM hidden dimension.</td></tr>
+  <tr><td>CLIP</td><td>Contrastive Language-Image Pretraining; learns aligned image and text embeddings from paired data.</td></tr>
+  <tr><td>Q-Former</td><td>BLIP-2's query transformer that extracts a compact set of visual features for the LLM.</td></tr>
+  <tr><td>Gated cross-attention</td><td>A module that lets language tokens attend to visual features while controlling how strongly vision changes the LLM path.</td></tr>
+  <tr><td>Visual instruction tuning</td><td>Fine-tuning on image-question-answer conversations so the model follows multimodal instructions.</td></tr>
+  <tr><td>Grounding</td><td>Linking language to image regions, boxes, coordinates, or screen elements.</td></tr>
+  <tr><td>Visual hallucination</td><td>A fluent but visually unsupported answer about an object, attribute, count, or relation.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Ming Ding (CS25, 2024). <strong>From Large Language Models to Large Multimodal Models.</strong> <a class="ref" href="https://www.youtube.com/watch?v=cYfKQ6YG9Qo">video</a> — source lecture for these notes.</li>
+  <li>Radford et al. (2021). <strong>Learning Transferable Visual Models From Natural Language Supervision (CLIP).</strong> <a class="ref" href="https://arxiv.org/abs/2103.00020">arXiv</a> — contrastive image-text backbone.</li>
+  <li>Alayrac et al. (2022). <strong>Flamingo: a Visual Language Model for Few-Shot Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2204.14198">arXiv</a> — gated cross-attention visual language model.</li>
+  <li>Li et al. (2023). <strong>BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2301.12597">arXiv</a> — Q-Former bridge.</li>
+  <li>Liu et al. (2023). <strong>Visual Instruction Tuning (LLaVA).</strong> <a class="ref" href="https://arxiv.org/abs/2304.08485">arXiv</a> — simple projector plus instruction tuning.</li>
+  <li>Wang et al. (2023). <strong>CogVLM: Visual Expert for Pretrained Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2311.03079">arXiv</a> — Zhipu AI visual expert architecture highlighted by Ding.</li>
+  <li>Hong et al. (2023). <strong>CogAgent: A Visual Language Model for GUI Agents.</strong> <a class="ref" href="https://arxiv.org/abs/2312.08914">arXiv</a> — high-resolution screenshot/web-agent direction.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929">arXiv</a> — ViT patch-token foundation; pairs with <a class="ref" href="BP5CM0YxbP8.html">Note 4</a>.</li>
+  <li>OpenAI (2023). <strong>GPT-4V(ision) System Card.</strong> <a class="ref" href="https://openai.com/research/gpt-4v-system-card">link</a> — capabilities and safety/evaluation issues for visual assistants.</li>
+  <li>Yue et al. (2023). <strong>MMMU: A Massive Multi-discipline Multimodal Understanding and Reasoning Benchmark.</strong> <a class="ref" href="https://arxiv.org/abs/2311.16502">arXiv</a> — harder multimodal evaluation.</li>
+  <li>Li et al. (2023). <strong>POPE: Evaluating Object Hallucination in Large Vision-Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2305.10355">arXiv</a> — focused hallucination benchmark.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="32-starcoder-pretraining.html">Next: StarCoder pretraining ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 31 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. External fonts, MathJax, and Mermaid load from CDNs.
+</div>
+
+</article>
+</div>
+</body>
+</html>

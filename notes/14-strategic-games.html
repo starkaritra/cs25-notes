@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 14 — Strategic Games</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Games as strategy labs</a>
+  <a href="#s1a" class="sub">1.1 Perfect vs imperfect information</a>
+  <a href="#s2">2 · Game-theory atoms</a>
+  <a href="#s2a" class="sub">2.1 Nash, mixtures, exploitability</a>
+  <a href="#s3">3 · Search plus learning</a>
+  <a href="#s3a" class="sub">3.1 AlphaZero and poker search</a>
+  <a href="#s4">4 · Imperfect information</a>
+  <a href="#s4a" class="sub">4.1 Regret minimization</a>
+  <a href="#s5">5 · Diplomacy and CICERO</a>
+  <a href="#s5a" class="sub">5.1 Intent-grounded language</a>
+  <a href="#s6">6 · Limits and open questions</a>
+  <a href="#worked">7 · Worked example</a>
+  <a href="#trace">8 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 3 · Note 4 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Strategic Games: AI for Multi-Agent &amp; Imperfect-Information Play</h1>
+  <p class="lead">Games are clean laboratories for the hard part of intelligence: choosing actions when other agents are adapting, hiding information, negotiating, and sometimes trying to exploit you.</p>
+  <div class="meta">
+    <span class="pill">🎓 Noam Brown (Meta AI)</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=phWxl0nkgKk" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A poker bot can spend months training, then act from a table in milliseconds. A human pro, facing one crucial hand, may pause for five minutes and improve the decision. The lecture's central claim is that this pause — <strong>test-time search</strong>, or spending extra compute at the moment of decision — can be worth far more than simply scaling the trained model.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of an agent as a chess-clock negotiator. Training is the giant binder of preparation it brings to the match. Search is what it does when the clock is running: reread the position, imagine what others will do, and choose a move or message that will survive contact with opponents.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Nash equilibrium</strong> — a strategy profile where no player gains by changing alone; this is the stability target behind poker bots and exploitability.</li>
+    <li><strong>Zero-sum vs general-sum</strong> — in zero-sum, one player's gain is another's loss; Diplomacy is general-sum because cooperation and betrayal both matter.</li>
+    <li><strong>Expected value</strong> — payoff averaged over uncertain actions or hidden states; planning chooses actions with better expected consequences.</li>
+    <li><strong>Self-play / RL</strong> — agents improve by playing against versions of themselves; powerful in two-player zero-sum games, brittle when human conventions matter.</li>
+    <li><strong>MCTS</strong> — Monte Carlo tree search samples future branches to guide decisions; it powered Go systems, but CICERO used a different planning style.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Games as strategy labs</h2>
+<p>Imagine two test questions. In Go, the entire board is visible: the difficulty is the depth of the future. In poker, your cards are visible but your opponent's cards and plan are not: the difficulty is the future <em>and</em> the hidden present. Diplomacy adds one more twist: the action space includes natural-language promises.</p>
+
+<h3 id="s1a">1.1 Perfect vs imperfect information</h3>
+<p><strong>Perfect-information games</strong> such as chess and Go let the agent search over visible board states. <strong>Imperfect-information games</strong> such as poker and Diplomacy force the agent to carry beliefs: What could the hidden cards be? Which ally is sincere? What does my message make others believe I will do?</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Perfect information<br/>Go or chess"] --> B["Search over visible states"]
+    B --> C["Policy and value guide<br/>which branches matter"]
+    D["Imperfect information<br/>poker or Diplomacy"] --> E["Beliefs over hidden state<br/>and opponent intent"]
+    E --> F["Plan against incentives<br/>and possible exploitation"]
+</div>
+<figcaption>The visible-board games mainly ask “what happens next?” Imperfect-information games also ask “what world am I in, and what do others think I will do?”</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Lecture arc</span>
+  <p>Noam Brown starts from poker search, compares it to AlphaGo Zero's MCTS, then uses that lesson to explain CICERO: a Diplomacy agent that combines strategic planning with transformer-based dialogue.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — classify the games before peeking</summary>
+<p>Chess and Go are perfect-information. Poker is imperfect-information because private cards are hidden. Diplomacy is imperfect-information and general-sum because private messages, intentions, alliances, and simultaneous moves are not fully observable.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Game-theory atoms</h2>
+<p>Before CICERO can talk, it must answer a simpler question: “If everyone can adapt to everyone else, what does a good action even mean?” Game theory gives the vocabulary.</p>
+
+<h3 id="s2a">2.1 Nash, mixtures, exploitability</h3>
+<p>A <strong>normal-form game</strong> lists each player's actions and payoffs. In this tiny zero-sum game, Row wants the numbers high and Column wants them low:</p>
+
+<table>
+  <tr><th>Row payoff</th><th>Column: Heads</th><th>Column: Tails</th></tr>
+  <tr><td>Row: Heads</td><td class="tt">+1</td><td class="tt">-1</td></tr>
+  <tr><td>Row: Tails</td><td class="tt">-1</td><td class="tt">+1</td></tr>
+</table>
+
+<p>No pure action is stable here. If both choose Heads, Column wants to switch; if they mismatch, Row wants to switch. The stable policy is <strong>mixed</strong>: each player randomizes 50/50.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — Nash condition</span>
+  <p>$$u_i(\sigma_i^*,\sigma_{-i}^*) \ge u_i(\sigma_i,\sigma_{-i}^*) \quad \text{for every player } i \text{ and alternative } \sigma_i.$$</p>
+  <p>Here, \(u_i\) is player \(i\)'s expected payoff, \(\sigma_i^*\) is their equilibrium strategy, and \(\sigma_{-i}^*\) means “everyone else's strategies.” Nobody can improve by deviating alone.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — exploitability</span>
+  <p>$$\operatorname{exploit}(\sigma)=u_i(\operatorname{BR}(\sigma_{-i}),\sigma_{-i})-u_i(\sigma_i,\sigma_{-i}).$$</p>
+  <p>\(\operatorname{BR}\) is a best response. In the lecture's poker plot, lower exploitability means a worst-case adversary can extract less value from the bot.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Optimal” does not always mean “always take the strongest-looking move.” In strategic games, predictable strength can be exploited. Sometimes the correct strategy is a carefully chosen random mixture.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is 100% Heads bad in Matching Pennies?</summary>
+<p>If Row always plays Heads, Column always plays Tails and Row gets \(-1\) every time. Randomizing 50/50 removes that exploitable pattern.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Search plus learning: the AlphaZero lesson</h2>
+<p>The lecture's repeated empirical pattern is: a trained policy is useful, but letting it think at decision time can change the game. Brown reports that adding search to poker reduced distance from Nash by about 7× — comparable, in his extrapolation, to scaling the model roughly 100,000×.</p>
+
+<h3 id="s3a">3.1 AlphaZero and poker search</h3>
+<p>AlphaZero-style systems learn a policy/value network by self-play, then use MCTS during play. The network says which branches look promising; search checks those branches with extra compute. Brown points out that AlphaGo Zero without test-time MCTS falls far below its full strength.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — one MCTS selection sketch</span>
+  <p>$$a = \arg\max_a \left[Q(s,a)+c\,P_\theta(a\mid s)\frac{\sqrt{N(s)}}{1+N(s,a)}\right].$$</p>
+  <p>\(Q(s,a)\) is the value found so far, \(P_\theta(a\mid s)\) is the policy net's prior, \(N\) counts visits, and \(c\) trades exploitation for exploration. The formula is not the whole AlphaZero recipe; it captures the binder-plus-clock idea.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Self-play games"] --> B["Policy/value network"]
+    B --> C["MCTS at decision time"]
+    C --> D["Improved move probabilities"]
+    D --> A
+    C --> E["Final move in real game"]
+</div>
+<figcaption>AlphaZero loops learning and search: search improves play, and improved play becomes new training data.</figcaption>
+</figure>
+
+<p>For poker, the cultural starting point was different: game theory and reinforcement learning rather than board-game search. Libratus scaled real-time search in heads-up no-limit poker; Pluribus later used depth-limited search to handle six-player poker with surprisingly modest training cost.</p>
+
+<details class="check"><summary>✓ Check yourself — in the running analogy, what is “search”?</summary>
+<p>It is the negotiator using the live chess clock to reason through the current position, rather than blindly reading the first move from the prep binder.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>Imperfect information: why “just search the tree” breaks</h2>
+<p>In Go, a branch is a visible future board. In poker, a branch may depend on cards you cannot see and on what your bet reveals. Searching one guessed game tree can leak information into the plan and make the bot exploitable.</p>
+
+<h3 id="s4a">4.1 Regret minimization</h3>
+<p>A core tool for two-player zero-sum imperfect-information games is <strong>Counterfactual Regret Minimization</strong> (CFR). It repeatedly asks: “At this information set, how much better would action \(a\) have done, holding fixed the reach probability from opponents and chance?” Positive regrets become more likely next time.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — regret matching</span>
+  <p>$$\sigma_{t+1}(a)=\frac{R_t^+(a)}{\sum_b R_t^+(b)}, \qquad R_t^+(a)=\max(R_t(a),0).$$</p>
+  <p>\(R_t(a)\) is cumulative regret for not choosing action \(a\). If all regrets are non-positive, use a uniform distribution. CFR uses this local update across many information sets and converges to Nash in two-player zero-sum games.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Information set<br/>same public view"] --> B["Estimate counterfactual value<br/>for each action"]
+    B --> C["Accumulate regrets"]
+    C --> D["Normalize positive regrets"]
+    D --> E["Next mixed strategy"]
+    E --> B
+</div>
+<figcaption>CFR is not guessing the hidden cards once; it learns stable behavior over information sets the agent cannot distinguish.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“If the agent is smart, it should infer the true hidden state.” Sometimes the right goal is not certainty. It is a strategy that performs well across possible hidden states and does not reveal a pattern a worst-case opponent can farm.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what guarantee does CFR rely on?</summary>
+<p>The standard convergence-to-Nash result is for two-player zero-sum games. Many-player general-sum settings like Diplomacy lose that clean guarantee.</p></details>
+
+<!-- ================= SECTION 5 ================= -->
+<h2 id="s5"><span class="num">5.</span>Diplomacy and CICERO: language becomes an action</h2>
+<p>Diplomacy was the hard next target because support, trust, and simultaneous moves make language strategic. Players privately negotiate for 5–15 minutes, then submit orders at the same time. A message like “I’ll support you into Belgium” matters only if the final move actually matches it.</p>
+
+<h3 id="s5a">5.1 Intent-grounded language</h3>
+<p>CICERO combined board/action history and dialogue to predict what every player might do, refined those predictions with planning, converted plans into <strong>intents</strong>, and conditioned a dialogue model on those intents. The language model was not asked to invent the strategy from scratch; it was asked to express a plan.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Board state<br/>action history"] --> B["Dialogue-conditioned<br/>action model"]
+    C["Private messages<br/>so far"] --> B
+    B --> D["Anchor policies<br/>predicted moves"]
+    D --> E["piKL planning<br/>rationality plus KL"]
+    E --> F["Intents<br/>our move and partner move"]
+    F --> G["Dialogue model<br/>conditioned text"]
+    G --> H["Filters<br/>grounding and value"]
+    H --> I["Final message<br/>and final order"]
+</div>
+<figcaption>CICERO separates strategy from wording, then checks that wording is grounded and strategically sane.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — piKL as a sketch</span>
+  <p>$$\pi_i^* \approx \arg\max_{\pi_i}\; \mathbb{E}_{a\sim(\pi_i,\pi_{-i})}[u_i(a)]-\lambda\,\operatorname{KL}(\pi_i\,\|\,\pi_i^{\text{human}}).$$</p>
+  <p>The first term rewards high-value actions; the KL penalty keeps the policy near human conventions. \(\lambda=0\) resembles unconstrained self-play; very large \(\lambda\) resembles pure imitation.</p>
+</div>
+
+<p>Brown emphasizes why this matters for transformers: ordinary language modeling imitates human-like text, but strategic dialogue is <strong>intentional</strong>. CICERO's dialogue model receives text plus a serialized intended action, so “what to say” is grounded in “what I plan to do.”</p>
+
+<details class="check"><summary>✓ Check yourself — why not train Diplomacy from scratch with pure self-play?</summary>
+<p>It might invent non-English conventions or strategies that work against itself but fail with humans. In a cooperative-competitive human game, modeling human conventions is part of the task.</p></details>
+
+<!-- ================= SECTION 6 ================= -->
+<h2 id="s6"><span class="num">6.</span>Limits and open questions</h2>
+<p>The lecture is not a victory lap claiming games are solved. It is an argument for a research direction: make inference-time computation more general, so models can spend compute where the decision is hard.</p>
+
+<ul>
+  <li><strong>Many players and general-sum games:</strong> Nash-style guarantees become weaker; equilibrium selection and conventions matter.</li>
+  <li><strong>Exploitability vs best response:</strong> a policy can look strong on average while being fragile to targeted adversarial play.</li>
+  <li><strong>Dialogue value:</strong> CICERO's value model did not deeply condition on long-term dialogue effects, so it avoided deception by conditioning on truthful intent.</li>
+  <li><strong>Compute trade-offs:</strong> search moves cost from training time to inference time; that is worth it for some domains and wasteful for others.</li>
+  <li><strong>Generality:</strong> MCTS, poker search, and piKL are domain-shaped. The open question is a more general way to “think longer.”</li>
+</ul>
+
+<div class="box intuition">
+  <span class="lbl">Bitter-lesson framing</span>
+  <p>Sutton's lesson says scalable general methods win in the long run, especially learning and search. Brown's update is: modern AI has scaled learning aggressively; the next frontier is scaling search or planning at inference time.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one reason CICERO used truthful intents</summary>
+<p>Its value model did not fully understand the long-term trust cost of lying. Conditioning on truthful intents reduced strategically unsound or deceptive messages that the system could not evaluate reliably.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">7.</span>Worked example — one regret-matching step by hand</h2>
+<p>Numbers make the core mechanic click. Suppose our imperfect-information agent has three legal actions: <em>fold</em>, <em>call</em>, and <em>raise</em>. After many simulated updates, its cumulative regrets are:</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$R=[+3,-1,0].$$</p>
+  <p>Keep only positive regret:</p>
+  <p>$$R^+=[\max(3,0),\max(-1,0),\max(0,0)]=[3,0,0].$$</p>
+  <p>Normalize by the sum \(3+0+0=3\):</p>
+  <p>$$\sigma=[3/3,0/3,0/3]=[1,0,0].$$</p>
+  <p>The next strategy puts all probability on <em>fold</em> in this toy state, because it is the only action with positive regret. In a full CFR system, later counterfactual updates can move probability back to other actions.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — compute the distribution for regrets [2, 5, -3]</summary>
+<p>Positive regrets are \([2,5,0]\), sum \(7\), so the next distribution is \([2/7,5/7,0]\approx[0.286,0.714,0]\).</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">8.</span>End-to-end trace — one imperfect-information decision</h2>
+<p>Now follow a single concrete Diplomacy-style turn all the way through. CICERO is France, privately talking to Turkey about Tunis while also planning orders.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · observation</td><td>Agent sees the board, its own units, public action history, and private messages so far.</td><td class="tt">France has fleet near Tunis; Turkey can contest it</td></tr>
+  <tr><td>1 · belief / prediction</td><td>Dialogue-conditioned action model predicts plausible orders for each player and what they expect France to do.</td><td class="tt">anchor policies: Turkey may go for Tunis or pivot east</td></tr>
+  <tr><td>2 · planning</td><td>piKL refines the anchor policies by favoring higher-value actions while staying near human-like conventions.</td><td class="tt">France prefers: take Tunis; steer Turkey toward Rome/Serbia</td></tr>
+  <tr><td>3 · strategy</td><td>The planner outputs an action distribution and an intent for France plus an intended action for Turkey.</td><td class="tt">P(take Tunis)=0.72; intent: Turkey moves east</td></tr>
+  <tr><td>4 · sampled action</td><td>France commits to a candidate order sampled from the planned strategy.</td><td class="tt">order: fleet to Tunis</td></tr>
+  <tr><td>5 · language</td><td>Dialogue model receives the serialized intent and generates candidate messages consistent with it.</td><td class="tt">“You can make progress on Rome; I need Tunis for now.”</td></tr>
+  <tr><td>6 · filtering</td><td>Grounding and value filters remove nonsense, contradictions, or messages that would cause low expected value.</td><td class="tt">send message only if it does not trigger defensive response</td></tr>
+  <tr><td>7 · outcome</td><td>All players submit simultaneous orders; the revealed result updates future beliefs and trust.</td><td class="tt">new board + new dialogue context</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The agent is not “chatting” and then “playing” as separate tasks. In CICERO, language is a strategic action whose quality depends on beliefs, plans, and expected responses.</p>
+</div>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does imperfect information make game-tree search harder than Go-style search? <a class="ref" href="#s1">(§1)</a></li>
+    <li>State Nash equilibrium in one sentence, then explain why mixed strategies can be necessary. <a class="ref" href="#s2">(§2)</a></li>
+    <li>What did Brown's poker and Go examples suggest about test-time compute? <a class="ref" href="#s3">(§3)</a></li>
+    <li>How does regret matching turn cumulative regrets into an action distribution? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why did CICERO condition dialogue on intended actions rather than asking the language model to invent strategy? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain CICERO to a beginner in three sentences using the binder-and-clock analogy.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Nash equilibrium</td><td>A stable set of strategies where no one benefits by changing alone.</td></tr>
+  <tr><td>Mixed strategy</td><td>A probability distribution over actions, used to avoid predictable exploitation.</td></tr>
+  <tr><td>Exploitability</td><td>How much a best-response adversary can gain against a strategy.</td></tr>
+  <tr><td>Information set</td><td>States an imperfect-information player cannot distinguish from their own observations.</td></tr>
+  <tr><td>CFR</td><td>Counterfactual Regret Minimization, a regret-based algorithm for imperfect-information games.</td></tr>
+  <tr><td>Search / planning</td><td>Extra computation at decision time to evaluate possible futures or responses.</td></tr>
+  <tr><td>piKL</td><td>CICERO's planning method: self-play-like improvement regularized toward human imitation with a KL penalty.</td></tr>
+  <tr><td>Intent</td><td>A planned action for the speaker and/or partner, serialized so the dialogue model can generate grounded messages.</td></tr>
+  <tr><td>Grounded dialogue</td><td>Language tied to the actual world state and intended actions, not free-floating chitchat.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly used in the lecture</h4>
+<ol class="refs">
+  <li>Noam Brown. <strong>CS25 lecture video: Strategic games, search, and CICERO.</strong> <a class="ref" href="https://www.youtube.com/watch?v=phWxl0nkgKk">YouTube</a> — source lecture for these notes.</li>
+  <li>Richard Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html">essay</a> — the search-plus-learning framing Brown cites.</li>
+  <li>Brown and Sandholm (2017). <strong>Superhuman AI for heads-up no-limit poker: Libratus beats top professionals.</strong> <a class="ref" href="https://www.science.org/doi/10.1126/science.aao1733">Science</a> — poker search milestone discussed in the lecture.</li>
+  <li>Brown and Sandholm (2019). <strong>Superhuman AI for multiplayer poker.</strong> <a class="ref" href="https://www.science.org/doi/10.1126/science.aay2400">Science</a> — Pluribus and depth-limited search.</li>
+  <li>Silver et al. (2017). <strong>Mastering the game of Go without human knowledge.</strong> <a class="ref" href="https://www.nature.com/articles/nature24270">Nature</a> — AlphaGo Zero and MCTS/self-play evidence.</li>
+  <li>Meta Fundamental AI Research Diplomacy Team et al. (2022). <strong>Human-level play in the game of Diplomacy by combining language models with strategic reasoning.</strong> <a class="ref" href="https://www.science.org/doi/10.1126/science.ade9097">Science</a> — CICERO paper.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Meta AI. <strong>CICERO project page.</strong> <a class="ref" href="https://ai.meta.com/research/cicero/">overview</a> — approachable explanation of the agent and results.</li>
+  <li>facebookresearch. <strong>diplomacy_cicero.</strong> <a class="ref" href="https://github.com/facebookresearch/diplomacy_cicero">GitHub</a> — released code and models referenced in the talk.</li>
+  <li>Zinkevich et al. (2007). <strong>Regret Minimization in Games with Incomplete Information.</strong> <a class="ref" href="https://papers.nips.cc/paper_files/paper/2007/hash/08d98638c6fcd194a4b1e6992063e944-Abstract.html">NeurIPS</a> — original CFR paper.</li>
+  <li>xkcd (2012). <strong>Board Game.</strong> <a class="ref" href="https://xkcd.com/1002/">comic</a> — the games-progress snapshot Brown references.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="13-emergent-abilities-scaling.html">◀ Notes 13: Emergent Abilities &amp; Scaling</a>
+  <a class="r" href="15-robotics-imitation-learning.html">Notes 15: Robotics &amp; Imitation Learning ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 14 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

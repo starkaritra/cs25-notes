@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 · Notes 04 — Transformers in Vision (ViT)</title>
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  /* ---- sidebar TOC ---- */
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  /* ---- article ---- */
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:22px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  /* ---- callouts ---- */
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  /* ---- figures = light "paper" sketch cards on the dark page ---- */
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  /* ---- refs / footer / nav ---- */
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  /* ---- print / PDF: force a clean light layout so ink + math stay readable ---- */
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this lecture matters</a>
+  <a href="#prereq">Prerequisites refresher</a>
+  <a href="#hard">1 · Why vision was hard</a>
+  <a href="#biases" class="sub">1.1 CNN inductive biases</a>
+  <a href="#whytry" class="sub">1.2 Why try transformers?</a>
+  <a href="#vit">2 · ViT: the core idea</a>
+  <a href="#patches" class="sub">2.1 Images become tokens</a>
+  <a href="#clspos" class="sub">2.2 [CLS] and positions</a>
+  <a href="#data">3 · Data-hungriness</a>
+  <a href="#attention">4 · Attention maps</a>
+  <a href="#beyond">5 · Beyond classification</a>
+  <a href="#compare">6 · CNN vs ViT</a>
+  <a href="#worked">8 · Worked micro-example</a>
+  <a href="#trace">9 · End-to-end trace</a>
+  <a href="#recap">7 · Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 1 · Note 4 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">Stanford CS25 · Transformers United · CS25 V1 · Lecture 3</div>
+  <h1>Transformers in Vision: Tackling Problems in Computer Vision</h1>
+  <p class="lead">How a model with almost no built-in vision knowledge can learn images by treating <em>patches like words</em> — and why scale makes that trade worth it.</p>
+  <div class="meta">
+    <span class="pill">🎓 Topic: Vision Transformers (ViT)</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=BP5CM0YxbP8" target="_blank">▶ Watch on YouTube</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this lecture matters</span>
+  <p>Computer vision used to be the kingdom of <strong>convolutions</strong>. CNNs won because they already assume images are local, spatial, and hierarchical. ViT asks a dangerous question: <em>what if we remove most of those assumptions and let scale teach the model vision?</em> The answer is the modern recipe behind many image, video, detection, and multimodal systems.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Imagine cutting a poster into square sticky-notes and laying them on a table. A CNN scans nearby notes with the same magnifying glass. A Vision Transformer puts all notes in one meeting: every patch can ask every other patch, from the first layer, “are you relevant to understanding this image?”</p>
+</div>
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these; dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Image tensor</strong> — an image is \(H\times W\times C\) (height × width × channels, e.g. 224×224×3).</li>
+    <li><strong>Linear projection</strong> — multiply a flattened vector by a learned matrix to change its dimension.</li>
+    <li><strong>Self-attention / softmax</strong> — tokens attend to each other; scores → weights via softmax.</li>
+    <li><strong>Token</strong> — here, one image patch turned into a vector.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================= 1. WHY HARD ================= -->
+<h2 id="hard"><span class="num">1.</span>Why vision was hard for transformers</h2>
+<p>Start with a concrete image: a dog on grass with a tennis ball in the corner. A human instantly connects the dog, the ball, the posture, and the scene. A model has to solve two opposite problems at once: detect tiny local edges and textures, then combine far-apart evidence into one interpretation.</p>
+
+<h3 id="biases">1.1 CNNs bake in the right guesses</h3>
+<p>A <strong>convolutional neural network</strong> is not a blank learner. It is full of <strong>inductive biases</strong>: assumptions that make learning easier when they match the world.</p>
+<ul>
+  <li><strong>Locality.</strong> Early features look at small neighborhoods — edges, corners, color blobs.</li>
+  <li><strong>Translation equivariance.</strong> The same filter is applied everywhere, so “cat ear” can be recognized whether it appears left or right.</li>
+  <li><strong>Hierarchy.</strong> Stacking convolutions and pooling grows the receptive field: edges → textures → parts → objects.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["pixels"] --> B["local edges"] --> C["textures"] --> D["object parts"] --> E["class label"]
+    B --> F["same filters reused across image"]
+    C --> G["pooling builds hierarchy"]
+</div>
+<figcaption>CNNs make vision easier by assuming nearby pixels matter first and that visual features repeat across locations.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>An inductive bias is a <em>head start</em>, not magic. If the task really has local patterns, the model needs fewer examples. This is why classic CNNs are so data-efficient on ImageNet-scale training.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is translation equivariance useful for images?</summary>
+<p>Because the identity of an object usually does not depend on its absolute location. If an eye detector works in the top-left of an image, the same detector should work in the center or bottom-right too. Convolution gets this by reusing one filter across all positions.</p></details>
+
+<h3 id="whytry">1.2 So why try transformers at all?</h3>
+<p>A vanilla transformer has almost none of those image-specific biases. Self-attention sees a set of tokens and, without help, does not know that two neighboring patches are neighbors. That sounds bad — until scale changes the bargain.</p>
+<ul>
+  <li><strong>Generality.</strong> The same architecture can process words, patches, video frames, molecules, or trajectories once they are tokenized.</li>
+  <li><strong>Global context from layer 1.</strong> A patch in the top-left can attend to a patch in the bottom-right immediately, not after many convolutional layers.</li>
+  <li><strong>Scaling behavior.</strong> With enough data and compute, fewer hand-coded assumptions can become an advantage: the model can learn the biases it needs instead of inheriting fixed ones.</li>
+</ul>
+
+<div class="box why">
+  <span class="lbl">The real question</span>
+  <p>ViT is not “CNNs were wrong.” It is: <strong>when data and model size become enormous, is it better to hand-code vision structure or learn it?</strong> The lecture’s answer is the key tradeoff: CNNs win small; transformers win at scale.</p>
+</div>
+
+<!-- ================= 2. VIT CORE ================= -->
+<h2 id="vit"><span class="num">2.</span>ViT — the core idea</h2>
+<p>Dosovitskiy et al. made the simplest possible move: treat an image as a sequence. Not a sequence of pixels — that would be too long — but a sequence of <strong>fixed-size patches</strong>.</p>
+
+<h3 id="patches">2.1 Images become tokens</h3>
+<p>For a standard ViT-B/16 input, a 224×224 RGB image is split into 16×16 patches. That makes a 14×14 grid: <strong>196 visual tokens</strong>. Each patch is flattened and passed through one learned linear projection, just like a word embedding table maps word IDs to vectors.</p>
+
+<div class="box eqn">
+  <span class="lbl">Patch embedding equation</span>
+  <p>If the image is \(H\times W\) and patch size is \(P\times P\), the number of patches is</p>
+  <p>$$N = \frac{HW}{P^2}.$$</p>
+  <p>Each RGB patch is a vector in \(\mathbb{R}^{P^2C}\), then a learned matrix projects it to the transformer width \(D\).</p>
+</div>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 780 270" width="100%" role="img" aria-label="Image grid cut into patches then projected into token sequence">
+  <defs>
+    <linearGradient id="imggrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#dff0ff"/>
+      <stop offset="55%" stop-color="#f4efff"/>
+      <stop offset="100%" stop-color="#fff7ec"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2f6df6"/>
+    </marker>
+  </defs>
+  <rect x="28" y="34" width="188" height="188" rx="14" fill="url(#imggrad)" stroke="#2f6df6" stroke-width="2"/>
+  <g stroke="#7b3fe4" stroke-width="1.2" opacity="0.85">
+    <line x1="75" y1="34" x2="75" y2="222"/><line x1="122" y1="34" x2="122" y2="222"/><line x1="169" y1="34" x2="169" y2="222"/>
+    <line x1="28" y1="81" x2="216" y2="81"/><line x1="28" y1="128" x2="216" y2="128"/><line x1="28" y1="175" x2="216" y2="175"/>
+  </g>
+  <circle cx="92" cy="103" r="20" fill="#fff" opacity="0.9"/><circle cx="154" cy="148" r="28" fill="#0f9d58" opacity="0.18"/>
+  <text x="122" y="246" text-anchor="middle" fill="#5b6572" font-size="14">image cut into 16×16 patches</text>
+
+  <path d="M235 128 C270 128, 285 128, 316 128" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="276" y="105" text-anchor="middle" fill="#2f6df6" font-size="14">flatten</text>
+
+  <g transform="translate(335 52)">
+    <rect x="0" y="0" width="62" height="62" rx="10" fill="#eef4ff" stroke="#2f6df6"/>
+    <rect x="12" y="12" width="38" height="38" fill="#fff" stroke="#7b3fe4" opacity="0.8"/>
+    <text x="31" y="92" text-anchor="middle" fill="#5b6572" font-size="13">patch</text>
+    <text x="31" y="111" text-anchor="middle" fill="#5b6572" font-size="13">vector</text>
+  </g>
+
+  <path d="M415 128 C450 128, 465 128, 496 128" fill="none" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="456" y="105" text-anchor="middle" fill="#2f6df6" font-size="14">linear projection</text>
+
+  <g transform="translate(520 76)">
+    <rect x="0" y="0" width="38" height="98" rx="8" fill="#f4efff" stroke="#7b3fe4"/>
+    <rect x="50" y="0" width="38" height="98" rx="8" fill="#f4efff" stroke="#7b3fe4"/>
+    <rect x="100" y="0" width="38" height="98" rx="8" fill="#f4efff" stroke="#7b3fe4"/>
+    <text x="157" y="56" fill="#5b6572" font-size="20">…</text>
+    <rect x="185" y="0" width="38" height="98" rx="8" fill="#f4efff" stroke="#7b3fe4"/>
+    <text x="19" y="122" text-anchor="middle" fill="#5b6572" font-size="13">t₁</text>
+    <text x="69" y="122" text-anchor="middle" fill="#5b6572" font-size="13">t₂</text>
+    <text x="119" y="122" text-anchor="middle" fill="#5b6572" font-size="13">t₃</text>
+    <text x="204" y="122" text-anchor="middle" fill="#5b6572" font-size="13">tₙ</text>
+  </g>
+  <text x="632" y="222" text-anchor="middle" fill="#5b6572" font-size="14">sequence of patch embeddings</text>
+</svg>
+</div>
+<figcaption>ViT’s one-line trick: cut the image into patches, embed each patch, and feed the resulting sequence to a standard transformer encoder.</figcaption>
+</figure>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    IMG["Image<br/>(224×224×3)"] --> PATCH["Split into fixed-size patches<br/>(e.g., 16×16)"]
+    PATCH --> PROJ["Flatten each patch<br/>+ linear projection"]
+    PROJ --> POS["Add position embeddings"]
+    POS --> CLS["Prepend [CLS] token"]
+    CLS --> ENC["Transformer encoder<br/>(self-attention + MLP blocks)"]
+    ENC --> HEAD["MLP head"]
+    HEAD --> CLASS["Class prediction"]
+</div>
+<figcaption>The ViT classification pipeline from pixels to label. The transformer part is almost the same encoder stack used in language models.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why not make every pixel a token?</summary>
+<p>A 224×224 image has 50,176 pixels. Full self-attention would form roughly \(50{,}176^2\) pairwise scores per layer — far too expensive. Patches reduce the sequence to 196 tokens for ViT-B/16, making global attention practical.</p></details>
+
+<h3 id="clspos">2.2 The [CLS] token and position embeddings</h3>
+<p>Two small details make the sequence usable for classification.</p>
+<ul>
+  <li><strong>[CLS] token.</strong> ViT prepends one learnable vector, inherited from BERT. It is not a patch. During self-attention, it gathers information from all patches; its final hidden state becomes the image representation passed to the classifier.</li>
+  <li><strong>Position embeddings.</strong> Self-attention is permutation-invariant: without positions, it sees the same bag of patch vectors even if you shuffle the image. ViT adds a learned position vector to each patch embedding so token 17 “knows” where it came from in the grid.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">ViT input sequence</span>
+  <p>$$z_0 = [x_{\mathrm{cls}};\, x_p^1E;\, x_p^2E;\, \ldots;\, x_p^NE] + E_{\mathrm{pos}}$$</p>
+  <p>The bracket means concatenate the class token and all patch tokens; \(E_{\mathrm{pos}}\) restores spatial order.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Easy mistake</span>
+  <p>The [CLS] token is not a human-readable label and not the word “class.” It is a learned scratchpad. After many attention layers, the network has trained that vector to summarize the whole image for the MLP head.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what breaks if you remove position embeddings?</summary>
+<p>The transformer no longer knows spatial arrangement. A shuffled grid of patches would look nearly identical as a sequence. For vision, “eye above nose above mouth” matters; attention alone does not encode that order.</p></details>
+
+<!-- ================= 3. DATA ================= -->
+<h2 id="data"><span class="num">3.</span>Data-hungriness: the central tradeoff</h2>
+<p>The original ViT result is subtle and important: on ImageNet-scale training, ViT often <strong>underperformed comparable CNNs</strong>. But when pretrained on huge supervised datasets such as JFT-300M and then transferred, ViT <strong>beat strong convolutional baselines</strong>.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Key tradeoff</span>
+  <p>ViT removes the CNN’s helpful visual priors, so it must <strong>learn locality, equivariance, and hierarchy from data</strong>. With too little data, that is wasteful. With enormous data and compute, the weaker prior becomes flexibility: the model can discover whatever structure best transfers.</p>
+</div>
+
+<p>This connects directly to the lecture’s emphasis on visual representation learning: pretrain a big model once on broad upstream data, then adapt it to many downstream tasks with limited examples. The practical recipe is not just “use a transformer”; it is <strong>scale the data, scale the model, be patient, then transfer</strong>.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    SMALL["ImageNet-scale data<br/>(~1.3M images)"] --> CNNWIN["CNN bias helps<br/>CNN often wins"]
+    HUGE["Huge pretraining data<br/>(JFT-300M scale)"] --> VITWIN["ViT learns the biases<br/>ViT transfers strongly"]
+    CNNWIN --> TRADE["Same architecture choice,<br/>different data regime"]
+    VITWIN --> TRADE
+</div>
+<figcaption>The ViT story is about data regime: architectural freedom is costly before scale, powerful after scale.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why can “less bias” be both worse and better?</summary>
+<p>Less bias means fewer built-in shortcuts. That hurts when data is scarce because the model must rediscover obvious image structure. But it helps at massive scale because the model is less constrained by a hand-designed recipe and can learn task-general structure directly from data.</p></details>
+
+<!-- ================= 4. ATTENTION MAPS ================= -->
+<h2 id="attention"><span class="num">4.</span>Attention maps and interpretability</h2>
+<p>Because ViT is built from self-attention, we can inspect which patches attend to which other patches. Early CNN layers mostly see local neighborhoods. ViT layers can place long-range links immediately: a head can connect the dog’s face to the ball, or a wheel to the rest of a bicycle, even when they are far apart in the grid.</p>
+
+<div class="box intuition">
+  <span class="lbl">Attention rollout</span>
+  <p>Raw attention in one layer is only a local snapshot. <strong>Attention rollout</strong> multiplies attention matrices through layers, usually including residual connections, to estimate how information flows from input patches to the final [CLS] representation. It is not a perfect explanation, but it gives a useful map of “which patches influenced the decision.”</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P1["patch tokens"] --> L1["layer 1 attention<br/>(global links possible)"]
+    L1 --> L2["layer 2 attention"]
+    L2 --> LK["later layers"]
+    LK --> CLS2["final [CLS] state"]
+    CLS2 --> MAP["rollout heatmap<br/>patch influence"]
+</div>
+<figcaption>Attention rollout follows how evidence can move from all patches into the final image representation.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Interpretability caveat</span>
+  <p>Attention is not automatically a faithful causal explanation. A bright attention map says information flowed along that route, not that the model would fail without it. Treat it as a diagnostic lens, then verify with ablations or masking.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is special about ViT attention in early layers?</summary>
+<p>It can be global immediately. Even the first transformer block may connect distant patches, while a CNN usually needs several layers before distant pixels can influence each other through an enlarged receptive field.</p></details>
+
+<!-- ================= 5. BEYOND ================= -->
+<h2 id="beyond"><span class="num">5.</span>Beyond classification</h2>
+<p>Once an image is a sequence, many computer-vision tasks can be reframed as token prediction, set prediction, or dense per-pixel prediction.</p>
+
+<h3>5.1 DETR: detection as set prediction</h3>
+<p><strong>DETR</strong> uses a CNN backbone plus a transformer encoder-decoder to predict a <em>set</em> of objects directly. Instead of hand-designed anchors and non-maximum suppression pipelines, it learns object queries and matches predicted boxes to ground truth with a bipartite matching loss.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    I["image"] --> BACK["CNN / feature map"]
+    BACK --> TR["transformer encoder-decoder"]
+    Q["learned object queries"] --> TR
+    TR --> SET["set of predictions<br/>(class + bounding box)"]
+    SET --> MATCH["Hungarian matching loss"]
+</div>
+<figcaption>DETR’s conceptual shift: object detection becomes direct set prediction with transformer queries.</figcaption>
+</figure>
+
+<h3>5.2 Segmentation, hybrids, and Swin</h3>
+<ul>
+  <li><strong>Segmentation.</strong> Models such as SETR show that transformer encoders can support dense prediction: classify every pixel or region, not just one image label.</li>
+  <li><strong>Hybrid CNN + transformer.</strong> Many systems use CNNs to extract local features, then transformers for global reasoning — a pragmatic blend of bias and flexibility.</li>
+  <li><strong>Swin Transformer.</strong> Swin reintroduces vision structure with hierarchical stages and shifted window attention. It gives transformers CNN-like locality and pyramid features while retaining attention’s flexibility.</li>
+</ul>
+
+<div class="box intuition">
+  <span class="lbl">The field’s compromise</span>
+  <p>Pure ViT proves the point: transformers can learn vision from patches. Later models often add back locality, windows, or hierarchy because real systems care about compute, data efficiency, and dense multi-scale outputs.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does Swin reintroduce windows and hierarchy?</summary>
+<p>Full global attention over many high-resolution patches is expensive, and dense tasks need multi-scale features. Windowed attention reduces compute; shifted windows let information cross boundaries; hierarchical downsampling creates feature pyramids useful for detection and segmentation.</p></details>
+
+<!-- ================= 6. COMPARE ================= -->
+<h2 id="compare"><span class="num">6.</span>CNN vs ViT</h2>
+<table>
+  <tr><th>Dimension</th><th>CNN</th><th>Vision Transformer (ViT)</th></tr>
+  <tr><td>Inductive bias</td><td>Strong: locality, translation equivariance, hierarchy via convolution and pooling.</td><td>Weak: mostly sequence modeling plus learned positions; image structure must be learned.</td></tr>
+  <tr><td>Data efficiency</td><td>Usually better with limited labeled data because the architecture already matches images.</td><td>Data-hungry; shines after large-scale pretraining and transfer.</td></tr>
+  <tr><td>Global context</td><td>Built gradually as receptive fields grow through depth.</td><td>Available from the first layer through self-attention between any patches.</td></tr>
+  <tr><td>Compute pattern</td><td>Convolutions scale well on grids; cost grows roughly linearly with pixels for fixed kernels.</td><td>Full attention costs \(O(N^2)\) in number of patches; patch size/windowing matters.</td></tr>
+  <tr><td>Typical strength</td><td>Efficient visual feature extraction and strong baselines.</td><td>Scalable pretraining, global reasoning, architecture reuse across modalities.</td></tr>
+</table>
+
+<div class="box analogy">
+  <span class="lbl">Memory hook</span>
+  <p>CNNs are like a skilled local inspector walking the image with a reusable checklist. ViT is like a conference call among all patches: expensive, less guided, but capable of making global connections immediately.</p>
+</div>
+
+<!-- ================= 8. WORKED EXAMPLE ================= -->
+<h2 id="worked"><span class="num">8.</span>Worked numeric micro-example: patchify arithmetic</h2>
+<p>For the standard ViT-B/16 setting, start with a 224×224 RGB image and cut it into 16×16 patches. The bookkeeping is the whole trick: pixels become a short sequence of patch tokens.</p>
+
+<div class="box eqn">
+  <span class="lbl">Patchify arithmetic</span>
+  <p>$$\left(\frac{224}{16}\right)^2 = 14^2 = 196\ \text{patches}$$</p>
+  <p>Each patch is flattened into</p>
+  <p>$$16\cdot16\cdot3 = 768\ \text{numbers}.$$</p>
+  <p>A learned linear layer maps each flattened patch from \(768\) numbers to the transformer width \(d\), for example \(d=768\):</p>
+  <p>$$\mathbb{R}^{768}\rightarrow\mathbb{R}^{d}.$$</p>
+  <p>Then ViT prepends one learned [CLS] token:</p>
+  <p>$$196 + 1 = 197\ \text{tokens}.$$</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — how many tokens for patch size 32?</summary>
+<p>\((224/32)^2 = 7^2 = 49\) patch tokens. After prepending [CLS], the transformer receives \(49+1=50\) tokens.</p></details>
+
+<!-- ================= 9. TRACE ================= -->
+<h2 id="trace"><span class="num">9.</span>End-to-end trace through ViT</h2>
+<p>Using \(d=768\), one image flows through ViT as a sequence whose length changes once — when [CLS] is added — and whose width stays \(d\) through the encoder.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>1</td><td>Start with one RGB image.</td><td>image (224×224×3)</td></tr>
+  <tr><td>2</td><td>Split into 16×16 patches and flatten each patch.</td><td>196 patches (196×768 flattened)</td></tr>
+  <tr><td>3</td><td>Apply the learned linear patch embedding.</td><td>linear patch embed (196×d) = (196×768)</td></tr>
+  <tr><td>4</td><td>Prepend the learned [CLS] token.</td><td>prepend CLS (197×d) = (197×768)</td></tr>
+  <tr><td>5</td><td>Add learned position embeddings.</td><td>+position embeddings (197×d) = (197×768)</td></tr>
+  <tr><td>6</td><td>Run \(L\) Transformer encoder blocks.</td><td>Transformer encoder ×L (197×d) = (197×768)</td></tr>
+  <tr><td>7</td><td>Take the final [CLS] row as the image representation.</td><td>take CLS row (d) = (768)</td></tr>
+  <tr><td>8</td><td>Feed that vector to the MLP classification head.</td><td>MLP head → logits (1000)</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the final [CLS] vector means</span>
+  <p>The final [CLS] vector is a learned summary of the whole image: after \(L\) rounds of self-attention, it has gathered evidence from all patch tokens and becomes the vector the classifier reads. Position embeddings are needed because attention alone does not know patch order; they tell the model whether a patch came from the top-left, center, bottom-right, and so on.</p>
+</div>
+
+<!-- ================= 7. RECAP ================= -->
+<h2 id="recap"><span class="num">7.</span>Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Try to reconstruct the lecture’s logic from these prompts; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What three inductive biases make CNNs naturally suited to images? <a class="ref" href="#biases">(§1.1)</a></li>
+    <li>Why would anyone remove those biases and use a transformer anyway? <a class="ref" href="#whytry">(§1.2)</a></li>
+    <li>For a 224×224 image and 16×16 patches, how many patch tokens does ViT create before [CLS]? <a class="ref" href="#patches">(§2.1)</a></li>
+    <li>What are the separate jobs of the [CLS] token and position embeddings? <a class="ref" href="#clspos">(§2.2)</a></li>
+    <li>Why did ViT underperform on ImageNet-scale data but outperform after huge pretraining? <a class="ref" href="#data">(§3)</a></li>
+    <li>How does DETR change the object-detection pipeline? <a class="ref" href="#beyond">(§5.1)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Inductive bias</td><td>A built-in modeling assumption that helps learning when it matches the data.</td></tr>
+  <tr><td>Convolution</td><td>A small learned filter applied across an image to detect local patterns everywhere.</td></tr>
+  <tr><td>Translation equivariance</td><td>If the input shifts, the feature map shifts in the same way; the detector is reused across locations.</td></tr>
+  <tr><td>Patch token</td><td>A flattened image patch projected into the transformer’s embedding dimension.</td></tr>
+  <tr><td>[CLS] token</td><td>A learned token whose final hidden state is used as the whole-image representation.</td></tr>
+  <tr><td>Position embedding</td><td>A learned vector added to each token so attention knows where the patch came from.</td></tr>
+  <tr><td>JFT-300M</td><td>A very large internal Google image dataset used for supervised pretraining in ViT-scale experiments.</td></tr>
+  <tr><td>Attention rollout</td><td>A method for combining attention matrices across layers to estimate patch influence on the final prediction.</td></tr>
+  <tr><td>DETR</td><td>Detection Transformer: frames object detection as direct set prediction.</td></tr>
+  <tr><td>Swin Transformer</td><td>A hierarchical vision transformer using shifted local attention windows for efficient dense vision tasks.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Primary sources</h4>
+<ol class="refs">
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929" target="_blank">arXiv:2010.11929</a> — the original ViT paper.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — the transformer encoder/decoder architecture.</li>
+  <li>Sun et al. (2017). <strong>Revisiting Unreasonable Effectiveness of Data in Deep Learning Era.</strong> <a class="ref" href="https://arxiv.org/abs/1707.02968" target="_blank">arXiv:1707.02968</a> — large-scale JFT-style supervised pretraining.</li>
+  <li>Carion et al. (2020). <strong>End-to-End Object Detection with Transformers (DETR).</strong> <a class="ref" href="https://arxiv.org/abs/2005.12872" target="_blank">arXiv:2005.12872</a>.</li>
+  <li>Zheng et al. (2020). <strong>Rethinking Semantic Segmentation from a Sequence-to-Sequence Perspective with Transformers (SETR).</strong> <a class="ref" href="https://arxiv.org/abs/2012.15840" target="_blank">arXiv:2012.15840</a>.</li>
+  <li>Liu et al. (2021). <strong>Swin Transformer: Hierarchical Vision Transformer using Shifted Windows.</strong> <a class="ref" href="https://arxiv.org/abs/2103.14030" target="_blank">arXiv:2103.14030</a>.</li>
+  <li>Abnar &amp; Zuidema (2020). <strong>Quantifying Attention Flow in Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2005.00928" target="_blank">arXiv:2005.00928</a> — attention rollout / flow.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Google AI Blog — <strong>Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://research.google/blog/transformers-for-image-recognition-at-scale/" target="_blank">research.google</a> — accessible ViT overview.</li>
+  <li>Stanford CS25 lecture video for this note: <a class="ref" href="https://www.youtube.com/watch?v=BP5CM0YxbP8" target="_blank">Transformers in Vision</a>.</li>
+  <li>This series: <a class="ref" href="qGkzHFllWDY.html">Note 3 — Transformers in Language</a> and <a class="ref" href="w4Bw8WYL8Ps.html">Note 5 — Decision Transformer</a>.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="qGkzHFllWDY.html">◀ Note 3 · Language</a>
+  <a href="index.html">Index</a>
+  <a class="r" href="w4Bw8WYL8Ps.html">Note 5 · Decision Transformer ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 04 · Built for learning (WHY→HOW, check-yourself, references).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

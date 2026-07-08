@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 08 — Transformer Circuits & Induction Heads</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Mechanistic interpretability</a>
+  <a href="#s1a" class="sub">1.1 Circuits, not vibes</a>
+  <a href="#s2">2 · The residual stream</a>
+  <a href="#s2a" class="sub">2.1 Read/write bus</a>
+  <a href="#s3">3 · QK and OV circuits</a>
+  <a href="#s3a" class="sub">3.1 Where vs what</a>
+  <a href="#s4">4 · Composition</a>
+  <a href="#s4a" class="sub">4.1 Virtual weights</a>
+  <a href="#s5">5 · Induction heads</a>
+  <a href="#s5a" class="sub">5.1 Match then copy</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 2 · Note 4 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V1 — LECTURE 8</div>
+  <h1>Transformer Circuits, Induction Heads &amp; In-Context Learning</h1>
+  <p class="lead">A mechanistic-interpretability view of transformers: treat weights as a compiled program, decompose attention into circuits, then see how a two-head algorithm can copy patterns inside the prompt.</p>
+  <div class="meta">
+    <span class="pill">🎓 Chris Olah — Anthropic interpretability</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=pC4zRb_5noQ" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Transformers can translate, imitate new formats, and solve few-shot prompts, but their learned algorithms are buried inside billions of numbers. <strong>Mechanistic interpretability</strong> asks a sharper question than “which neurons activate?”: can we reverse-engineer the actual computation into human-readable <strong>circuits</strong>?</p>
+  <p>The lecture starts from a safety and science motivation. If a model has an unanticipated failure mode, behavior-only testing may miss it. Understanding the internal program gives us a second handle: inspect what computation the model is really running.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Treat the transformer as a busy newsroom. The <strong>residual stream</strong> is the shared newsroom whiteboard. Each attention head reads notes from the board, sends a courier to retrieve a past clue, and writes a new note back. Mechanistic interpretability is the forensic editor reconstructing the newsroom’s workflow from the scribbles and courier routes.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Multi-head attention &amp; Q/K/V</strong> — each head forms queries, keys, and values; here we split a head into a “where to look” part and a “what to move” part.</li>
+    <li><strong>Causal masking</strong> — token position \(t\) can only attend to positions \(\le t\); induction heads copy from earlier context without peeking at the answer.</li>
+    <li><strong>Residual connections</strong> — layers add updates to a shared vector stream; this makes “read from / write to the whiteboard” the right mental model.</li>
+    <li><strong>Softmax</strong> — exponentiates scores and normalizes them; a small score gap can become a very sharp attention pattern.</li>
+    <li><strong>Logits and unembedding</strong> — final residual vectors are projected into vocabulary scores; if a head writes “B-like” information, the B logit rises.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Mechanistic interpretability: reverse-engineering the program</h2>
+<p>Start with the lecture’s concrete image example: a “car neuron” in a vision model can be explained by sub-features such as wheels on the bottom, windows on the top, and chrome in the middle. That is not merely a saliency story; it is a tiny algorithm.</p>
+<p>Transformer circuits applies the same ambition to language models. The parameters are like a <strong>compiled computer program</strong>; activations are like temporary variables; the goal is to decompile the program into steps a human can inspect.</p>
+
+<h3 id="s1a">1.1 Circuits, not vibes</h3>
+<p>A <strong>circuit</strong> is a small set of components whose combined weights and activations implement a recognizable computation. The claim is not “every head has a one-word label.” The stronger claim is: some model behavior is carried by concrete computational motifs that can be tested by reading matrices, inspecting attention, and ablating components.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — behavior from a decomposed computation</span>
+  <p>For a simplified attention-only transformer, the final vocabulary scores are</p>
+  <p>$$\text{logits} = x_{\text{resid}} W_U,$$</p>
+  <p>where \(x_{\text{resid}}\) is the final residual-stream vector at a position and \(W_U\) is the unembedding matrix that maps that vector into one score per token. Interpretability asks: <em>which earlier paths wrote the features in \(x_{\text{resid}}\)?</em></p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Weights<br/>compiled program"] --> B["Activations<br/>temporary variables"]
+    B --> C["Circuits<br/>human-readable algorithm"]
+    C --> D["Predicted behavior<br/>test by ablation"]
+    D --> E["Safer and clearer models"]
+</div>
+<figcaption>Mechanistic interpretability is reverse engineering: move from behavior back to the internal algorithm that caused it.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Misconception:</strong> “Interpretability means looking at attention heatmaps.” Heatmaps are useful clues, but not explanations by themselves. A head can attend to a position and move irrelevant information, or another head may have already moved information there. Circuits track both the route and the payload.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would make an explanation mechanistic?</summary>
+<p>It should identify concrete components, state what computation they implement, and survive interventions: if you ablate or patch the proposed components, the predicted behavior should change in the predicted way.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>The residual stream is the central object</h2>
+<p>Imagine token position 20 in a prompt. It is not passed through a private pipeline isolated from every other layer. Instead, it carries a vector — the residual stream — that every layer can read and update. Attention heads and MLPs add new information to this shared vector.</p>
+
+<h3 id="s2a">2.1 The newsroom whiteboard: every layer reads and writes</h3>
+<p>In the simplified attention-only setup from the talk, each layer is a sum of attention-head updates added to the residual stream. With MLPs and LayerNorm omitted for clarity, layer \(\ell\) looks like:</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — residual stream update</span>
+  <p>$$x^{(\ell+1)} = x^{(\ell)} + \sum_{h \in \ell} \operatorname{AttnHead}_{\ell,h}\!\left(x^{(\ell)}\right).$$</p>
+  <p>Here \(x^{(\ell)}\) is the whiteboard state after layer \(\ell\). Each head reads \(x^{(\ell)}\), computes an update, and writes by addition. This linear additivity is why circuit paths can often be separated and inspected.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    T["Token embeddings"] --> R0["Residual stream<br/>whiteboard"]
+    R0 --> H1["Layer 0 head<br/>reads"]
+    H1 --> W1["writes update"]
+    W1 --> R1["Residual stream<br/>updated"]
+    R1 --> H2["Layer 1 head<br/>reads"]
+    H2 --> W2["writes update"]
+    W2 --> R2["Residual stream<br/>final"]
+    R2 --> U["Unembedding<br/>logits"]
+</div>
+<figcaption>Every component reads from and writes to the same residual stream; it is the object circuits compose through.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why the residual stream matters</span>
+  <p>If a layer-0 head writes “the previous token was A” into the residual stream at position 2, a layer-1 head can use that fact while computing keys or values at position 2. That is the doorway to multi-step algorithms.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does additive writing help circuit analysis?</summary>
+<p>Because separate paths contribute additively to the residual stream. In simplified settings, you can expand the model into terms such as direct bigram paths, single-head paths, and composed multi-head paths, then ask which terms matter.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>An attention head decomposes into QK and OV circuits</h2>
+<p>Take a head that attends from the current word “are” back to a previous word “perfect” and raises the probability of “perfect” again. Two questions are mixed together in the usual attention formula: <strong>where</strong> did it look, and <strong>what</strong> did it move?</p>
+
+<h3 id="s3a">3.1 QK = where, OV = what</h3>
+<p>Transformer circuits splits a head into two low-rank matrix products:</p>
+<ul>
+  <li><strong>QK circuit:</strong> computes attention scores — which source positions should the destination attend to?</li>
+  <li><strong>OV circuit:</strong> transforms the attended source information into an update written at the destination — what information is copied or transformed?</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — low-rank head matrices</span>
+  <p>$$W_{QK}=W_Q W_K^{\top}, \qquad W_{OV}=W_V W_O.$$</p>
+  <p>\(W_{QK}\) scores query–key compatibility, so it controls the attention pattern. \(W_{OV}\) maps source-token information through values and output weights, so it controls the payload written back to the residual stream. In the vocabulary lens, \(W_E W_{OV} W_U\) tells us how attending to an input token changes output logits.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    D["Destination position<br/>current token"] --> Q["Query"]
+    S["Source position<br/>past token"] --> K["Key"]
+    Q --> QK["QK circuit<br/>WHERE to attend"]
+    K --> QK
+    S --> V["Value"]
+    V --> OV["OV circuit<br/>WHAT to move"]
+    QK --> A["Attention weight"]
+    A --> M["Weighted message"]
+    OV --> M
+    M --> R["Write to residual stream"]
+</div>
+<figcaption>A head is not one opaque unit: QK chooses the courier route; OV chooses the note carried by the courier.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Misconception:</strong> “The value vector is the information, and the output matrix is just formatting.” In this framework, \(W_V\) and \(W_O\) are interpreted together as \(W_{OV}\), one low-rank map from source residual features to destination residual features.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if a head has a copying OV circuit but random QK, what happens?</summary>
+<p>It knows how to copy useful information, but it does not reliably know where to copy from. The output may be noisy because the “what” circuit is good while the “where” circuit is not targeted.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>Composition and virtual weights: heads become algorithms</h2>
+<p>A one-layer attention-only transformer can do crude in-context learning: it can notice a token occurred before and increase related tokens later. The lecture describes these as giant tables of skip-trigram-like effects. But the sharp phase change in in-context learning appears in <strong>two-layer</strong> attention-only transformers, where heads can compose.</p>
+
+<h3 id="s4a">4.1 Q-, K-, and V-composition</h3>
+<p>Layer-1 heads can modify the residual stream in ways that layer-2 heads use to form queries, keys, or values. This gives three important composition routes:</p>
+<ul>
+  <li><strong>Q-composition:</strong> an earlier head writes features later used to make the destination query.</li>
+  <li><strong>K-composition:</strong> an earlier head writes features later used to make a source key.</li>
+  <li><strong>V-composition:</strong> an earlier head writes features later copied as the source value.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — composed paths</span>
+  <p>For two simplified attention layers, expanding the residual stream gives direct paths, single-head paths, and composed paths:</p>
+  <p>$$\left(I + H_1\right)\left(I + H_0\right) = I + H_0 + H_1 + H_1H_0.$$</p>
+  <p>The \(H_1H_0\) term is a composed circuit: layer 0 writes something that layer 1 uses. Some expansions behave like <strong>virtual attention heads</strong> — not literal heads in the architecture, but effective read/write paths created by composition.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["Residual stream<br/>position i"] --> L0["Layer 0 head<br/>write feature"]
+    L0 --> R["Residual stream<br/>feature available"]
+    R --> K["Layer 1 key<br/>K-composition"]
+    R --> Q["Layer 1 query<br/>Q-composition"]
+    R --> V["Layer 1 value<br/>V-composition"]
+    K --> ALG["Multi-step algorithm"]
+    Q --> ALG
+    V --> ALG
+</div>
+<figcaption>Composition lets a later head use information prepared by an earlier head, producing multi-step algorithms.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Virtual weights in newsroom language</span>
+  <p>If reporter 0 pins “the previous token was A” to the board, reporter 1 can route couriers by that note. The effective workflow looks like a new hidden courier rule even though the architecture only contains the two original reporters.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is a two-layer attention-only model more expressive than a one-layer one?</summary>
+<p>The second layer can compute its attention pattern from representations already modified by the first layer. That allows “write a clue, then use the clue to route attention,” which one layer cannot do in the same direct way.</p></details>
+
+<!-- ================= SECTION 5 ================= -->
+<h2 id="s5"><span class="num">5.</span>Induction heads: the star circuit</h2>
+<p>Now the motivating mystery snaps into focus. Given a prompt fragment like <code>... A B ... A</code>, a useful model should predict <code>B</code>. It should notice: “last time I saw A, B came next; maybe that repeats.” This is <strong>in-context copying</strong> or pattern completion.</p>
+
+<h3 id="s5a">5.1 The two-head “match then copy” algorithm</h3>
+<p>An induction circuit often uses two heads:</p>
+<ol>
+  <li>A <strong>previous-token head</strong> copies each token into the residual stream of the next position. At position \(j+1\), the model now has a feature saying “the previous token was \(x_j\).”</li>
+  <li>A later <strong>induction head</strong> at the current \(A\) looks for source positions whose stored previous-token feature is also \(A\). That source is the token after the earlier \(A\), namely \(B\). The OV circuit then copies \(B\)-like information forward, raising the \(B\) logit.</li>
+</ol>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — induction as nearest-neighbor copying</span>
+  <p>For current position \(t\), an induction head approximately computes</p>
+  <p>$$j^* = \arg\max_{j&lt;t}\; \langle q(x_t),\, k(\text{prev}(x_j))\rangle, \qquad \text{then copy } x_j.$$</p>
+  <p>Because the previous-token head made \(\text{prev}(x_j)=x_{j-1}\) available at position \(j\), matching the current token \(x_t=A\) to \(\text{prev}(x_j)=A\) selects \(j\), the token after the earlier \(A\). That is why the payload is \(B\), not \(A\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A1["Earlier A<br/>position 1"] --> B1["B<br/>position 2"]
+    B1 --> C1["..."]
+    C1 --> A2["Current A<br/>position t"]
+    A1 -. "previous-token head writes<br/>prev=A at position 2" .-> B1
+    A2 -. "QK match:<br/>current A matches prev=A" .-> B1
+    B1 --> COPY["OV copies B-like info"]
+    COPY --> LOGIT["Raise logit for B"]
+</div>
+<figcaption>The induction head attends to the token after the previous matching context, then copies that continuation.</figcaption>
+</figure>
+
+<div class="box why">
+  <span class="lbl">Connection to in-context learning</span>
+  <p>Olsson et al. found that induction heads emerge during a sharp training phase change that coincides with a drop in in-context-learning loss: late tokens suddenly become much easier to predict than early tokens. Ablation evidence in small models shows these heads account for much of that meta-learning score. In larger models, their emergence aligns tightly with the same phase change, suggesting induction heads are a major mechanism behind few-shot prompting.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    T0["Early training<br/>crude copying"] --> BUMP["Phase change<br/>few hundred steps"]
+    BUMP --> IH["Induction heads form"]
+    IH --> ICL["Lower loss on late-context tokens"]
+    ICL --> FS["Few-shot / prompt pattern completion"]
+</div>
+<figcaption>The empirical story from the lecture: induction-head formation lines up with the sudden improvement in in-context learning.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Misconception:</strong> “Induction heads can only repeat exact text.” Exact copying is the clean toy case. In larger models, “soft” induction heads can copy abstractly: translated equivalents, similar words, or structural labels in made-up functions. The boundary gets blurrier, but the motif remains nearest-neighbor pattern completion inside the context.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — in <code>... A B ... A</code>, why does the induction head attend to B rather than the earlier A?</summary>
+<p>Because the previous-token head shifted information forward. The key at the earlier B position contains “previous token was A,” so the current A query matches that position. The OV circuit then copies B-like information.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">6.</span>Worked example — induction on <code>[A, B, C, A, ?]</code></h2>
+<p>Numbers make the mechanism concrete. Suppose the prompt so far is <code>A B C A</code> and we are predicting position 5. The desired continuation is <code>B</code> because the earlier occurrence of <code>A</code> was followed by <code>B</code>.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>The previous-token head has already written “previous token” features into the keys of positions 2, 3, and 4:</p>
+  <p>$$\text{key feature at pos 2}=\text{prev token A},\quad \text{pos 3}=\text{prev token B},\quad \text{pos 4}=\text{prev token C}.$$</p>
+  <p>At the last observed token, position 4 is <code>A</code>. Let the induction head score candidate source positions 1, 2, and 3 as follows:</p>
+  <p>$$s=[1.0,\;4.5,\;0.2].$$</p>
+  <p>Softmax converts these scores into attention weights:</p>
+  <p>$$\operatorname{softmax}(s)=\frac{[e^{1.0},e^{4.5},e^{0.2}]}{e^{1.0}+e^{4.5}+e^{0.2}} = \frac{[2.72,90.02,1.22]}{93.96} \approx [0.029,0.958,0.013].$$</p>
+  <p>So the induction head puts about \(95.8\%\) of its attention on position 2, the token after the earlier <code>A</code>. The OV circuit copies <code>B</code>-like information from position 2 into the residual stream at position 4, and the unembedding raises the logit for <code>B</code>.</p>
+</div>
+
+<table>
+  <tr><th>Query position</th><th colspan="5">Causal attention over source positions 1..5</th></tr>
+  <tr><td class="tt">1 · A</td><td>1.00</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td class="tt">2 · B</td><td>0.90</td><td>0.10</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td class="tt">3 · C</td><td>0.10</td><td>0.10</td><td>0.80</td><td>0</td><td>0</td></tr>
+  <tr><td class="tt">4 · A</td><td>0.029</td><td><strong>0.958</strong></td><td>0.013</td><td>0</td><td>0</td></tr>
+  <tr><td class="tt">5 · ?</td><td>0.02</td><td>0.94</td><td>0.02</td><td>0.02</td><td>0</td></tr>
+</table>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P1["1: A"] --> P2["2: B"] --> P3["3: C"] --> P4["4: A"] --> P5["5: ?"]
+    P1 -. "prev-token shift" .-> P2
+    P4 -. "attention weight 0.958" .-> P2
+    P2 --> OUT["copy B"]
+    OUT --> P5
+</div>
+<figcaption>The decisive row is query position 4: almost all mass goes to position 2, so B is copied as the next-token guess.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what does the previous-token head attend to?</summary>
+<p>At each position \(i\), a previous-token head attends mostly to position \(i-1\). For example, at position 2 (<code>B</code>) it attends to position 1 (<code>A</code>) and writes “previous token was A” into position 2’s residual stream.</p></details>
+
+<details class="check"><summary>✓ Check yourself — redo the softmax if the middle score drops from 4.5 to 2.0</summary>
+<p>With scores \([1.0,2.0,0.2]\), the exponentials are approximately \([2.72,7.39,1.22]\), total \(11.33\). The weights are \([0.240,0.652,0.108]\). The head still prefers position 2, but much less sharply, so copying B is weaker.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — the induction algorithm as a circuit</h2>
+<p>Now follow one concrete repeated sequence all the way through. The state column tracks what is on the newsroom whiteboard: the residual-stream features each head reads or writes.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Residual-stream state / value</th></tr>
+  <tr><td>0 · input</td><td>Prompt contains a repeated prefix: <code>A B C A</code>. The model must predict the next token.</td><td class="tt">tokens = [A, B, C, A]</td></tr>
+  <tr><td>1 · embeddings</td><td>Each token is embedded into the residual stream at its position.</td><td class="tt">x₁≈A, x₂≈B, x₃≈C, x₄≈A</td></tr>
+  <tr><td>2 · layer-0 previous-token head</td><td>At each position, the head attends one step back and writes previous-token information forward.</td><td class="tt">pos2 gets prev=A; pos3 gets prev=B; pos4 gets prev=C</td></tr>
+  <tr><td>3 · residual stream carries the clue</td><td>The source position holding <code>B</code> now also carries “my previous token was A.”</td><td class="tt">pos2 = B + prev(A)</td></tr>
+  <tr><td>4 · layer-1 induction QK</td><td>At current <code>A</code>, the query searches for earlier positions whose key says “previous token was A.”</td><td class="tt">match current A → key at pos2</td></tr>
+  <tr><td>5 · layer-1 induction OV</td><td>The head attends to position 2 and copies its token identity / continuation feature into the current residual stream.</td><td class="tt">write B-like feature at pos4</td></tr>
+  <tr><td>6 · unembedding</td><td>The final residual stream is projected into vocabulary logits.</td><td class="tt">logit(B) increases</td></tr>
+  <tr><td>7 · output</td><td>The model predicts the repeated continuation.</td><td class="tt">next token ≈ B</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The circuit does not memorize a global rule like “A always means B.” It performs an <strong>in-context nearest-neighbor lookup</strong>: find the earlier local context that matches the present one, then copy what came next in this prompt.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which component performs “match,” and which performs “copy”?</summary>
+<p>The QK circuit performs the match by producing the attention pattern. The OV circuit performs the copy by moving B-like source information into the current residual stream and ultimately toward the B logit.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does mechanistic interpretability frame weights as a compiled program rather than as a bag of correlations? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What is the residual stream, and why is it the central object for circuit analysis? <a class="ref" href="#s2">(§2)</a></li>
+    <li>For an attention head, explain QK = “where” and OV = “what” without using equations. <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why can two attention layers implement algorithms that one layer cannot? <a class="ref" href="#s4">(§4)</a></li>
+    <li>In <code>... A B ... A</code>, why does the induction head predict <code>B</code>? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain induction heads to a beginner in three sentences, using the newsroom whiteboard analogy.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Mechanistic interpretability</td><td>Reverse-engineering a neural network’s internal computation into components and algorithms humans can understand and test.</td></tr>
+  <tr><td>Circuit</td><td>A set of heads, neurons, paths, or weights that jointly implement a recognizable computation.</td></tr>
+  <tr><td>Residual stream</td><td>The shared vector state at each token position that layers read from and add updates to.</td></tr>
+  <tr><td>QK circuit</td><td>The part of an attention head that decides which source positions to attend to — the “where” circuit.</td></tr>
+  <tr><td>OV circuit</td><td>The part of an attention head that decides what information is moved from source to destination — the “what” circuit.</td></tr>
+  <tr><td>Composition</td><td>A later head using information written by an earlier head, enabling multi-step computations.</td></tr>
+  <tr><td>Virtual attention head</td><td>An effective path created by composing heads; it behaves like a head in an expansion even though it is not a separate architectural module.</td></tr>
+  <tr><td>Previous-token head</td><td>A head that attends one position back and writes the previous token’s identity into the current position.</td></tr>
+  <tr><td>Induction head</td><td>A head that finds an earlier matching context and copies the token that followed it, enabling pattern completion.</td></tr>
+  <tr><td>In-context learning</td><td>Adapting behavior using examples in the prompt, with no weight updates during inference.</td></tr>
+  <tr><td>Meta-learning score</td><td>In the lecture’s framing, a measure such as how much better the model predicts late-context tokens than early-context tokens.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Elhage, Nanda, Olsson, et al. (2021). <strong>A Mathematical Framework for Transformer Circuits.</strong> <a class="ref" href="https://transformer-circuits.pub/2021/framework/index.html">link</a> — the core framework for residual streams, QK/OV circuits, path expansion, and virtual weights.</li>
+  <li>Olsson, Elhage, Nanda, et al. (2022). <strong>In-context Learning and Induction Heads.</strong> <a class="ref" href="https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html">link</a> — the published induction-head paper connecting phase changes, induction heads, and in-context learning.</li>
+  <li>Brown et al. (2020). <strong>Language Models are Few-Shot Learners.</strong> <a class="ref" href="https://arxiv.org/abs/2005.14165">link</a> — the GPT-3 paper that made few-shot prompting the central puzzle.</li>
+  <li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">link</a> — background for the scaling-law discussion referenced near the end of the lecture.</li>
+  <li>Hutter (2021). <strong>Learning Curve Theory.</strong> <a class="ref" href="https://arxiv.org/abs/2102.01293">link</a> — related theoretical lens mentioned in the lecture’s closing remarks.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Stanford CS25 lecture video: <strong>Transformer Circuits and Induction Heads.</strong> <a class="ref" href="https://www.youtube.com/watch?v=pC4zRb_5noQ">link</a> — the source talk for this note.</li>
+  <li>Anthropic Transformer Circuits thread. <a class="ref" href="https://transformer-circuits.pub/">link</a> — broader sequence of mechanistic-interpretability papers and explanatory articles.</li>
+  <li>Distill feature visualization work. <a class="ref" href="https://distill.pub/2017/feature-visualization/">link</a> — useful background for the vision-circuit reverse-engineering analogy in the talk.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="07-non-parametric-transformers.html">◀ Previous: Non-parametric Transformers</a>
+  <a class="r" href="09-audio-transformers.html">Next: Audio Transformers ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 4 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

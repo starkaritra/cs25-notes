@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 36 — The Advent of AGI</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · What AGI looks like</a>
+  <a href="#s1a" class="sub">1.1 Chatbots → copilots → agents</a>
+  <a href="#worked">2 · Worked example</a>
+  <a href="#s3">3 · Agent architecture</a>
+  <a href="#s3a" class="sub">3.1 Memory, tools, planning, action</a>
+  <a href="#trace">4 · End-to-end trace</a>
+  <a href="#s5">5 · Training agents</a>
+  <a href="#s5a" class="sub">5.1 Agent Q: search + critique + DPO</a>
+  <a href="#s6">6 · Evaluating and trusting agents</a>
+  <a href="#s6a" class="sub">6.1 API agents vs human-like agents</a>
+  <a href="#s7">7 · Memory and agent communication</a>
+  <a href="#s7a" class="sub">7.1 MCP, A2A, and lossy handoffs</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 8 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>The Advent of AGI — Agents Toward General Intelligence</h1>
+  <p class="lead">Div Garg's thesis: LLMs become socially useful intelligence not by chatting harder, but by closing the loop between perception, planning, action, observation, memory, and correction.</p>
+  <div class="meta">
+    <span class="pill">🎓 Div Garg</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=nEHNwdrbfGA" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A chatbot can explain how to book a flight. An agent should compare flights, use the browser, fill forms, respect your preferences, stop before payment if needed, recover from errors, and leave an audit trail. Garg's talk asks: if AGI is meant to be useful in everyday life, shouldn't it be able to <strong>do</strong> work in the same digital world where humans already work?</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — the digital intern</span>
+  <p>Think of an agent as a careful digital intern. A chatbot writes advice; an intern looks at the screen, makes a plan, clicks, notices the result, updates the plan, asks for approval at risky steps, and learns your preferences over time. The whole note reuses this analogy: memory is the intern's notebook, tools are their office equipment, and evaluations are supervised trial runs before real responsibility.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and jump to the linked note if a term feels shaky.</p>
+  <ul>
+    <li><strong>LLM &amp; prompting</strong> — a transformer maps a context of tokens to likely next tokens; agents repeatedly turn those tokens into plans, tool calls, and observations.</li>
+    <li><strong>Agent / tool-use</strong> — an agent chooses actions in an environment rather than only producing text; see <a class="ref" href="24-beyond-llms-agents-reasoning.html">Note 24 on ReAct-style agents</a>.</li>
+    <li><strong>RL / reward</strong> — reinforcement learning improves a policy by scoring trajectories; Garg uses it to describe learning from successful and failed web-task attempts.</li>
+    <li><strong>Long-horizon error</strong> — a task with many steps succeeds only if most steps are correct; per-step reliability compounds roughly like \(p^H\).</li>
+    <li><strong>Open-world agents</strong> — web agents face changing, underspecified environments; compare <a class="ref" href="20-generalist-agents-open-worlds.html">Note 20 on open-ended worlds</a>.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>What AGI looks like, in this talk</h2>
+<p>Garg opens with a deliberately unsettled question: <em>what is the form factor of AGI?</em> Is it a supercomputer, a 10× better chat interface, a personal companion, or something embedded in daily life? His answer is not a formal definition. It is a product-and-systems framing: AGI-like capability should be able to interface with the digital world more efficiently than humans and accomplish useful goals on our behalf.</p>
+
+<h3 id="s1a">1.1 Chatbots → copilots → autonomous agents</h3>
+<p>Start with the concrete ladder from the lecture. A Level-1/2 system assists while the human remains in control, like autocomplete or a coding copilot. A Level-3 system executes more of the work, while a human monitors and corrects. Level-4 systems operate without an immediate human in the loop but with fallback layers; Garg compared this to Waymo-style remote oversight. Level-5 would be fully autonomous, with no human monitor.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    C["Chatbot<br/>answers"] --> L2["Copilot<br/>human drives"]
+    L2 --> L3["Agent in control<br/>human fallback"]
+    L3 --> L4["Autonomous agent<br/>automated safeguards"]
+    L4 --> L5["Full autonomy<br/>no monitor"]
+</div>
+<figcaption>The capability ladder in the talk: agency increases as the system moves from suggesting actions to taking responsibility for action.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The definition by behavior</span>
+  <p>In this lecture, "AGI" is less a theorem than a behavioral target: a generally useful system that can understand goals, use tools, operate interfaces, remember context, coordinate with other agents, and improve from feedback. Epistemic status: <strong>framing / thesis</strong>, not a settled scientific definition.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Wrong model:</strong> AGI is "ChatGPT with a bigger brain." Garg's counter-model is "ChatGPT with hands, eyes, memory, permissions, evaluations, and recovery loops." Better reasoning helps, but without action and observation it still cannot finish real digital tasks.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — classify the autonomy level</summary>
+<p>If Cursor suggests a code change while you decide what to apply, that is roughly L2. If an agent writes most of a feature, runs tests, and asks you to approve fixes, that is closer to L3. Fully booking a trip without you watching would require L4/L5 safeguards depending on payment and identity risk.</p></details>
+<h2 id="worked"><span class="num">2.</span>Worked micro-example — action selection by softmax</h2>
+<p>Before the full architecture, compute one agent decision by hand. Suppose the digital intern sees a web page and proposes three candidate actions. A policy model or critic assigns utilities \([0.7, 0.2, 0.5]\):</p>
+<ul>
+  <li>\(a_1\): click the date picker.</li>
+  <li>\(a_2\): go back to the homepage.</li>
+  <li>\(a_3\): type in the search box.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Use a temperature-1 softmax:</p>
+  <p>$$P(a_i\mid s)=\frac{e^{u_i}}{\sum_j e^{u_j}}$$</p>
+  <p>Here \(s\) is the current page state, \(u_i\) is the utility for action \(a_i\), and \(P(a_i\mid s)\) is the probability of choosing that action.</p>
+  <p>$$e^{0.7}=2.0138,\quad e^{0.2}=1.2214,\quad e^{0.5}=1.6487$$</p>
+  <p>$$Z=2.0138+1.2214+1.6487=4.8839$$</p>
+  <p>$$P(a_1)=0.412,\quad P(a_2)=0.250,\quad P(a_3)=0.337$$</p>
+  <p>The top action is \(a_1\), because it has the highest utility and the highest softmax probability. A stochastic agent might still sample \(a_3\), but a greedy executor would click the date picker.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Why long horizons are unforgiving</span>
+  <p>If each step succeeds with probability \(p\), and the task needs \(H\) correct steps, a crude independence model gives:</p>
+  <p>$$P(\text{task success})\approx p^H$$</p>
+  <p>At \(p=0.9\) for \(H=10\):</p>
+  <p>$$0.9^{10}=0.3487\approx 35\%$$</p>
+  <p>Even a "pretty good" action selector can fail most long web tasks. At \(p=0.99\), the same 10-step task is \(0.99^{10}=0.904\), which explains Garg's emphasis on 99%+ reliability before high-stakes deployment.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is 90% per-step not enough?</summary>
+<p>Because long tasks multiply failure chances. Ten steps at 90% each gives only about 35% task success; twenty steps gives \(0.9^{20}\approx 12\%\). Agents need recovery, verification, and very high local accuracy.</p></details>
+
+<details class="check"><summary>✓ Check yourself — if \(u_2\) rose to 0.9, what changes?</summary>
+<p>Then \(a_2\) becomes the top-scored action. The exact probabilities would be proportional to \(e^{0.7}, e^{0.9}, e^{0.5}\), so the homepage action would dominate unless a rule or critic penalized it as a bad plan.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Agent architecture: perceive → plan → act → observe</h2>
+<p>Garg points to the now-standard LLM-agent architecture: the model is the controller, but it needs memory, tools, planning, and actions. A pure text model is like a smart intern trapped in a chat box; an agent loop gives it the screen, tools, and a way to revise after reality answers back.</p>
+
+<h3 id="s3a">3.1 Memory, tools, planning, action</h3>
+<ul>
+  <li><strong>Memory</strong> — short-term context for the current task plus long-term user history and preferences.</li>
+  <li><strong>Tools</strong> — calculators, calendars, web search, code execution, APIs, browsers, and computer-control affordances.</li>
+  <li><strong>Planning</strong> — decomposition into subgoals, reflection, self-criticism, and recovery when an action fails.</li>
+  <li><strong>Action</strong> — clicking, typing, navigating, calling functions, sending messages, or using APIs on the user's behalf.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    G["User goal"] --> M["Memory<br/>short-term + long-term"]
+    M --> P["Plan<br/>decompose + reflect"]
+    P --> T["Tool or UI action<br/>click, type, call API"]
+    T --> O["Observe result<br/>DOM, screenshot, response"]
+    O --> P
+    O --> D["Done or ask for help"]
+</div>
+<figcaption>The core agent loop: the output of one action becomes the input for the next decision.</figcaption>
+</figure>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 250" role="img" aria-label="Agent as a computer architecture" width="100%" height="auto">
+  <rect x="20" y="35" width="160" height="70" rx="14" fill="#eef4ff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="100" y="64" text-anchor="middle" fill="#1b1f24" font-size="17" font-weight="700">Prompt tokens</text>
+  <text x="100" y="88" text-anchor="middle" fill="#1b1f24" font-size="13">instructions + state</text>
+  <path d="M180 70 H270" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="270" y="25" width="210" height="90" rx="16" fill="#fff7df" stroke="#1b1f24" stroke-width="2"/>
+  <text x="375" y="58" text-anchor="middle" fill="#1b1f24" font-size="18" font-weight="700">Transformer</text>
+  <text x="375" y="84" text-anchor="middle" fill="#1b1f24" font-size="13">natural-language processor</text>
+  <path d="M480 70 H580" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <rect x="580" y="35" width="160" height="70" rx="14" fill="#eefbe9" stroke="#1b1f24" stroke-width="2"/>
+  <text x="660" y="64" text-anchor="middle" fill="#1b1f24" font-size="17" font-weight="700">Output tokens</text>
+  <text x="660" y="88" text-anchor="middle" fill="#1b1f24" font-size="13">plan / tool call</text>
+  <rect x="115" y="160" width="190" height="58" rx="14" fill="#ffffff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="210" y="184" text-anchor="middle" fill="#1b1f24" font-size="16" font-weight="700">RAM-like context</text>
+  <text x="210" y="204" text-anchor="middle" fill="#1b1f24" font-size="12">current task state</text>
+  <rect x="455" y="160" width="190" height="58" rx="14" fill="#ffffff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="550" y="184" text-anchor="middle" fill="#1b1f24" font-size="16" font-weight="700">Disk-like memory</text>
+  <text x="550" y="204" text-anchor="middle" fill="#1b1f24" font-size="12">persistent user facts</text>
+  <path d="M375 115 C360 145,320 170,305 188" stroke="#2f6df6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M480 115 C500 145,535 152,550 160" stroke="#2f6df6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f6df6"/></marker></defs>
+</svg>
+</div>
+<figcaption>Garg's computer analogy: an LLM can be treated like a processor over language tokens, while context and memory play RAM/disk-like roles.</figcaption>
+</figure>
+
+<div class="box check">
+  <span class="lbl">Architectural invariant</span>
+  <p>The agent is not one model call. It is a <strong>closed-loop system</strong>: model call → action → environment feedback → new model call. That feedback loop is what lets the digital intern correct itself rather than merely hallucinate a final answer.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does self-correction live?</summary>
+<p>Self-correction lives in the loop between observation and planning. After an action changes the page, the agent observes the new state, compares it with the goal, and revises the next action or backtracks.</p></details>
+<h2 id="trace"><span class="num">4.</span>End-to-end trace — a web agent books a flight</h2>
+<p>Now follow one concrete task all the way through. The state column tracks what the agent knows or changes at each step.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+  <tr><td>0 · goal</td><td>User says: "Book a flight from San Francisco to Seattle next Friday evening; ask before payment."</td><td class="tt">goal + constraint</td></tr>
+  <tr><td>1 · perceive page</td><td>Agent opens a travel site and reads DOM fields plus screenshot: origin, destination, date, passengers, search button.</td><td class="tt">state: form visible</td></tr>
+  <tr><td>2 · plan next action</td><td>Planner decomposes the task: fill route → choose date → filter times → compare fares → request approval.</td><td class="tt">subgoal: fill route</td></tr>
+  <tr><td>3 · act</td><td>Agent types "SFO" in origin, "SEA" in destination, and clicks the date picker.</td><td class="tt">tool calls: type/click</td></tr>
+  <tr><td>4 · observe result</td><td>The site opens a calendar; the chosen date is not visible, so the agent scrolls or advances one week.</td><td class="tt">new DOM + screenshot</td></tr>
+  <tr><td>5 · re-plan</td><td>It updates the plan: choose the date, then filter departure time to evening.</td><td class="tt">subgoal: select date</td></tr>
+  <tr><td>6 · act again</td><td>Agent selects the date, clicks search, waits for results, and parses flight cards.</td><td class="tt">candidate flights</td></tr>
+  <tr><td>7 · safety gate</td><td>Before purchase, it summarizes options and asks the user to approve the fare and payment step.</td><td class="tt">human approval requested</td></tr>
+  <tr><td>8 · task complete</td><td>After approval, the agent finalizes or stops and reports exactly what was done.</td><td class="tt">confirmation + audit trail</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Closing the perceive-act loop is what makes this an agent. A one-shot LLM can describe the booking process; a web agent repeatedly tests its plan against the live interface and updates its next move.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where should the agent pause?</summary>
+<p>At irreversible or high-risk steps: payment, cancellation, sending messages, revealing private information, or anything that affects another person. That pause is a permission boundary, not a failure.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Training agents: learn from traces, not only answers</h2>
+<p>Garg's strongest technical point is that general LLMs are often not trained on interface-control distributions. That explains why impressive chat models can still fail simple web tasks. To improve, agents need interactive data: trajectories showing what went right, what went wrong, how to backtrack, and which action should have been chosen.</p>
+
+<h3 id="s5a">5.1 Agent Q: search + critique + DPO</h3>
+<p>The lecture's concrete example is <strong>Agent Q</strong>, a self-improving agent system that combines Monte Carlo Tree Search, self-critique, and preference optimization. In the OpenTable-style reservation example, the agent may go to the wrong page, recognize the mistake, backtrack, choose the correct restaurant/date/time, and turn those successes and failures into training data.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    S["Task state<br/>OpenTable page"] --> A["Propose actions"]
+    A --> C["Critic ranks actions"]
+    C --> M["MCTS explores futures"]
+    M --> R["Success and failure traces"]
+    R --> D["DPO / RL update"]
+    D --> A
+</div>
+<figcaption>Agent Q loop from the talk: explore trajectories, critique actions, and optimize the policy on preference-style feedback.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Planning objective — expected future reward</span>
+  <p>In search-based RL language, a state value estimates future payoff:</p>
+  <p>$$V(s)=\mathbb{E}\left[\sum_{t=0}^{H} \gamma^t r_t \mid s_0=s\right]$$</p>
+  <p>Here \(s\) is the current page state, \(r_t\) is the reward after step \(t\), \(\gamma\in[0,1]\) discounts distant rewards, and \(H\) is the horizon. MCTS uses sampled futures to decide which branch is worth exploring.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Preference update — the intuition behind DPO</span>
+  <p>DPO trains a policy to prefer a better trajectory \(y_w\) over a worse trajectory \(y_l\) for the same state or prompt \(x\):</p>
+  <p>$$\mathcal{L}_{\text{DPO}}=-\log \sigma\left(\beta\left[\log\frac{\pi_\theta(y_w\mid x)}{\pi_{ref}(y_w\mid x)}-\log\frac{\pi_\theta(y_l\mid x)}{\pi_{ref}(y_l\mid x)}\right]\right)$$</p>
+  <p>Read it as: make the updated policy \(\pi_\theta\) assign relatively more probability to the winning trace than the losing trace, compared with a reference policy \(\pi_{ref}\). \(\beta\) controls how strongly to enforce the preference.</p>
+</div>
+
+<p>Transcript-specific anchor: Garg reports that, for an OpenTable reservation task, a base setup around roughly 18.6–20% improved dramatically under Agent Q-style learning, reaching about 95.4% with the combined MCTS, DPO, and self-critique recipe. He also notes the run used 50 H100s for less than a day. Treat these as <strong>reported experimental results from the talk/paper</strong>, not universal guarantees for every website.</p>
+
+<details class="check"><summary>✓ Check yourself — why does a critic help?</summary>
+<p>The actor proposes possible actions; the critic gives feedback before or after acting. That feedback can rank "choose the correct date" above "go to the homepage," producing cleaner training signals than only seeing final success or failure.</p></details>
+<h2 id="s6"><span class="num">6.</span>Evaluating and trusting agents</h2>
+<p>The talk repeatedly returns to trust. Garg's team built RealEvals, described as a sandbox with cloned versions of popular websites such as Airbnb, Amazon-like shopping, DoorDash-like delivery, LinkedIn-like workflows, email, and calendar environments. The goal is to test agents on realistic web tasks before letting them touch real accounts.</p>
+
+<h3 id="s6a">6.1 API agents vs human-like computer-use agents</h3>
+<table>
+  <tr><th>Approach</th><th>Why it is attractive</th><th>Where it breaks</th></tr>
+  <tr><td>API agents</td><td>More controllable, easier to constrain, safer for well-specified services.</td><td>Public APIs cover only part of the internet; every API has its own schema, permissions, and version changes.</td></tr>
+  <tr><td>Human-like UI agents</td><td>Can operate existing software by clicking and typing, including login/payment flows humans already use.</td><td>Harder to guarantee behavior; visual/DOM changes, loops, and hidden state can cause failures.</td></tr>
+  <tr><td>Hybrid agents</td><td>Use APIs where reliable and UI control where no API exists.</td><td>Need routing, permissioning, monitoring, and fallback when one channel fails.</td></tr>
+</table>
+
+<p>Garg reports early benchmark numbers that make the reliability gap concrete: GPT-4o was around 14% success in one RealEvals setup; OpenAI's computer-use model behind Operator was not yet strong across many tasks; and the best closed models in the benchmark were still far from production-grade reliability. The exact leaderboard can change, but the lesson is stable: impressive chat capability does not automatically imply robust long-horizon action.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>Wrong model:</strong> "If a model can solve hard math, it can click through any website." Web control needs grounding, state tracking, error recovery, permission boundaries, and tolerance for messy interfaces. Reasoning is necessary but not sufficient.</p>
+</div>
+
+<div class="box check">
+  <span class="lbl">Deployment checklist</span>
+  <ul>
+    <li>Offline benchmark on realistic cloned tasks.</li>
+    <li>Regression tests for prompt/model changes.</li>
+    <li>Audit trail of every action and observation.</li>
+    <li>Human override for high-risk or ambiguous steps.</li>
+    <li>Budget controls to prevent loops from burning compute or money.</li>
+  </ul>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can one bad real-world mistake kill trust?</summary>
+<p>Because users experience agent failures as delegated harm: the wrong email sent, a bad transaction, a deleted file, or a missed booking. Unlike a sandbox, the real world does not offer unlimited harmless retries.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>Memory, personalization, and agent communication</h2>
+<p>Garg's processor analogy extends naturally: if the transformer is a CPU over language tokens, then the agent also needs RAM-like working context and disk-like long-term memory. Long-term memory enables personalization: allergies when ordering food, seat preferences when flying, favorite brands when shopping, and implicit preferences learned from repeated behavior.</p>
+
+<h3 id="s7a">7.1 MCP, A2A, and lossy handoffs</h3>
+<p>Single agents are limited. Multi-agent systems promise parallelization and specialization: a spreadsheet agent, a browser agent, a Slack agent, a coding agent. But Garg emphasizes the failure mode: natural-language communication is lossy. With \(n\) agents, naive pairwise coordination can create about \(n^2\) communication paths, and each handoff can drop or distort information.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    U["Human manager"] --> MA["Manager agent"]
+    MA --> W1["Browser agent"]
+    MA --> W2["Calendar agent"]
+    MA --> W3["Email agent"]
+    W1 -->|"status + evidence"| MA
+    W2 -->|"availability"| MA
+    W3 -->|"draft approval"| MA
+    MA --> P["Permission gate"]
+</div>
+<figcaption>A safer multi-agent organization keeps coordination structured: workers report evidence to a manager, and risky actions pass through a permission gate.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Communication overhead</span>
+  <p>A fully connected team of \(n\) agents has approximately</p>
+  <p>$$\frac{n(n-1)}{2}=O(n^2)$$</p>
+  <p>possible pairwise channels. More channels can mean more parallelism, but also more chances for mismatch, stale state, duplicated work, and hidden assumptions.</p>
+</div>
+
+<p>The talk names two protocol directions: <strong>MCP</strong>, Anthropic's Model Context Protocol, as a standard wrapper for tools and APIs; and <strong>A2A</strong>, Google's Agent2Agent protocol, for agent interoperability. Epistemic status: <strong>emerging infrastructure</strong>. These protocols may reduce ad hoc integration pain, but they do not by themselves solve grounding, intent, or safety.</p>
+
+<details class="check"><summary>✓ Check yourself — what should long-term memory store?</summary>
+<p>Store durable, useful preferences with provenance and user control: allergies, travel preferences, recurring workflow choices. Do not silently store sensitive data or one-off instructions as if they were permanent identity facts.</p></details>
+
+<h2 id="s8"><span class="num">8.</span>The trajectory: useful AGI as reliable delegation</h2>
+<p>Garg's forecast is that humans increasingly become managers of agent systems: we set goals, constraints, and feedback, while specialized agents execute. Coding agents are the early example; browser, voice, API, and research agents are plausible next domains. Epistemic status: <strong>speaker opinion / forecast</strong>. The lecture does not prove a timeline; it argues for a direction.</p>
+
+<div class="box why">
+  <span class="lbl">The thesis in one sentence</span>
+  <p>The path from LLMs to everyday AGI runs through agents that can act in real digital environments, learn from failures, communicate through robust protocols, and earn trust through evaluation and permissioned deployment.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Forecast humility</span>
+  <p>"Agents will lead to AGI" is not a settled empirical law. It is a research bet. The strongest evidence in the talk is not a philosophical argument; it is the practical observation that action, memory, and feedback reveal bottlenecks chat-only benchmarks hide.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would falsify the strong version of the thesis?</summary>
+<p>If agents remain brittle even after task-specific RL, strong evaluation, better foundation models, and protocolized tool use, then "agentic form factor → AGI" would need revision. Another falsifier: useful general intelligence emerges through a non-agent interface that solves delegation without direct action loops.</p></details>
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does Garg think chat-only LLMs are insufficient for everyday AGI? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Given utilities \([0.7,0.2,0.5]\), why does softmax still assign probability to non-top actions? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Draw the perceive → plan → act → observe loop and label where memory and tools enter. <a class="ref" href="#s3">(§3)</a></li>
+    <li>In the flight-booking trace, what makes the system an agent rather than a one-shot answerer? <a class="ref" href="#trace">(trace)</a></li>
+    <li>Why do MCTS, self-critique, and DPO complement each other in Agent Q? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain to a beginner why a 95% web-task agent can still be risky for payments.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Agent</td><td>A system that observes an environment, chooses actions, and updates its behavior from the results.</td></tr>
+  <tr><td>Computer-use agent</td><td>An agent that operates a graphical interface by clicking, typing, reading screenshots/DOM, and navigating like a human.</td></tr>
+  <tr><td>Tool calling</td><td>Letting a model invoke a calculator, API, browser, database, code runner, or other external capability.</td></tr>
+  <tr><td>Short-term memory</td><td>The working context for the current task: goal, recent observations, intermediate plan, and constraints.</td></tr>
+  <tr><td>Long-term memory</td><td>Persistent user or world knowledge retrieved across sessions, ideally with consent, provenance, and editing controls.</td></tr>
+  <tr><td>MCTS</td><td>Monte Carlo Tree Search: a planning method that samples possible future action paths and uses their outcomes to guide choices.</td></tr>
+  <tr><td>DPO</td><td>Direct Preference Optimization: a way to train a model from preferred vs dispreferred outputs or trajectories.</td></tr>
+  <tr><td>MCP</td><td>Model Context Protocol: a standard interface for exposing tools and data sources to agentic models.</td></tr>
+  <tr><td>A2A</td><td>Agent2Agent protocol: Google's proposed protocol for interoperable communication between agents.</td></tr>
+  <tr><td>Permission gate</td><td>A deliberate pause before high-risk actions such as payment, deletion, external messages, or sensitive data access.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly reflected in the lecture</h4>
+<ol class="refs">
+  <li>Div Garg (CS25 V5). <strong>The Advent of AGI.</strong> <a class="ref" href="https://www.youtube.com/watch?v=nEHNwdrbfGA">video</a> — the lecture transcript driving this note.</li>
+  <li>Lilian Weng (2023). <strong>LLM Powered Autonomous Agents.</strong> <a class="ref" href="https://lilianweng.github.io/posts/2023-06-23-agent/">link</a> — architecture framing for planning, memory, and tool use.</li>
+  <li>Pranav Putta et al. (2024). <strong>Agent Q: Advanced Reasoning and Learning for Autonomous AI Agents.</strong> <a class="ref" href="https://arxiv.org/abs/2408.07199">arXiv</a> — the MCTS + self-critique + DPO system discussed in the talk.</li>
+  <li>RealEvals. <strong>Agent evaluation benchmark.</strong> <a class="ref" href="https://realevals.xyz/">site</a> — sandbox-style web-agent evaluations described by Garg.</li>
+  <li>Anthropic. <strong>Model Context Protocol documentation.</strong> <a class="ref" href="https://modelcontextprotocol.io/docs/getting-started/intro">link</a> — protocol direction mentioned for tool/API interoperability.</li>
+  <li>Google Developers Blog (2025). <strong>A new era of Agent Interoperability.</strong> <a class="ref" href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/">link</a> — A2A protocol announcement referenced in the lecture.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Yao et al. (2022). <strong>ReAct: Synergizing Reasoning and Acting in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2210.03629">arXiv</a> — the classic reason-act-observe pattern; connects to <a class="ref" href="24-beyond-llms-agents-reasoning.html">Note 24</a>.</li>
+  <li>CS25 Note 20. <strong>Generalist Agents in Open-Ended Worlds.</strong> <a class="ref" href="20-generalist-agents-open-worlds.html">note</a> — background on agents that operate beyond fixed benchmarks.</li>
+  <li>OpenAI. <strong>Introducing Operator.</strong> <a class="ref" href="https://openai.com/index/introducing-operator/">link</a> — contemporary computer-use agent context for the lecture's examples.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="37-llm-reasoning.html">Next: LLM Reasoning ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 36 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Diagrams: Mermaid · Equations: MathJax · Fonts/MathJax/Mermaid load from CDNs · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 10 — Part-Whole Hierarchies (GLOM)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Dynamic trees, fixed hardware</a>
+  <a href="#s1a" class="sub">1.1 Why pointers are hard for neurons</a>
+  <a href="#s2">2 · GLOM's representation</a>
+  <a href="#s2a" class="sub">2.1 Columns, levels, islands</a>
+  <a href="#s2b" class="sub">2.2 Coordinate frames</a>
+  <a href="#s3">3 · Four contribution update</a>
+  <a href="#s3a" class="sub">3.1 Attention creates islands</a>
+  <a href="#worked">4 · Worked micro-example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Training and unification</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 3 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Representing Part-Whole Hierarchies in a Neural Network (GLOM)</h1>
+  <p class="lead">Hinton asks how a neural net with fixed weights could represent a different parse tree for every image; GLOM's answer is to make dynamic embedding vectors agree into islands that stand for parts, objects, and scenes.</p>
+  <div class="meta">
+    <span class="pill">🎓 Geoffrey Hinton</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=CYaju6aCMoQ" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Every image has its own <strong>part-whole hierarchy</strong>: a scene contains objects; objects contain parts; parts contain sub-parts. Symbolic AI can allocate memory for a fresh parse tree and draw pointers between nodes. A biological-looking neural net cannot rapidly rewrite its weights or grab arbitrary RAM. So where does the tree live?</p>
+  <p>GLOM is Hinton's proposed answer: keep the hardware fixed, but let the <strong>activations</strong> become the dynamic pointers. When several locations at the same abstraction level settle on the identical vector, that agreement is treated as one node in the parse tree.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a city map drawn by local surveyors</span>
+  <p>Imagine a city where every block has a surveyor with notebooks stacked by scale: curb, room, building, neighborhood, whole city. The surveyors cannot move offices or rewire the city. Instead, nearby surveyors compare notes. When many notebooks at the "building" scale contain the same address, they have formed an island: one building on the map.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the proposal; each is a tool Hinton combines rather than a topic he fully re-teaches.</p>
+  <ul>
+    <li><strong>Attention / weighted average</strong> — score neighbors, softmax the scores into weights, then average their vectors; here this is the transformer-like mechanism that makes nearby columns agree.</li>
+    <li><strong>Autoencoder / reconstruction</strong> — hide or corrupt part of the input and train the system to reconstruct it; GLOM can be trained BERT-style by filling in missing patches after settling.</li>
+    <li><strong>Contrastive learning</strong> — make two views of the same thing agree while preventing trivial collapse by contrasting with different things; here it encourages the right locations to share a vector.</li>
+    <li><strong>Capsule networks</strong> — Hinton's earlier attempt to represent entities and poses with pre-allocated groups of neurons plus routing; GLOM keeps the part-whole ambition but makes every column more universal.</li>
+    <li><strong>Parse tree / part-whole hierarchy</strong> — a tree whose nodes are wholes at one level and parts at the next; GLOM tries to represent this tree without symbolic pointers.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Dynamic trees, fixed hardware</h2>
+<p>Start with Hinton's concrete worry. In one image, three patches might make a nose; in another, the same retinal locations might make a wheel, text, or background. The parse tree changes image by image, but the neural machinery is the same hardware every time.</p>
+
+<h3 id="s1a">1.1 Why pointers are hard for neurons</h3>
+<p>In a symbolic program, making a new parse tree is easy: allocate a node for <em>nose</em>, allocate child nodes for <em>nostril</em> and <em>bridge</em>, then store pointers. In a neural network, what a neuron computes is mostly fixed by its incoming weights. Those weights learn slowly; they are not fast scratch memory.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"A deep CNN already has a hierarchy, so the parse tree problem is solved."</strong> A CNN has a fixed hierarchy of feature maps. Hinton's question is different: how can one fixed machine represent a <em>different</em> compositional tree for each image, including which pixels belong to the same object right now?</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["One image"] --> B["fresh parse tree<br/>scene to objects to parts"]
+    C["Symbolic AI"] --> D["allocate nodes<br/>store dynamic pointers"]
+    E["Neural net"] --> F["fixed weights<br/>dynamic activations"]
+    B --> G["GLOM question:<br/>where can the pointers live?"]
+    D --> G
+    F --> G
+</div>
+<figcaption>The design pressure: parse trees are dynamic; ordinary neural weights are not.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what has to change from image to image?</summary>
+<p>Not the learned weights. The changing thing is the pattern of activations: which locations agree, which level they agree at, and therefore which temporary parse-tree nodes exist for this image.</p></details>
+
+<h3 id="s1b">1.2 From capsules to universal columns</h3>
+<p>Hinton frames GLOM as a successor to capsules. Capsules pre-allocated groups of neurons for possible entities and then routed active capsules into a tree. GLOM keeps the idea that hardware is locally grouped, but it removes the strong pre-allocation: a column's embedding can represent a nostril, a wheel, a word fragment, or whatever the local evidence supports.</p>
+
+<div class="box intuition">
+  <span class="lbl">The shift</span>
+  <p>Capsules asked, "Which specialized capsule should own this part?" GLOM asks, "Which neighboring columns can agree on the same higher-level vector?" Ownership becomes agreement, not a reserved slot.</p>
+</div>
+
+<h2 id="s2"><span class="num">2.</span>GLOM's proposed representation</h2>
+<p>Picture a one-dimensional strip of image patches. At each patch location, GLOM stores a vertical stack of embeddings: low levels for local parts, higher levels for larger wholes, and the top for the scene. Hinton calls these location-based stacks <strong>columns</strong>.</p>
+
+<h3 id="s2a">2.1 Columns, levels, and islands of agreement</h3>
+<p>In the city analogy, every block's surveyor has notebooks at multiple scales. At the curb scale, neighboring blocks can disagree: brick, glass, door, tree. At the building scale, all blocks belonging to the same building should write the same address. At the city scale, almost every block can share the same city label.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — an island is equality of activations</span>
+  <p>$$I_{\ell,k}=\{x : z_{x,\ell} \approx c_{\ell,k}\}$$</p>
+  <p>Here \(x\) indexes a location/column, \(\ell\) indexes an abstraction level, \(z_{x,\ell}\in\mathbb{R}^d\) is that column's embedding at that level, and \(c_{\ell,k}\) is the shared vector for island \(k\). The island acts like a parse-tree node: "these locations are one thing at level \(\ell\)."</p>
+</div>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 430" width="100%" height="380" role="img" aria-label="GLOM columns and islands of agreement">
+  <rect x="50" y="35" width="690" height="320" rx="16" fill="#fffaf0" stroke="#2b2721" stroke-width="3"/>
+  <text x="395" y="25" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" fill="#2b2721">columns × levels: islands are repeated vectors</text>
+  <g font-family="Atkinson Hyperlegible, sans-serif" font-size="14" fill="#2b2721">
+    <text x="10" y="91">scene</text>
+    <text x="10" y="171">object</text>
+    <text x="10" y="251">part</text>
+    <text x="10" y="331">patch</text>
+  </g>
+  <g stroke="#dccfb4" stroke-width="2">
+    <line x1="50" y1="115" x2="740" y2="115"/>
+    <line x1="50" y1="195" x2="740" y2="195"/>
+    <line x1="50" y1="275" x2="740" y2="275"/>
+    <line x1="165" y1="35" x2="165" y2="355"/>
+    <line x1="280" y1="35" x2="280" y2="355"/>
+    <line x1="395" y1="35" x2="395" y2="355"/>
+    <line x1="510" y1="35" x2="510" y2="355"/>
+    <line x1="625" y1="35" x2="625" y2="355"/>
+  </g>
+  <rect x="70" y="57" width="650" height="38" rx="19" fill="#dde9ff" stroke="#2f6df6" stroke-width="3"/>
+  <text x="395" y="82" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">same scene vector across the image</text>
+  <rect x="70" y="137" width="315" height="38" rx="19" fill="#e8dcff" stroke="#7b4dd6" stroke-width="3"/>
+  <rect x="415" y="137" width="305" height="38" rx="19" fill="#dff7e8" stroke="#168a4a" stroke-width="3"/>
+  <text x="228" y="162" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">object island: face</text>
+  <text x="568" y="162" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">object island: hand</text>
+  <rect x="70" y="217" width="200" height="38" rx="19" fill="#ffe8d2" stroke="#b86621" stroke-width="3"/>
+  <rect x="300" y="217" width="200" height="38" rx="19" fill="#fff2b8" stroke="#9b7b00" stroke-width="3"/>
+  <rect x="530" y="217" width="190" height="38" rx="19" fill="#ffd9df" stroke="#c93d52" stroke-width="3"/>
+  <text x="170" y="242" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">nose parts</text>
+  <text x="400" y="242" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">mouth parts</text>
+  <text x="625" y="242" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#1b1f24">finger parts</text>
+  <g fill="#2b2721" font-family="Atkinson Hyperlegible, sans-serif" font-size="13" text-anchor="middle">
+    <text x="108" y="330">x1</text><text x="223" y="330">x2</text><text x="338" y="330">x3</text>
+    <text x="453" y="330">x4</text><text x="568" y="330">x5</text><text x="683" y="330">x6</text>
+  </g>
+  <g stroke="#2b2721" stroke-width="4" stroke-linecap="round">
+    <line x1="92" y1="300" x2="126" y2="318"/><line x1="207" y1="318" x2="239" y2="300"/>
+    <line x1="324" y1="304" x2="352" y2="316"/><line x1="438" y1="318" x2="468" y2="300"/>
+    <line x1="552" y1="304" x2="584" y2="317"/><line x1="668" y1="317" x2="699" y2="301"/>
+  </g>
+  <text x="395" y="395" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#2b2721">The tree is stored as equality patterns across levels, not as RAM pointers.</text>
+</svg>
+</div>
+<figcaption>The core picture: at each level, locations that settle to the same vector form one parse-tree node.</figcaption>
+</figure>
+
+<p>Hinton emphasizes a subtle point: the shared vector is not a learned weight. It is an activation, so it can be new for every image. That makes it eligible to play the role of a dynamic pointer.</p>
+
+<details class="check"><summary>✓ Check yourself — what does one object-level island mean?</summary>
+<p>It means several columns, perhaps seeing superficially different pixels, have settled on the same object-level embedding. In the parse tree, that island behaves like one object node whose children are lower-level islands in those locations.</p></details>
+
+<h3 id="s2b">2.2 Coordinate frames matter</h3>
+<p>A long middle part of the talk uses mental imagery: the rotated cube, the unfamiliar "hexahedron" view, and the sentence "next weekend we should be visiting relatives." The point is not cube trivia. It is that perception uses <strong>structural descriptions plus coordinate frames</strong>. The same physical object can have very different internal descriptions when the chosen frame changes.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — relative and viewer coordinates</span>
+  <p>$$R_{xv}=R_{wv}R_{xw}$$</p>
+  <p>Here \(R_{xw}\) is a learned, viewpoint-independent relationship between a whole \(w\) and part \(x\); \(R_{wv}\) is the whole's current pose relative to the viewer; \(R_{xv}\) is the part's pose relative to the viewer. Hinton's claim: relations like \(R_{xw}\) are the kind of stable knowledge that belongs in weights.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Why the cube demo belongs here</span>
+  <p>If you cannot describe parts relative to wholes, a nose and a mouth are just nearby patterns. With coordinate transforms, a nose can predict a face, and a mouth can predict the same face. Agreement at the higher level becomes evidence that the parts belong together.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what remains stable when viewpoint changes?</summary>
+<p>The relationship between part and whole, such as "mouth below nose in the face's intrinsic frame," remains stable. The viewer-relative coordinates of both part and whole change together.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The update rule: four voices in one column</h2>
+<p>Now follow one notebook in one surveyor's stack: column \(x\), level \(\ell\), time step \(t\). Hinton says the next embedding is a consensus built from four contributions.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — GLOM-style consensus update</span>
+  <p>$$
+  z_{x,\ell}^{t+1}=\operatorname{Norm}\!\left(
+  W_p z_{x,\ell}^{t}
+  +B_{\ell}\!\left(z_{x,\ell-1}^{t},x\right)
+  +T_{\ell}\!\left(z_{x,\ell+1}^{t},x\right)
+  +\sum_{y\in\mathcal{N}(x)}\alpha_{xy}^{\ell,t}z_{y,\ell}^{t}
+  \right)
+  $$</p>
+  <p>\(W_p z_{x,\ell}^{t}\) is persistence from the previous state; \(B_{\ell}\) is a bottom-up neural net from the level below; \(T_{\ell}\) is a top-down neural net from the level above; and the final term is a same-level attention-weighted average over nearby columns \(y\in\mathcal{N}(x)\). \(\operatorname{Norm}\) stands for whatever normalization/nonlinearity keeps the vector well-scaled.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    P["previous same level<br/>temporal persistence"] --> C["consensus embedding<br/>z(x, level, t+1)"]
+    BU["bottom-up net<br/>part predicts whole"] --> C
+    TD["top-down net<br/>whole predicts part"] --> C
+    ATT["same-level attention<br/>nearby columns agree"] --> C
+    C --> IS["island of agreement<br/>parse-tree node"]
+</div>
+<figcaption>The four voices that determine one embedding. Only the attention path talks across locations; the others are within a column.</figcaption>
+</figure>
+
+<h3 id="s3a">3.1 Same-level attention creates islands</h3>
+<p>The transformer-like part is deliberately simple. If two nearby embeddings at the same level already point in a similar direction, they put more weight on each other. That makes them more similar next step, which makes them attend more strongly, and so on. Agreement becomes self-reinforcing.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — local attention weight</span>
+  <p>$$
+  \alpha_{xy}^{\ell,t}=\frac{\exp\left((z_{x,\ell}^{t})^\top z_{y,\ell}^{t}/\tau\right)}
+  {\sum_{y'\in\mathcal{N}(x)}\exp\left((z_{x,\ell}^{t})^\top z_{y',\ell}^{t}/\tau\right)}
+  $$</p>
+  <p>\(\alpha_{xy}^{\ell,t}\) is how much column \(x\) listens to neighbor \(y\) at level \(\ell\). \(\tau\) is a temperature: smaller \(\tau\) makes attention more selective. The weighted average is what pulls an island toward one common vector.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"GLOM discovers fixed clusters in finished embeddings."</strong> Hinton says the flavor is different from ordinary clustering: the data being clustered are themselves changing over time because bottom-up, top-down, persistence, and attention all keep rewriting the embeddings.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does attention need similarity gating?</summary>
+<p>Without gating, all nearby locations would be pushed toward one average, including different objects. Similarity-gated attention lets likely same-object locations agree while keeping incompatible hypotheses apart.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked micro-example — five locations, two levels</h2>
+<p>Use a tiny one-dimensional "image" with five locations. At level 1 the locations see local parts. At level 2 they propose object-level embeddings. Real GLOM vectors are high-dimensional; to do arithmetic by hand, we track one scalar coordinate of the level-2 vector.</p>
+
+<table>
+  <tr><th>Location</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+  <tr><td>Local part evidence</td><td>left edge</td><td>stripe</td><td>right edge</td><td>wheel</td><td>rim</td></tr>
+  <tr><td class="tt">\(z_i^0\)</td><td>0.80</td><td>1.00</td><td>1.20</td><td>-1.00</td><td>-1.20</td></tr>
+</table>
+
+<p>Attention says locations 1--3 are mutually similar and locations 4--5 are mutually similar, so use these local attention weights:</p>
+<ul>
+  <li>For locations 1, 2, 3: average the three values with weights \((1/3,1/3,1/3)\).</li>
+  <li>For locations 4, 5: average the two values with weights \((1/2,1/2)\).</li>
+  <li>Mix old state and attention average: \(z_i^{t+1}=0.5z_i^t+0.5\bar z_i^t\).</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with toy numbers</span>
+  <p>For the first proposed object, the attention average is</p>
+  <p>$$\bar z_{1:3}^{0}=\frac{0.80+1.00+1.20}{3}=1.00.$$</p>
+  <p>After one update:</p>
+  <p>$$z_{1:3}^{1}=0.5[0.80,1.00,1.20]+0.5[1.00,1.00,1.00]=[0.90,1.00,1.10].$$</p>
+  <p>The average is still \(1.00\). After a second update:</p>
+  <p>$$z_{1:3}^{2}=0.5[0.90,1.00,1.10]+0.5[1.00,1.00,1.00]=[0.95,1.00,1.05].$$</p>
+  <p>They are converging to the same vector coordinate, \(1.00\). Meanwhile locations 4--5 average to \(-1.10\):</p>
+  <p>$$z_{4:5}^{1}=0.5[-1.00,-1.20]+0.5[-1.10,-1.10]=[-1.05,-1.15].$$</p>
+  <p>So the five locations are not all washed into one cluster. They form two islands: \(\{1,2,3\}\) and \(\{4,5\}\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["t=0<br/>0.80, 1.00, 1.20"] --> B["attention average<br/>1.00, 1.00, 1.00"]
+    B --> C["t=1<br/>0.90, 1.00, 1.10"]
+    C --> D["t=2<br/>0.95, 1.00, 1.05"]
+    D --> E["island<br/>one object node"]
+</div>
+<figcaption>A scalar projection of island formation: repeated weighted averaging makes compatible neighbors share a code.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what would a second island at a lower level mean?</summary>
+<p>It would mean a smaller part-whole node, not a competing object. For example, at level 1 locations 1--2 might agree on "nostril" while locations 1--3 agree at level 2 on "nose." Islands at different levels can be nested, which is how the parse tree appears.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — follow one column</h2>
+<p>Now follow one concrete column: location \(x=2\), a patch that begins as a dark curved mark and may become part of a nose, then a face, then a party scene.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · pixel input</td><td>A front-end CNN or patch encoder reads the local retinal patch.</td><td class="tt">patch x=2: dark curve + skin-like context</td></tr>
+  <tr><td>1 · level-1 part vector</td><td>The lowest GLOM level proposes a local part embedding.</td><td class="tt">\(z_{2,1}^{0}\in\mathbb{R}^d\): "maybe nostril / edge"</td></tr>
+  <tr><td>2 · bottom-up contribution</td><td>A learned net asks what whole this part predicts, including pose.</td><td class="tt">\(B_2(z_{2,1}^{0},x=2)\): "nose at pose p"</td></tr>
+  <tr><td>3 · top-down contribution</td><td>The level above predicts what should be present at this location if the current whole hypothesis is right.</td><td class="tt">\(T_2(z_{2,3}^{0},x=2)\): "face expects nose-region evidence here"</td></tr>
+  <tr><td>4 · previous-state contribution</td><td>The current level keeps some inertia so hypotheses do not flicker wildly.</td><td class="tt">\(W_p z_{2,2}^{0}\): temporal persistence</td></tr>
+  <tr><td>5 · same-level attention</td><td>Neighboring columns with compatible level-2 vectors are averaged in.</td><td class="tt">columns 1--3 pull toward shared "nose" code</td></tr>
+  <tr><td>6 · settles</td><td>The consensus update repeats for several iterations.</td><td class="tt">\(z_{2,2}^{t}\approx c_{2,\text{nose}}\)</td></tr>
+  <tr><td>7 · level-2 island</td><td>Locations 1--3 now carry the same object/part-whole vector.</td><td class="tt">island \(\{1,2,3\}\): one nose node</td></tr>
+  <tr><td>8 · level-3 scene</td><td>The nose and mouth islands predict the same face; higher levels can agree on person, then party.</td><td class="tt">\(z_{2,3}\approx c_{3,\text{face}}\), top level \(c_{\text{scene}}\)</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>A column never stops being about its patch. What changes is the <em>scale</em> of the hypothesis written in that patch's stack: local mark → part → object → scene. The parse tree is the pattern of shared hypotheses across locations and levels.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which contribution actually communicates with other locations?</summary>
+<p>The same-level attention term. Bottom-up, top-down, and persistence are within a column; attention is what lets nearby columns form islands.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Training and unification</h2>
+<p>Hinton presents GLOM as a meeting point for several neural-network ideas. The proposal is not "replace transformers"; it is "use transformer-like attention as one ingredient in a part-whole architecture."</p>
+
+<h3 id="s6a">6.1 Reconstruct, agree, and avoid collapse</h3>
+<p>One training route is BERT-like reconstruction: hide patches, let the recurrent column-level system settle for several iterations, then backpropagate through time from the reconstruction error. But reconstruction alone does not explicitly demand islands, so Hinton adds a contrastive/agreement pressure.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — reconstruction plus agreement pressure</span>
+  <p>$$\mathcal{L}=\mathcal{L}_{\text{reconstruct}}+\lambda\mathcal{L}_{\text{agree}}+\mu\mathcal{L}_{\text{contrast}}$$</p>
+  <p>\(\mathcal{L}_{\text{reconstruct}}\) trains the system to fill missing low-level patches; \(\mathcal{L}_{\text{agree}}\) makes bottom-up and top-down predictions match the consensus embedding; \(\mathcal{L}_{\text{contrast}}\) prevents the degenerate solution where every location and every image has the same vector.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    X["image with masked patches"] --> S["GLOM settles<br/>several iterations"]
+    S --> R["reconstruct missing<br/>low-level patches"]
+    S --> A["make predictions agree<br/>with consensus"]
+    A --> I["larger islands<br/>at higher levels"]
+    R --> W["update weights<br/>through time"]
+    I --> W
+    N["negative or dissimilar examples"] --> C["contrastive term<br/>avoid collapse"]
+    C --> W
+</div>
+<figcaption>Training combines autoencoding with an agreement objective so islands are encouraged, not merely hoped for.</figcaption>
+</figure>
+
+<h3 id="s6b">6.2 What GLOM unifies</h3>
+<table>
+  <tr><th>Ingredient</th><th>How it appears in GLOM</th><th>What it contributes</th></tr>
+  <tr><td>Transformers</td><td>Same-level attention over nearby columns</td><td class="tt">agreement and routing-like interaction without symbolic pointers</td></tr>
+  <tr><td>Neural fields</td><td>Top-down nets receive both the whole vector and the location being predicted</td><td class="tt">same face vector can predict a nose here and a mouth there</td></tr>
+  <tr><td>Contrastive / self-supervised learning</td><td>Agreement objectives plus negatives or anti-collapse terms</td><td class="tt">same-object locations agree; different objects do not all collapse</td></tr>
+  <tr><td>Capsules</td><td>Embeddings represent identity and pose-like information</td><td class="tt">part-whole lineage, but parts are not pre-allocated to special capsules</td></tr>
+  <tr><td>Autoencoders / BERT-style masking</td><td>Mask patches and reconstruct after settling</td><td class="tt">learn from unlabeled images by predicting missing evidence</td></tr>
+</table>
+
+<div class="box analogy">
+  <span class="lbl">Back to the surveyors</span>
+  <p>Reconstruction asks each surveyor to redraw missing street details. Agreement asks nearby surveyors to settle on the same building address when their evidence supports it. Contrast prevents the useless city map where every block is labeled "same."</p>
+</div>
+
+<h3 id="s6c">6.3 Ambiguity, Hough transforms, and why parts predict wholes</h3>
+<p>A circle might be a left eye, a right eye, a front wheel, or a back wheel. Directly routing every possible part-to-part relation would require many transformed messages. Hinton's shortcut is Hough-transform-like: each ambiguous part predicts possible wholes. A nose patch and a mouth patch need not message each other directly; both can predict a face, and their face-level vectors can agree.</p>
+
+<div class="box intuition">
+  <span class="lbl">The structural trick</span>
+  <p>It is often easier to check whether two parts predict the same whole than to hand-route every part-to-part relation. Agreement at the whole level resolves ambiguity that was hard at the part level.</p>
+</div>
+
+<h3 id="s6d">6.4 Epistemic status: idea, not established system</h3>
+<div class="box pitfall">
+  <span class="lbl">Feynman-style honesty</span>
+  <p>Hinton is explicit: GLOM is a design document / paper of ideas, not a mature demonstrated system. At the time of the talk, he describes it as "vaporware" with only small pieces implemented. Treat the architecture as a research hypothesis that organizes useful ideas, not as an empirical result that has already beaten standard vision transformers.</p>
+</div>
+
+<p>That honesty makes the lecture more useful, not less. The value is the question it sharpens: can neural activations, through local agreement across levels, play the role that symbolic AI gave to dynamically allocated parse-tree nodes?</p>
+
+<details class="check"><summary>✓ Check yourself — why is replication across many patches not necessarily wasteful?</summary>
+<p>Before the system settles, it does not know which patches belong together. Keeping separate higher-level vectors at every location lets hypotheses merge gradually into islands. Hinton compares biological replication to DNA: many cells can carry the same information because local access is useful.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is a per-image parse tree easy for symbolic AI but awkward for ordinary neural nets? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What is a GLOM column, and what does an island of agreement represent? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Name the four contributions to a level's next embedding. Which one is transformer-like? <a class="ref" href="#s3">(§3)</a></li>
+    <li>In the five-location worked example, why do locations 1--3 converge without forcing 4--5 to join them? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>How do reconstruction and contrastive agreement play different roles in training? <a class="ref" href="#s6">(§6)</a></li>
+    <li>Teach it back: explain GLOM to a beginner in three sentences using the surveyor analogy.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>GLOM</td><td>Hinton's proposed architecture where each image location has a stack of embeddings, and part-whole structure is represented by islands of agreement.</td></tr>
+  <tr><td>Column</td><td>All embeddings at one spatial location, across multiple abstraction levels.</td></tr>
+  <tr><td>Embedding</td><td>A dynamic vector activation that represents a hypothesis about what is present at a location and level.</td></tr>
+  <tr><td>Island of agreement</td><td>A set of locations whose embeddings at the same level become identical or nearly identical; it functions like one parse-tree node.</td></tr>
+  <tr><td>Parse tree</td><td>A part-whole structure: scene → objects → parts → sub-parts.</td></tr>
+  <tr><td>Bottom-up net</td><td>A learned mapping that predicts a higher-level whole from a lower-level part.</td></tr>
+  <tr><td>Top-down net</td><td>A learned mapping that predicts a lower-level part from a higher-level whole, using location to know which part should appear where.</td></tr>
+  <tr><td>Contrastive learning</td><td>A self-supervised objective that pulls related views together while pushing unrelated or confusing views apart enough to prevent collapse.</td></tr>
+  <tr><td>Neural field</td><td>A function from coordinates to values; in GLOM, location helps the same high-level vector predict different lower-level contents at different places.</td></tr>
+  <tr><td>Capsule</td><td>A group of neurons intended to represent an entity and its pose; GLOM inherits the part-whole goal but makes columns more universal.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Hinton, G. E. (2021). <strong>How to represent part-whole hierarchies in a neural network.</strong> <a class="ref" href="https://arxiv.org/abs/2102.12627">arXiv:2102.12627</a> — the GLOM design paper behind the talk.</li>
+  <li>Chen, T., Kornblith, S., Norouzi, M., &amp; Hinton, G. (2020). <strong>A Simple Framework for Contrastive Learning of Visual Representations.</strong> <a class="ref" href="https://arxiv.org/abs/2002.05709">arXiv:2002.05709</a> — SimCLR, used in the lecture to explain contrastive agreement and collapse avoidance.</li>
+  <li>Becker, S., &amp; Hinton, G. E. (1992). <strong>Self-organizing neural network that discovers surfaces in random-dot stereograms.</strong> <a class="ref" href="https://www.cs.toronto.edu/~hinton/absps/becker.pdf">PDF</a> — early coherence-based unsupervised learning cited by Hinton.</li>
+  <li>Sabour, S., Frosst, N., &amp; Hinton, G. E. (2017). <strong>Dynamic Routing Between Capsules.</strong> <a class="ref" href="https://arxiv.org/abs/1710.09829">arXiv:1710.09829</a> — capsule-network lineage for part-whole representations.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Vaswani, A. et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a> — background for the attention-weighted averaging ingredient.</li>
+  <li>Devlin, J. et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805">arXiv:1810.04805</a> — relevant for masked reconstruction and Hinton's BERT analogy.</li>
+  <li>Mildenhall, B. et al. (2020). <strong>NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis.</strong> <a class="ref" href="https://arxiv.org/abs/2003.08934">arXiv:2003.08934</a> — a canonical neural-field reference for coordinate-conditioned prediction.</li>
+  <li>Stanford CS25. <strong>Transformers United V2 — Geoffrey Hinton lecture.</strong> <a class="ref" href="https://www.youtube.com/watch?v=CYaju6aCMoQ">YouTube</a> — the source talk for this note.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="12-language-human-alignment.html">Next: Language &amp; Human Alignment ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 10 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. External CDNs load fonts, MathJax, and Mermaid.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 46 — From Next-Token Prediction to Next-Generation Intelligence</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The lecture's map</a>
+  <a href="#s1a" class="sub">1.1 Pascal → Hopper</a>
+  <a href="#s2">2 · Curriculum: use data better</a>
+  <a href="#s2a" class="sub">2.1 Quality, epochs, order</a>
+  <a href="#s3">3 · Front-load reasoning</a>
+  <a href="#s3a" class="sub">3.1 Durable gains</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#s5">5 · RLP: learning by thinking</a>
+  <a href="#s5a" class="sub">5.1 Information-gain reward</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 10 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>From Next-Token Prediction to Next-Generation Intelligence</h1>
+  <p class="lead">Shrimai's central claim is practical: if human text is becoming the scarce resource, the next leap in LLMs comes from smarter pre-training algorithms—curriculum, early reasoning data, and reinforcement-style thinking—not merely more random next-token prediction.</p>
+  <div class="meta">
+    <span class="pill">🎓 Shrimai · Mistral AI / Boston University</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=e_H_tkpCAK4" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>The talk starts from a looming bottleneck: frontier LLMs have moved from hundreds of billions of training tokens to tens of trillions, and Epoch AI projections suggest most high-quality human-generated text may soon be consumed by training runs. If the corpus is finite, the question changes from “How do we scrape more?” to <strong>“How do we learn more from the same tokens?”</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Keep the speaker's classroom analogy in mind. Pascal, Volta, Ampere, and Hopper are four students with the <em>same</em> library. Pascal reads randomly. Volta follows a curriculum. Ampere also takes reasoning “AP classes” early. Hopper does all that and learns by actively thinking through problems. The lecture is a study of why Hopper wins.</p>
+</div>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Just keep scaling next-token prediction and AGI falls out.”</strong> Shrimai's talk does not deny that next-token prediction built today's LLMs. It says the objective is a powerful starting point, not necessarily the ceiling: it mostly rewards matching observed text, while robust reasoning benefits from curriculum, explicit reasoning traces, and test-time or training-time exploration.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the training-recipe diagrams; each term appears in the lecture.</p>
+  <ul>
+    <li><strong>Next-token prediction</strong> — an autoregressive LM learns \(p(x_t \mid x_{&lt;t})\); this is the baseline objective the talk tries to improve, not discard.</li>
+    <li><strong>Pre-training → SFT → RL</strong> — base models first learn broad text statistics, then imitate instruction/reasoning formats, then receive reward-based post-training; the talk asks what should move earlier. See <a class="ref" href="37-llm-reasoning.html">Note 37</a>.</li>
+    <li><strong>Test-time compute</strong> — spending inference compute on multiple attempts, search, or verification can make a weak single sample a stronger solver; related course context appears in <a class="ref" href="34-v5-overview.html">Note 34</a> and <a class="ref" href="42-v6-overview.html">Note 42</a>.</li>
+    <li><strong>Verifier / reward</strong> — a signal that scores an attempt. RLVR uses external verifiers; RLP instead builds an intrinsic reward from information gain.</li>
+    <li><strong>Agent / tool use</strong> — systems that plan, call tools, remember state, and revise actions; useful next-gen capabilities, but this lecture's core is <em>pre-training algorithms</em>, not agent scaffolding. See <a class="ref" href="36-advent-of-agi.html">Note 36</a>.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The lecture's map: same data, different learning strategy</h2>
+<p>The concrete story is four learners with equal access to data. The lecture then compares three algorithmic additions: a two-phase data curriculum, front-loaded reasoning data, and RLP—reinforcement as a pre-training objective.</p>
+
+<h3 id="s1a">1.1 Pascal → Volta → Ampere → Hopper</h3>
+<p>The names are not decorative; they are the lecture's experimental ladder. <strong>Pascal</strong> is natural/random next-token pre-training. <strong>Volta</strong> uses better data mixture and ordering. <strong>Ampere</strong> sees reasoning traces during pre-training. <strong>Hopper</strong> additionally learns through generated thoughts with reward.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P["Pascal<br/>random mixture"] --> V["Volta<br/>two-phase curriculum"]
+    V --> A["Ampere<br/>front-loaded reasoning"]
+    A --> H["Hopper<br/>RLP thinking reward"]
+    P -. "same raw data budget" .- H
+</div>
+<figcaption>The talk's roadmap: keep the library fixed, change how the learner uses it.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the baseline objective</span>
+  <p>$$\mathcal{L}_{\text{NTP}}(\theta)=-\sum_{t=1}^{T}\log p_{\theta}(x_t\mid x_{&lt;t})$$</p>
+  <p>Here \(x_t\) is the observed next token and \(x_{&lt;t}\) is its prefix. The loss is excellent for learning language and world knowledge, but by itself it does not ask the model to search, backtrack, or explain why a token is correct.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is held constant in the Pascal/Volta/Ampere/Hopper comparison?</summary>
+<p>The raw access to data is conceptually held constant. The comparison is about <em>learning strategy</em>: order the data, include reasoning early, and reward useful thoughts.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Curriculum: use data better before asking for more data</h2>
+<p>Shrimai first discusses “maximizing your data's potential.” Modern corpora mix web crawl, books, code, math, papers, legal text, and many other sources. If a huge low-quality source dominates because it has more tokens, the model spends too much capacity on noise.</p>
+
+<h3 id="s2a">2.1 Quality, epochs, and order</h3>
+<p>The proposed pre-training recipe estimates three things: source quality, how many useful repeats a domain can tolerate before diminishing returns, and when the model should see each kind of data. The lecture's preferred curriculum is <strong>diversity first, quality later</strong>: phase 1 exposes the model broadly; phase 2 concentrates on high-quality sources such as math, Wikipedia, and code.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    D["raw corpora<br/>web + math + code + books"] --> Q["quality estimation<br/>classifiers / rubrics"]
+    D --> E["epoch estimation<br/>useful repeats before saturation"]
+    Q --> B["optimal blend<br/>higher-quality sources get more weight"]
+    E --> B
+    B --> C1["phase 1<br/>broad diversity"]
+    C1 --> C2["phase 2<br/>high-quality concentration"]
+    C2 --> M["stronger base model"]
+</div>
+<figcaption>Two-phase pre-training separates mixture construction from curriculum ordering.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — mixture as weighted sampling</span>
+  <p>$$P(d)=\sum_{i=1}^{m} w_i\,P_i(d), \qquad \sum_i w_i=1$$</p>
+  <p>Dataset \(i\) contributes examples according to weight \(w_i\). Natural distribution sets \(w_i\) mostly by how many tokens exist; the lecture argues for weights informed by quality and useful repeats.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Result to remember</span>
+  <p>In the talk's reported comparison, Volta's two-phase approach was about <strong>17% better</strong> than Pascal's natural/random approach and about <strong>3.4% better</strong> than using an optimal mixture without curriculum ordering. Epistemic status: these are experimental results from the presented NVIDIA work, not a universal law.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why not show only the highest-quality data from the start?</summary>
+<p>The lecture's answer is exploration before exploitation. Early broad diversity helps the model acquire coverage; late high-quality emphasis sharpens the learned distribution. Shrimai noted that swapping the order performed worse in their ablation.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Front-load reasoning: do not bolt thinking on at the end</h2>
+<p>The second major section challenges the standard pipeline: pre-training learns facts; SFT teaches reasoning-like formats; RL teaches reward-seeking problem solving. Shrimai argues this can create an “unreasoning foundation,” because reasoning is treated as a post-hoc patch.</p>
+
+<h3 id="s3a">3.1 Durable gains from early reasoning data</h3>
+<p>The study injects reasoning-style datasets at different phases and compares a <strong>no-reason base</strong> with a <strong>reason base</strong>. Reasoning data here means question → long reasoning trace → final solution, mostly STEM/math/code-style in the discussed experiments. It is not claimed to cover every domain of human reasoning.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    N["standard pipeline<br/>facts first"] --> S["SFT<br/>imitate format"] --> R["RL / RLVR<br/>amplify behavior"]
+    F["front-loaded pipeline<br/>facts + reasoning traces"] --> S2["SFT<br/>refine skill"] --> R2["RL / RLVR<br/>amplify stronger base"]
+</div>
+<figcaption>Front-loading changes where reasoning enters: not only after the base model is finished.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — allocating reasoning data</span>
+  <p>$$D_{\text{reason}}=D_{\text{pretrain}}^{r}\cup D_{\text{SFT}}^{r}, \qquad |D_{\text{reason}}|\;\text{fixed}$$</p>
+  <p>The important comparison is not “more data beats less data.” The lecture tests where a fixed reasoning budget should go. Splitting some reasoning data into pre-training beat saving it all for SFT.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Reported lessons</span>
+  <ul>
+    <li>Adding reasoning data during pre-training gave about <strong>16%</strong> average gain immediately after pre-training.</li>
+    <li>After SFT, the gain persisted at about <strong>9.3%</strong>; after SFT + RLVR, Ampere remained about <strong>19%</strong> ahead of Volta, with especially large gains on hard math such as AIME.</li>
+    <li>High-quality reasoning data sometimes unlocked hidden gains only after post-training; the lecture uses this to argue against judging pre-training data solely by immediate base-model scores.</li>
+  </ul>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If reasoning is post-training anyway, more SFT should catch up.”</strong> In the reported experiments, a no-reason base did not catch up even with 2× SFT epochs, and under a fixed reasoning-data budget, using some data in pre-training beat putting all of it into SFT.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does “durable advantage” mean here?</summary>
+<p>It means the benefit of early reasoning was not washed away by later SFT/RL. Instead, the later stages refined a stronger foundation.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked example — next-token sample versus reasoning + verification</h2>
+<p>This micro-example is not the exact RLP training objective; it is the small arithmetic behind a broader “next-gen” idea from the lecture's neighborhood: spend extra compute on reasoning/search so a weak one-shot predictor becomes a stronger solver.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Suppose a hard math prompt has one-shot success probability \(p=0.4\). A greedy next-token-only run gives one answer, so success is simply:</p>
+  <p>$$P(\text{success in 1 try})=0.4$$</p>
+  <p>Now sample \(k=5\) independent reasoning attempts and use a verifier to pick any correct one. Failure means all five attempts fail:</p>
+  <p>$$P(\text{all fail})=(1-p)^k=(1-0.4)^5=0.6^5=0.07776$$</p>
+  <p>So pass@5 is:</p>
+  <p>$$P(\text{at least one succeeds})=1-(1-p)^k=1-0.07776=0.92224\approx0.92$$</p>
+  <p>The capability did not come from a different corpus; it came from inference-time search plus a way to recognize success. Epistemic status: the independence assumption is simplified; real samples are correlated, and verifier quality matters.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does a verifier enable that a raw LM sample does not?</summary>
+<p>It creates a selection signal. Without a verifier, five attempts are just five strings; with a verifier, search can branch, reject, revise, and keep the answer that satisfies the task.</p></details>
+
+<details class="check"><summary>✓ Check yourself — if \(p=0.2\) and \(k=5\), what is pass@5?</summary>
+<p>\(1-(1-0.2)^5=1-0.8^5=1-0.32768=0.67232\). Even a weak solver can improve sharply if attempts are diverse and verification is reliable.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>RLP: learning by thinking during pre-training</h2>
+<p>The final and most distinctive part of the lecture is <strong>RLP</strong>, reinforcement as a pre-training objective. Shrimai motivates it with Leo and Bolt: Leo builds and tests a bridge; Bolt merely studies bridges and builds one that looks perfect but fails the toy-car test. Standard pre-training mostly learns by watching text. RLP lets the model generate thoughts, then rewards thoughts that improve the next-token prediction.</p>
+
+<h3 id="s5a">5.1 Information-gain reward</h3>
+<p>Given a prefix such as “Photosynthesis uses…”, vanilla pre-training predicts the next token directly. In RLP, the model first produces a thought like “plants use solar energy,” then predicts “sunlight.” The reward asks: did that thought actually increase the log-probability of the true token compared with a no-think baseline?</p>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 300" width="100%" role="img" aria-label="RLP pipeline with thought policy and no-think baseline">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#1b1f24"/></marker>
+  </defs>
+  <rect x="25" y="112" width="150" height="70" rx="12" fill="#fff" stroke="#1b1f24" stroke-width="2"/>
+  <text x="100" y="140" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">prefix</text>
+  <text x="100" y="164" text-anchor="middle" font-size="13" fill="#1b1f24">context tokens</text>
+  <rect x="250" y="35" width="190" height="84" rx="12" fill="#eef3ff" stroke="#2f6df6" stroke-width="2"/>
+  <text x="345" y="65" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">thought policy</text>
+  <text x="345" y="90" text-anchor="middle" font-size="13" fill="#1b1f24">thought + next-token prob</text>
+  <rect x="250" y="178" width="190" height="84" rx="12" fill="#fff8e8" stroke="#8b6b15" stroke-width="2"/>
+  <text x="345" y="208" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">no-think baseline</text>
+  <text x="345" y="233" text-anchor="middle" font-size="13" fill="#1b1f24">next-token prob only</text>
+  <rect x="520" y="105" width="205" height="86" rx="12" fill="#eefbea" stroke="#2a7a3b" stroke-width="2"/>
+  <text x="622" y="135" text-anchor="middle" font-size="16" fill="#1b1f24" font-weight="700">information gain</text>
+  <text x="622" y="160" text-anchor="middle" font-size="13" fill="#1b1f24">reward useful thoughts</text>
+  <line x1="175" y1="135" x2="250" y2="80" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="175" y1="160" x2="250" y2="220" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="440" y1="77" x2="520" y2="130" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="440" y1="220" x2="520" y2="165" stroke="#1b1f24" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="480" y="66" font-size="13" fill="#1b1f24">\(p_\theta\)</text>
+  <text x="480" y="235" font-size="13" fill="#1b1f24">\(p_\phi\)</text>
+</svg>
+</div>
+<figcaption>The “money” schematic: RLP rewards the extra probability mass that useful thinking adds over a lagged no-think baseline.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — RLP information-gain reward</span>
+  <p>$$r = \log p_{\theta}(x_t\mid x_{&lt;t}, z)-\log p_{\phi}(x_t\mid x_{&lt;t})$$</p>
+  <p>\(z\) is the generated thought trace. \(p_{\theta}\) is the thought policy's probability of the true next token after thinking. \(p_{\phi}\) is the no-think baseline, updated as a lagged exponential moving average. Positive reward means the thought helped; zero or negative reward means it did not.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Why this is different from ordinary next-token prediction</span>
+  <p>Next-token prediction trains the answer token. RLP also trains the <em>process</em> that made the answer token more predictable. Because the reward is dense and verifier-free, the lecture argues it can be applied to ordinary pre-training text—not only curated math problems.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    X["prefix x&lt;t"] --> T["generate thought z"]
+    T --> Y["predict true token xt"]
+    X --> B["lagged no-think baseline"]
+    Y --> G["log pθ with thought"]
+    B --> F["log pφ without thought"]
+    G --> R["reward = log pθ - log pφ"]
+    F --> R
+    R --> U["update thought policy<br/>GRPO-style advantage"]
+</div>
+<figcaption>RLP makes “thinking before predicting” trainable with an intrinsic reward.</figcaption>
+</figure>
+
+<div class="box check">
+  <span class="lbl">Reported evidence</span>
+  <p>In the talk, RLP improved Qwen3-1.7B-Base by about <strong>19%</strong> over the base model and about <strong>17%</strong> over token-matched continued next-token pre-training. A FLOP-matched comparison still favored RLP by about <strong>14%</strong> despite the next-token baseline seeing many more tokens. On a 12B Nemotron hybrid model, RLP from an intermediate checkpoint produced large gains despite using far fewer additional tokens. These are reported experimental results; exact transfer depends on model, data, and implementation.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why use a lagged no-think baseline?</summary>
+<p>It stays current enough to be a meaningful comparison, but its lag makes it harder for the thought policy to exploit a moving reward in degenerate ways. The reward asks whether thinking helps relative to a similar model that did not think.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one hard problem, two learners</h2>
+<p>Follow a single multi-step problem through two systems. The point is not that every future model must use exactly this pipeline; it is to separate <strong>objective</strong> from <strong>capability</strong>.</p>
+
+<table>
+  <tr><th>Step</th><th>Next-token-only</th><th>Next-gen approach</th><th>note</th></tr>
+  <tr><td>0 · prompt</td><td>Reads the question and begins emitting answer tokens.</td><td>Reads the question, identifies it as multi-step, and allocates reasoning/search budget.</td><td class="tt">same input</td></tr>
+  <tr><td>1 · plan</td><td>No explicit planning requirement; any plan must emerge inside the sampled text.</td><td>Generates a plan or thought trace before the final answer.</td><td class="tt">front-loaded / test-time reasoning</td></tr>
+  <tr><td>2 · branch</td><td>Usually one path; greedy decoding cannot backtrack.</td><td>Samples several candidate derivations or search branches.</td><td class="tt">compute shifts to inference</td></tr>
+  <tr><td>3 · verify</td><td>Confidence is implicit in token probabilities, which can be miscalibrated.</td><td>Uses verifier, reward, unit test, calculator, or consistency check to score candidates.</td><td class="tt">selection signal</td></tr>
+  <tr><td>4 · revise</td><td>Errors early in the sequence tend to propagate.</td><td>Rejects failed branches, revises, or calls tools before committing.</td><td class="tt">search + tool use</td></tr>
+  <tr><td>5 · learn</td><td>Weights change only in later training; deployment does not create persistent learning by default.</td><td>Future-facing systems may add memory/continual learning; this is a broader next-gen direction beyond the lecture's main evidence.</td><td class="tt">speculative / active research</td></tr>
+  <tr><td>6 · answer</td><td>Outputs the sampled answer token-by-token.</td><td>Outputs the answer selected after reasoning, verification, and possible revision.</td><td class="tt">higher reliability if verifier is sound</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Train-time compute taught the base model a distribution; test-time compute and reward signals can turn that distribution into a problem-solving procedure. The lecture's core message is not “next-token prediction failed.” It is: <strong>next-token prediction is an objective, while intelligence is a capability stack built from data curriculum, reasoning data, exploration, verification, memory, tools, and grounding.</strong></p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Epistemic status of broader “next-gen” claims</span>
+  <p>The transcript strongly supports curriculum, front-loaded reasoning, and RLP. It only lightly touches broader themes such as agents, persistent memory, hallucination mitigation, and alignment/RLHF bias during Q&amp;A. Treat those as adjacent active research directions, not as the main empirical claims of the lecture. For world-model context, see <a class="ref" href="43-representation-to-world-modeling.html">Note 43</a>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name two limits of pure next-token prediction that the trace exposes.</summary>
+<p>It lacks an explicit requirement to plan/search/backtrack, and it lacks an external or intrinsic verifier that selects among attempts. The lecture also emphasizes that it learns by observing text, while RLP adds learning by thinking.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does a finite-data future make “smarter algorithms” more important? <a class="ref" href="#hook">(hook)</a></li>
+    <li>What are the three extra learning strategies that move Pascal toward Hopper? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why does the two-phase curriculum put diversity before quality? <a class="ref" href="#s2">(§2)</a></li>
+    <li>What evidence suggests early reasoning data is not washed away by SFT/RL? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Compute pass@5 when one-shot success is \(p=0.4\). <a class="ref" href="#worked">(worked example)</a></li>
+    <li>In RLP, why is \(\log p_{\theta}-\log p_{\phi}\) a reward for useful thought? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain the lecture's argument to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Autoregressive LM</td><td>A model that predicts each token from the previous tokens.</td></tr>
+  <tr><td>Natural distribution</td><td>Sampling data sources roughly according to how many tokens they contain, regardless of quality.</td></tr>
+  <tr><td>Optimal blend</td><td>A data mixture whose weights reflect estimated source quality and useful repeat counts.</td></tr>
+  <tr><td>Epoch estimation</td><td>Estimating how many times to repeat a data source before downstream returns diminish.</td></tr>
+  <tr><td>Front-loading reasoning</td><td>Including reasoning traces during pre-training so the base model learns reasoning earlier.</td></tr>
+  <tr><td>SFT</td><td>Supervised fine-tuning: training on curated input-output examples, often to imitate instruction or reasoning formats.</td></tr>
+  <tr><td>RLVR</td><td>Reinforcement learning with verifiable rewards, such as exact answers, tests, or checkers.</td></tr>
+  <tr><td>RLP</td><td>Reinforcement as a pre-training objective: reward generated thoughts that improve next-token prediction.</td></tr>
+  <tr><td>Information gain</td><td>Here, the improvement in log-probability of the true next token when conditioning on a thought trace.</td></tr>
+  <tr><td>EMA baseline</td><td>A lagged copy of the model used as the no-think comparison in RLP.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly implicated in the lecture</h4>
+<ol class="refs">
+  <li>Stanford CS25. <strong>From Next-Token Prediction to Next-Generation Intelligence.</strong> <a class="ref" href="https://www.youtube.com/watch?v=e_H_tkpCAK4">video</a> — primary lecture source.</li>
+  <li>NVIDIA ADLR. <strong>RLP: Reinforcement as a Pretraining Objective.</strong> <a class="ref" href="https://research.nvidia.com/labs/adlr/RLP/">project page</a> and <a class="ref" href="https://arxiv.org/abs/2510.01265">arXiv</a> — method behind the lecture's final section.</li>
+  <li>Epoch AI. <strong>Will we run out of data? Limits of LLM scaling based on human-generated data.</strong> <a class="ref" href="https://epoch.ai/blog/will-we-run-out-of-data-limits-of-llm-scaling-based-on-human-generated-data">link</a> — context for the finite-data motivation.</li>
+  <li>Hugging Face. <strong>FineWeb-Edu dataset.</strong> <a class="ref" href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu">link</a> — example of educational-quality filtering mentioned during Q&amp;A.</li>
+  <li>OpenThoughts. <strong>OpenThoughts reasoning datasets.</strong> <a class="ref" href="https://huggingface.co/open-thoughts">link</a> — an example source of high-quality reasoning traces discussed in Q&amp;A.</li>
+  <li>NVIDIA. <strong>Nemotron models and datasets.</strong> <a class="ref" href="https://huggingface.co/nvidia">Hugging Face collection</a> — lecture context for Nemotron data and model experiments.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="37-llm-reasoning.html">CS25 Note 37 — LLM Reasoning</a> — background on reasoning traces, RL, and evaluation.</li>
+  <li><a class="ref" href="42-v6-overview.html">CS25 Note 42 — V6 Overview</a> — nearby course framing for test-time compute and next-generation systems.</li>
+  <li><a class="ref" href="43-representation-to-world-modeling.html">CS25 Note 43 — From Representation to World Modeling</a> — complementary view on grounding and world models.</li>
+  <li><a class="ref" href="36-advent-of-agi.html">CS25 Note 36 — The Advent of AGI</a> — agentic systems context beyond pre-training.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="47-collaborative-ai-agents.html">Next: Collaborative AI Agents ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 46 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

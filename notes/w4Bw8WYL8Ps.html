@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 · Notes 05 — Decision Transformer (RL)</title>
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  /* ---- sidebar TOC ---- */
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  /* ---- article ---- */
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:22px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  /* ---- callouts ---- */
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  /* ---- figures = light "paper" sketch cards on the dark page ---- */
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  /* ---- refs / footer / nav ---- */
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  /* ---- print / PDF: force a clean light layout so ink + math stay readable ---- */
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this lecture matters</a>
+  <a href="#prereq">Prerequisites</a>
+  <a href="#primer">1 · Quick RL primer</a>
+  <a href="#loop" class="sub">1.1 Agent, state, action, reward</a>
+  <a href="#rtg" class="sub">1.2 Return-to-go</a>
+  <a href="#offline">2 · Offline RL setup</a>
+  <a href="#core">3 · Decision Transformer core idea</a>
+  <a href="#tokens" class="sub">3.1 Trajectories as tokens</a>
+  <a href="#train" class="sub">3.2 Training objective</a>
+  <a href="#conditioning">4 · Return conditioning</a>
+  <a href="#credit">5 · Credit assignment</a>
+  <a href="#results">6 · Results and benchmarks</a>
+  <a href="#limits">7 · Limitations</a>
+  <a href="#compare">8 · Classic RL vs DT</a>
+  <a href="#worked">9 · Worked micro-example</a>
+  <a href="#trace">10 · End-to-end trace</a>
+  <a href="#recap">11 · Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 1 · Note 5 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">Stanford CS25 · Transformers United · CS25 V1 · Lecture 4</div>
+  <h1>Decision Transformer: Reinforcement Learning via Sequence Modeling</h1>
+  <p class="lead">A portfolio-grade map of the lecture's central move: <em>turn offline reinforcement learning into GPT-style action prediction, conditioned on the return you want.</em></p>
+  <div class="meta">
+    <span class="pill">🎓 Speaker: Aditya Grover · Chen et al. (2021)</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=w4Bw8WYL8Ps" target="_blank">▶ Watch on YouTube</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this lecture matters</span>
+  <p>Transformers scaled cleanly in language and vision: bigger data, bigger models, smoother losses. Deep reinforcement learning has not felt like that. Classic RL often depends on <strong>TD-learning, Bellman backups, bootstrapping, actor-critic machinery, exploration heuristics, and high-variance training</strong>. The lecture asks a radical question: <strong>can we skip most of that and treat RL as sequence modeling?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy for this note</span>
+  <p>Imagine a coach with a library of game films. Instead of deriving equations for the perfect strategy, the coach says: "Show me every play from games where the team scored 90 points; now learn what a 90-point team tends to do next." Decision Transformer is that coach with a transformer: <strong>study trajectories, condition on a desired score, predict the next action.</strong></p>
+</div>
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these; dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>State / action / reward</strong> — at each step the agent sees state \(s_t\), takes action \(a_t\), gets reward \(r_t\).</li>
+    <li><strong>Return</strong> — the sum of future rewards; the thing RL tries to maximize.</li>
+    <li><strong>Causal transformer</strong> — a GPT-style model that predicts each token from earlier ones only (masked).</li>
+    <li><strong>Token</strong> — here, one element of the trajectory sequence (a return-to-go, a state, or an action).</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================= 1. RL PRIMER ================= -->
+<h2 id="primer"><span class="num">1.</span>Quick RL primer for NLP/CV readers</h2>
+<p>Start with a concrete game. In Atari Pong, the <strong>state</strong> is the screen, the <strong>action</strong> might be moving the paddle up or down, and the <strong>reward</strong> arrives when someone scores. The hard part is that an action now may only matter many frames later.</p>
+
+<h3 id="loop">1.1 Agent, environment, policy</h3>
+<p>Reinforcement learning studies an <strong>agent</strong> interacting with an <strong>environment</strong> over time:</p>
+<ul>
+  <li>At time step <span class="tt">t</span>, the agent observes a state \(s_t\).</li>
+  <li>It samples or chooses an action \(a_t\) from a <strong>policy</strong> \(\pi(a_t\mid s_t)\).</li>
+  <li>The environment returns a reward \(r_t\) and the next state \(s_{t+1}\).</li>
+  <li>The goal is to maximize expected <strong>return</strong>: the sum of future rewards.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Agent<br/>policy π"] -->|"action a_t"| E["Environment"]
+    E -->|"state s_t, reward r_t"| A
+    A -->|"learns from experience"| P["Better action choices"]
+    style A fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+    style E fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>The RL feedback loop. The agent is judged by cumulative reward, not by one isolated prediction.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Concrete before general</span>
+  <p>If the paddle moves up and the ball is returned five frames later, the reward is not attached neatly to the single frame where the action was chosen. RL is hard because <em>good decisions and evidence of goodness are separated in time</em>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the policy?</summary>
+<p>The policy \(\pi\) is the agent's action rule: given what it has observed (often \(s_t\), sometimes a longer history), it outputs an action or a distribution over actions.</p></details>
+
+<h3 id="rtg">1.2 Return-to-go: the number DT will condition on</h3>
+<p>The lecture uses <strong>return-to-go</strong>, not immediate reward, as a token. For an episode of length \(T\):</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — return-to-go</span>
+  <p>$$\hat R_t = \sum_{t' = t}^{T} r_{t'}$$</p>
+  <p>Read \(\hat R_t\) as: "from now until the end, how much reward remains to be collected?" If a trajectory earns rewards \([0,0,1,0,2]\), then at the start \(\hat R_1=3\); after the reward of 1 is collected, the remaining target drops.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Do not confuse these</span>
+  <p>The reward \(r_t\) is local: "what happened now?" The return-to-go \(\hat R_t\) is global: "how good is the rest of this trajectory?" Decision Transformer uses the global number as a <em>conditioning signal</em>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if future rewards are [2, 0, 5], what is the current return-to-go?</summary>
+<p>\(2+0+5=7\). With a discount factor \(\gamma\), one could use a discounted return, but the core Decision Transformer experiments commonly use undiscounted return-to-go.</p></details>
+
+<!-- ================= 2. OFFLINE RL ================= -->
+<h2 id="offline"><span class="num">2.</span>Offline RL: learn from fixed trajectories</h2>
+<p>Decision Transformer is introduced in the <strong>offline RL</strong> setting. You are handed a static dataset of trajectories:</p>
+<p>$$\mathcal{D}=\{(s_1,a_1,r_1,s_2,a_2,r_2,\ldots)\}_{\text{many episodes}}$$</p>
+<p>You may train on this log, but you may <strong>not</strong> keep interacting with the environment while learning.</p>
+
+<div class="box why">
+  <span class="lbl">Why offline RL is valuable</span>
+  <p>In real systems — robots, hospitals, finance, autonomous vehicles — trial-and-error exploration can be unsafe, expensive, or unethical. Offline RL says: use logged behavior first. That makes the setup more realistic for many high-stakes domains and a natural place to test whether transformer-style supervised learning can help.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    L["Logged behavior<br/>(robots, games, humans)"] --> D["Fixed dataset<br/>of trajectories"]
+    D --> T["Train model<br/>without new interaction"]
+    T --> P["Policy for evaluation"]
+    P -. "roll out after training" .-> E["Environment"]
+    style D fill:#fff7ec,stroke:#d9822b,stroke-width:2px
+    style T fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>Offline RL separates learning from exploration: the learner sees a log first, then is evaluated later.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why is offline RL harder than ordinary supervised learning?</summary>
+<p>The dataset contains actions from some behavior policy, not necessarily the best policy. At test time, if the learned policy visits states poorly covered by the log, its predictions can be unreliable.</p></details>
+
+<!-- ================= 3. CORE IDEA ================= -->
+<h2 id="core"><span class="num">3.</span>The Decision Transformer core idea</h2>
+<p>The core move of Chen et al. (2021) is almost disarmingly simple: <strong>represent a trajectory as a sequence of tokens and train a causal transformer to predict the action token.</strong> No Bellman backup is required in the basic algorithm.</p>
+
+<h3 id="tokens">3.1 A trajectory becomes a language-model sequence</h3>
+<p>Instead of feeding only states, Decision Transformer interleaves <strong>return-to-go, state, action</strong> triplets:</p>
+<p>$$\left(\hat R_1, s_1, a_1,\; \hat R_2, s_2, a_2,\; \hat R_3, s_3, a_3,\; \ldots\right).$$</p>
+<p>At time \(t\), the model is asked to predict \(a_t\) from the tokens before it: desired return so far, current state, and previous history.</p>
+
+<figure class="svgcard">
+<svg viewBox="0 0 820 260" role="img" aria-label="Decision Transformer token sequence diagram" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#eef4ff"/>
+      <stop offset="100%" stop-color="#f4efff"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5b6572"/>
+    </marker>
+  </defs>
+  <rect x="20" y="24" width="780" height="212" rx="18" fill="url(#g)" stroke="#e4e8ee"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif" font-size="15" text-anchor="middle">
+    <rect x="50" y="62" width="82" height="46" rx="10" fill="#fff7ec" stroke="#d9822b"/><text x="91" y="90">R̂₁</text>
+    <rect x="148" y="62" width="82" height="46" rx="10" fill="#eef4ff" stroke="#2f6df6"/><text x="189" y="90">s₁</text>
+    <rect x="246" y="62" width="82" height="46" rx="10" fill="#eefaf1" stroke="#0f9d58"/><text x="287" y="90">a₁</text>
+    <rect x="362" y="62" width="82" height="46" rx="10" fill="#fff7ec" stroke="#d9822b"/><text x="403" y="90">R̂₂</text>
+    <rect x="460" y="62" width="82" height="46" rx="10" fill="#eef4ff" stroke="#2f6df6"/><text x="501" y="90">s₂</text>
+    <rect x="558" y="62" width="82" height="46" rx="10" fill="#eefaf1" stroke="#0f9d58"/><text x="599" y="90">a₂</text>
+    <text x="690" y="90" fill="#5b6572">…</text>
+    <path d="M92 126 C92 160, 210 160, 308 160 C430 160, 548 160, 680 160" fill="none" stroke="#5b6572" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="262" y="178" width="300" height="42" rx="12" fill="#ffffff" stroke="#2f6df6" stroke-width="2"/>
+    <text x="412" y="204" font-weight="700">causal Transformer predicts next action</text>
+  </g>
+</svg>
+<figcaption>The action is predicted like the next token in GPT, except the prompt contains desired return-to-go and state history.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">What changed conceptually?</span>
+  <p>Classic RL asks: "Which action maximizes value under the Bellman equation?" Decision Transformer asks: "In trajectories that still had return \(\hat R_t\) left to earn and were in state \(s_t\), what action usually came next?" That is a supervised sequence-modeling question.</p>
+</div>
+
+<h3 id="train">3.2 Training: GPT-style causal prediction, supervised loss</h3>
+<p>Each token type gets an embedding. A timestep embedding is added, and a GPT-like transformer processes the sequence causally: each position can only attend to earlier positions. The main prediction head is attached to state-token positions to output the next action.</p>
+<ul>
+  <li><strong>Discrete actions</strong> (Atari): train with cross-entropy.</li>
+  <li><strong>Continuous actions</strong> (MuJoCo / D4RL): train with mean-squared error or a continuous action likelihood.</li>
+  <li><strong>Context length \(K\)</strong>: the model attends over a finite window of previous triplets, just as language models use a context window.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Training objective — action imitation with return conditioning</span>
+  <p>$$\min_\theta \; \mathbb{E}_{\tau\sim\mathcal{D}}\left[\sum_t \ell\big(a_t,\; f_\theta(\hat R_{\le t}, s_{\le t}, a_{<t})\big)\right]$$</p>
+  <p>The loss is ordinary supervised learning. The RL flavor enters through <em>how the sequence is constructed</em> and <em>what return we condition on</em>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where did the Bellman backup go?</summary>
+<p>It is not used in the basic Decision Transformer objective. The model does not learn a value function by bootstrapping from its own estimates; it learns to predict dataset actions conditioned on return-to-go.</p></details>
+
+<!-- ================= 4. RETURN CONDITIONING ================= -->
+<h2 id="conditioning"><span class="num">4.</span>Return conditioning: "upside-down" RL</h2>
+<p>The key twist happens at test time. There is no completed trajectory yet, so we choose an initial desired return-to-go — often near or slightly above the best return in the dataset — and use it as a <strong>prompt</strong>.</p>
+<ol>
+  <li>Prompt the model with a target \(\hat R_1\) and the initial state \(s_1\).</li>
+  <li>Generate an action \(a_1\).</li>
+  <li>The environment returns reward \(r_1\) and next state \(s_2\).</li>
+  <li>Update the remaining target: \(\hat R_2 = \hat R_1 - r_1\).</li>
+  <li>Append the new tokens and repeat autoregressively.</li>
+</ol>
+
+<div class="box analogy">
+  <span class="lbl">The memorable analogy</span>
+  <p>Reward becomes an <strong>input</strong>, not merely an objective signal. You tell the model: "play like a 90-point player." If it has seen enough 90-point-ish behavior, the transformer can imitate the action patterns associated with that level of performance.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">This is not magic wish fulfillment</span>
+  <p>Typing an impossible target return does not create new physics or new data coverage. Empirically, very high targets often saturate: the model behaves like the best behavior it knows rather than improving forever.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — how is DT like prompting a language model?</summary>
+<p>A language model continues text conditioned on a prompt. DT continues a trajectory conditioned on a prompt containing desired return and current state. The "next token" it emits is an action.</p></details>
+
+<!-- ================= 5. CREDIT ASSIGNMENT ================= -->
+<h2 id="credit"><span class="num">5.</span>Why credit assignment becomes easier</h2>
+<p>Classic TD methods pass information backward through bootstrapped value estimates: reward informs \(V(s_T)\), which informs \(V(s_{T-1})\), and so on. That can be unstable and slow, especially when rewards are sparse or delayed.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A0["early action<br/>pick up key"] --> M["long distractor room<br/>many steps"] --> R["future reward<br/>open door"]
+    R -. "TD backup hop" .-> M
+    M -. "TD backup hop" .-> A0
+    R == "attention can link directly" ==> A0
+    style A0 fill:#eefaf1,stroke:#0f9d58,stroke-width:2px
+    style R fill:#fff7ec,stroke:#d9822b,stroke-width:2px
+</div>
+<figcaption>In delayed-reward tasks, attention can connect far-apart events inside one context window instead of relying only on local bootstrapping.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The key-to-door story</span>
+  <p>The lecture highlights a sparse-reward environment: the agent must pick up a key early, pass through an empty room, then open a door much later. A TD learner must propagate credit back through many transitions. A transformer sees the whole relevant sequence segment and can learn that "picked up key" is predictive of eventual success.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Careful wording</span>
+  <p>Decision Transformer does not universally "solve" credit assignment. It makes one important version easier when the useful evidence lies inside the context window and the offline dataset contains examples that reveal the connection.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does sparse reward hurt TD methods?</summary>
+<p>If most transitions have reward 0, the learning signal must be bootstrapped backward across many steps. Errors compound, and many updates may be needed before the early action receives useful credit.</p></details>
+
+<!-- ================= 6. RESULTS ================= -->
+<h2 id="results"><span class="num">6.</span>Results and benchmarks</h2>
+<p>The headline result is not "DT instantly replaces all offline RL." It is stronger and more interesting: a simple causal transformer with a supervised loss is <strong>competitive with specialized offline-RL algorithms</strong> across standard domains, and it looks especially promising where long-horizon credit assignment matters.</p>
+<p>The reported pattern is also a scaling story: as the transformer context and capacity increase, DT can use more trajectory history and often improves, echoing the model-size scaling intuition that made transformers powerful in NLP and vision.</p>
+
+<table>
+  <tr><th>Benchmark family</th><th>What it tests</th><th>Lecture takeaway</th></tr>
+  <tr><td>Atari</td><td>Discrete actions, image-like game observations, replay-buffer datasets.</td><td>DT is competitive with strong offline RL baselines and can work with relatively small replay-buffer fractions.</td></tr>
+  <tr><td>D4RL / OpenAI Gym / MuJoCo</td><td>Continuous-control locomotion from fixed datasets.</td><td>DT matches or beats several specialized offline-RL methods on many tasks.</td></tr>
+  <tr><td>Delayed / sparse-reward variants</td><td>Credit assignment when reward arrives only at the end.</td><td>DT degrades much less than TD-style baselines such as CQL in the reported experiments.</td></tr>
+  <tr><td>Key-to-door</td><td>Remember an early key pickup that matters much later.</td><td>Sequence modeling exposes the long-range dependency directly.</td></tr>
+</table>
+
+<div class="box why">
+  <span class="lbl">Why the scaling point matters</span>
+  <p>The lecture repeatedly contrasts RL with language modeling: language models scale to billions of parameters with stable supervised losses, while deep RL policies often remain smaller and more brittle. DT is exciting because it imports the training recipe that already scales.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Cousin model: Trajectory Transformer</span>
+  <p>Trajectory Transformer appeared around the same time. It also treats RL trajectories as sequences, but more explicitly models states, actions, and rewards for planning. Decision Transformer is deliberately simpler: condition on return-to-go and directly predict actions.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is percent behavioral cloning a serious baseline?</summary>
+<p>If you filter the dataset to the top-return trajectories and imitate only those, you get a strong supervised baseline. DT must beat more than naive behavior cloning; it must show that return conditioning and sequence context add value.</p></details>
+
+<!-- ================= 7. LIMITS ================= -->
+<h2 id="limits"><span class="num">7.</span>Limitations and failure modes</h2>
+<p>Decision Transformer is elegant, but its assumptions matter.</p>
+<ul>
+  <li><strong>Data coverage is everything.</strong> If the offline log never visits the state-action region needed for high return, the model has little basis for acting there.</li>
+  <li><strong>Return conditioning may not stitch perfectly.</strong> The dream is to combine good sub-trajectories from many mediocre rollouts. In practice, the model may imitate whole trajectory styles rather than compose the globally optimal path.</li>
+  <li><strong>No built-in online exploration.</strong> The basic DT setup has no mechanism like curiosity, entropy bonuses, or optimism to seek unknown states.</li>
+  <li><strong>Target return is an extra knob.</strong> Standard RL does not require you to prompt with an expert return; DT usually benefits from knowing a reasonable desired return scale.</li>
+  <li><strong>Context length still limits memory.</strong> Attention helps only over tokens the model can actually see.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">The offline-RL danger</span>
+  <p>A model trained on logged data can be confidently wrong out-of-distribution. In safety-critical settings, DT should be paired with uncertainty estimation, conservative objectives, validation rollouts, or online fine-tuning safeguards.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the biggest missing ingredient for online RL?</summary>
+<p>Exploration. A deployed learner must decide when to try unfamiliar actions to gather better data, but the basic Decision Transformer is trained as a supervised predictor over a fixed dataset.</p></details>
+
+<!-- ================= 8. COMPARISON ================= -->
+<h2 id="compare"><span class="num">8.</span>Classic TD/Q-learning vs Decision Transformer</h2>
+<table>
+  <tr><th>Question</th><th>Classic TD / Q-learning</th><th>Decision Transformer</th></tr>
+  <tr><td>Core object learned</td><td>Value or action-value function \(V(s)\), \(Q(s,a)\), sometimes actor + critic.</td><td>Autoregressive policy: predict \(a_t\) from \((\hat R_{\le t}, s_{\le t}, a_{<t})\).</td></tr>
+  <tr><td>Bootstrapping?</td><td>Yes. Targets use current estimates, e.g. \(r+\gamma\max_{a'}Q(s',a')\).</td><td>No Bellman bootstrapping in the basic method; uses supervised action loss.</td></tr>
+  <tr><td>Credit assignment</td><td>Propagates reward backward via TD backups; can struggle with long sparse delays.</td><td>Self-attention can directly connect distant events within the context window.</td></tr>
+  <tr><td>Offline setting</td><td>Needs conservative corrections to avoid overestimating unseen actions.</td><td>Natively trained on a fixed trajectory dataset, but still depends on coverage.</td></tr>
+  <tr><td>Exploration</td><td>Online variants often include \(\epsilon\)-greedy, entropy bonuses, optimism, curiosity.</td><td>Basic DT has no exploration mechanism; online extensions need extra machinery.</td></tr>
+  <tr><td>Scaling story</td><td>Often brittle with high variance and many interacting components.</td><td>Uses the stable transformer + supervised-learning recipe from sequence modeling.</td></tr>
+</table>
+
+<div class="box analogy">
+  <span class="lbl">One-sentence comparison</span>
+  <p>TD learning is like repeatedly estimating the scoreboard after every move; Decision Transformer is like learning from full game films and asking, "given that we want this final score, what play comes next?"</p>
+</div>
+
+<!-- ================= 9. WORKED EXAMPLE ================= -->
+<h2 id="worked"><span class="num">9.</span>Worked numeric micro-example: return-to-go</h2>
+<p>Take a short trajectory with rewards:</p>
+<p>$$r=[1,0,2,1].$$</p>
+<p>The return-to-go at time \(t\) is the reward still available from \(t\) onward:</p>
+<p>$$\hat R_t=\sum_{t'\ge t} r_{t'}.$$</p>
+<p>Compute it by running a sum from the right:</p>
+<p>$$
+\begin{aligned}
+\hat R_4 &= 1,\\
+\hat R_3 &= 2+1=3,\\
+\hat R_2 &= 0+2+1=3,\\
+\hat R_1 &= 1+0+2+1=4.
+\end{aligned}
+$$</p>
+<p>So the return-to-go sequence is:</p>
+<p>$$\hat R=[4,3,3,1].$$</p>
+<p>To make the model act well, you <strong>prompt it with a high target return-to-go</strong> — say 4 — as the first token. Prompt it with 2, and it tends to act like a mediocre agent, because you asked for behavior associated with a lower return.</p>
+
+<details class="check"><summary>✓ Check yourself — what is the return-to-go sequence for rewards [0,0,5]?</summary>
+<p>From the right: \(\hat R_3=5\), \(\hat R_2=0+5=5\), \(\hat R_1=0+0+5=5\). So \(\hat R=[5,5,5]\).</p></details>
+
+<!-- ================= 10. END-TO-END TRACE ================= -->
+<h2 id="trace"><span class="num">10.</span>End-to-end trace through Decision Transformer</h2>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/sequence</th></tr>
+  <tr><td>1</td><td>Start from an offline trajectory window of \(K\) timesteps.</td><td>\((\hat R_1,s_1,a_1,\hat R_2,s_2,a_2,\ldots,\hat R_K,s_K,a_K)\)</td></tr>
+  <tr><td>2</td><td>Embed each return-to-go, state, and action with its token-type embedding, then add a timestep embedding.</td><td>Each token becomes a vector in \(\mathbb{R}^{d}\)</td></tr>
+  <tr><td>3</td><td>Stack the embedded tokens in causal order.</td><td>Sequence length \(3K\), hidden size \(d\): \(3K \times d\)</td></tr>
+  <tr><td>4</td><td>Run the sequence through a GPT-style causal transformer.</td><td>Each position attends only to earlier positions in the \(3K\)-token context</td></tr>
+  <tr><td>5</td><td>At each state token, predict the next action \(a_t\).</td><td>\(h(s_t)\rightarrow \hat a_t\)</td></tr>
+  <tr><td>6</td><td>Execute the predicted action, observe reward and next state, update the remaining target, and append the new tokens.</td><td>\(\hat R_{t+1}=\hat R_t-r_t\), then continue autoregressively</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">How attention helps credit assignment</span>
+  <p>Self-attention can link a far-future return token to the earlier state and action that helped earn it. Instead of relying only on bootstrapped value estimates to move reward backward one step at a time, the transformer can learn long-range trajectory patterns directly inside its context window.</p>
+</div>
+
+<!-- ================= 11. RECAP ================= -->
+<h2 id="recap"><span class="num">11.</span>Recap — rebuild it yourself</h2>
+<p>Close the note and try to reconstruct the argument. If one answer is fuzzy, jump back to the section link.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the lecture</span>
+  <ol>
+    <li>Define \(s_t\), \(a_t\), \(r_t\), \(\pi\), return, and return-to-go. <a class="ref" href="#primer">(§1)</a></li>
+    <li>Why is offline RL useful in real-world settings, and what makes it risky? <a class="ref" href="#offline">(§2)</a></li>
+    <li>Write the Decision Transformer token sequence for three time steps. <a class="ref" href="#tokens">(§3.1)</a></li>
+    <li>At test time, how does the desired return-to-go get updated after receiving reward \(r_t\)? <a class="ref" href="#conditioning">(§4)</a></li>
+    <li>Explain why delayed rewards are easier for a transformer than for pure TD backups. <a class="ref" href="#credit">(§5)</a></li>
+    <li>Name two benchmarks used to evaluate DT and one limitation that remains. <a class="ref" href="#results">(§6)</a>, <a class="ref" href="#limits">(§7)</a></li>
+  </ol>
+</div>
+
+<details class="check"><summary>✓ Check yourself — can you summarize DT in one breath?</summary>
+<p>Decision Transformer turns offline RL trajectories into sequences of return-to-go, state, and action tokens, trains a causal transformer with supervised action prediction, and at test time prompts it with a desired return so it generates actions consistent with that level of performance.</p></details>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Agent</td><td>The decision-maker that observes states and chooses actions.</td></tr>
+  <tr><td>Environment</td><td>The world or simulator that receives actions and returns next states and rewards.</td></tr>
+  <tr><td>State \(s_t\)</td><td>The information available at time \(t\), such as a game screen or robot sensor vector.</td></tr>
+  <tr><td>Action \(a_t\)</td><td>The choice made by the agent at time \(t\).</td></tr>
+  <tr><td>Reward \(r_t\)</td><td>The scalar feedback signal after an action.</td></tr>
+  <tr><td>Policy \(\pi\)</td><td>The rule or model mapping observations to actions.</td></tr>
+  <tr><td>Return</td><td>Total future reward; the objective RL tries to maximize in expectation.</td></tr>
+  <tr><td>Return-to-go \(\hat R_t\)</td><td>The sum of rewards still remaining from time \(t\) onward.</td></tr>
+  <tr><td>Offline RL</td><td>Learning a policy from a fixed dataset without additional environment interaction during training.</td></tr>
+  <tr><td>Behavioral cloning</td><td>Supervised imitation learning: predict the dataset action from observations.</td></tr>
+  <tr><td>TD-learning</td><td>Temporal-difference learning; updates values using bootstrapped estimates of future value.</td></tr>
+  <tr><td>Bellman backup</td><td>The recursive value update that relates current value to reward plus future value.</td></tr>
+  <tr><td>CQL</td><td>Conservative Q-Learning, a strong offline-RL method designed to avoid overestimating unseen actions.</td></tr>
+  <tr><td>Trajectory Transformer</td><td>A contemporaneous transformer approach that models trajectories for planning.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Primary sources</h4>
+<ol class="refs">
+  <li>Chen et al. (2021). <strong>Decision Transformer: Reinforcement Learning via Sequence Modeling.</strong> <a class="ref" href="https://arxiv.org/abs/2106.01345" target="_blank">arXiv:2106.01345</a> — the paper behind this lecture.</li>
+  <li>Janner, Li, Levine (2021). <strong>Offline Reinforcement Learning as One Big Sequence Modeling Problem.</strong> <a class="ref" href="https://arxiv.org/abs/2106.02039" target="_blank">arXiv:2106.02039</a> — Trajectory Transformer.</li>
+  <li>Kumar et al. (2020). <strong>Conservative Q-Learning for Offline Reinforcement Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2006.04779" target="_blank">arXiv:2006.04779</a> — a key offline-RL baseline.</li>
+  <li>Fu et al. (2020). <strong>D4RL: Datasets for Deep Data-Driven Reinforcement Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2004.07219" target="_blank">arXiv:2004.07219</a> — standard offline-RL benchmark suite.</li>
+  <li>Brockman et al. (2016). <strong>OpenAI Gym.</strong> <a class="ref" href="https://arxiv.org/abs/1606.01540" target="_blank">arXiv:1606.01540</a> — classic RL evaluation toolkit.</li>
+  <li>Bellemare et al. (2013). <strong>The Arcade Learning Environment.</strong> <a class="ref" href="https://arxiv.org/abs/1207.4708" target="_blank">arXiv:1207.4708</a> — Atari benchmark foundation.</li>
+</ol>
+<h4>Useful context</h4>
+<ol class="refs">
+  <li>Srivastava et al. (2019). <strong>Training Agents using Upside-Down Reinforcement Learning.</strong> <a class="ref" href="https://arxiv.org/abs/1912.02875" target="_blank">arXiv:1912.02875</a> — earlier return-conditioned framing.</li>
+  <li>Levine et al. (2020). <strong>Offline Reinforcement Learning: Tutorial, Review, and Perspectives.</strong> <a class="ref" href="https://arxiv.org/abs/2005.01643" target="_blank">arXiv:2005.01643</a> — broader offline-RL background.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — transformer foundation.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="BP5CM0YxbP8.html">◀ Note 4 · Vision</a>
+  <a href="index.html">Index</a>
+  <a class="r" href="index.html">End of Batch 1 ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 05 · Built for learning (WHY→HOW, check-yourself, references).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

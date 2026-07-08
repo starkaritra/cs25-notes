@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 09 — Transformers for Audio, Speech & Music</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why audio strains attention</a>
+  <a href="#s1a" class="sub">1.1 Raw samples are too many tokens</a>
+  <a href="#s2">2 · Representations are the design choice</a>
+  <a href="#s2a" class="sub">2.1 Spectrograms and AST patches</a>
+  <a href="#s2b" class="sub">2.2 Learned and discrete tokens</a>
+  <a href="#s3">3 · Four transformer patterns</a>
+  <a href="#s3a" class="sub">3.1 ASR, tagging, SSL, generation</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Limits and design tradeoffs</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 2 · Note 5 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V1 — LECTURE 9</div>
+  <h1>Transformers for Audio, Speech &amp; Music</h1>
+  <p class="lead">Audio transformers work only after we choose a listenable tokenization: compress a 16,000-samples-per-second stream into spectrogram patches, latent units, or codec codes that attention can afford.</p>
+  <div class="meta">
+    <span class="pill">🎓 Prateek Verma, Stanford</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=wvE2n8u3drA" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A sentence has maybe 20 word tokens. One second of speech at 16 kHz has <strong>16,000 raw samples</strong>; ten seconds has 160,000. If we feed every sample into full self-attention, the attention matrix grows like \(N^2\), so the model spends its memory staring at sample-level dust instead of hearing phonemes, words, beats, or musical phrases.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — from microphone tape to sheet music</span>
+  <p>Raw waveform samples are like a mile-long strip of magnetic tape: faithful, but painfully granular. A spectrogram is the same performance rewritten as sheet music: time runs left to right, frequency runs bottom to top, and meaningful events become visible chunks. Audio transformers mostly succeed by deciding which kind of "sheet music" their attention should read.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the pipeline; each term will appear quickly.</p>
+  <ul>
+    <li><strong>Spectrogram / STFT</strong> — slice a waveform into short windows, Fourier-transform each window, then stack magnitudes into a time-frequency image; this is the main bridge from audio to transformer tokens.</li>
+    <li><strong>Sampling rate</strong> — the number of amplitude measurements per second, e.g. 16 kHz means 16,000 samples/sec; it determines raw sequence length.</li>
+    <li><strong>ViT patchify</strong> — split an image into fixed-size patches, linearly embed each patch, add positions, then use a transformer; AST applies this to spectrogram "images".</li>
+    <li><strong>Self-supervised / contrastive learning</strong> — train from unlabeled audio by predicting or distinguishing hidden pieces; Wav2Vec 2.0 and HuBERT use this to learn speech units.</li>
+    <li><strong>Encoder-only vs encoder-decoder</strong> — encoder-only models summarize an input for classification/CTC; encoder-decoder models condition a decoder to emit text or tokens, as in Whisper.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why audio strains attention</h2>
+<p>Prateek's lecture starts with a warning: transformers look universal, but audio arrives at a very different scale than text. The same mechanism that made BERT and GPT powerful becomes expensive when the "sentence" is a continuous pressure wave sampled thousands of times per second.</p>
+
+<h3 id="s1a">1.1 Raw samples are too many tokens</h3>
+<p>Imagine treating a 1-second clip as a 16,000-token sentence. A single attention head would form a 16,000 by 16,000 score table before it even computes values. That is useful if the model truly needs sample-perfect phase, but wasteful for many tasks: an ambulance siren, a spoken phoneme, or a piano chord lasts across many samples.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — attention cost</span>
+  <p>$$\text{scores}=\frac{QK^{\top}}{\sqrt{d_k}},\qquad \text{score entries}=N^2$$</p>
+  <p>Here \(N\) is the number of tokens and \(d_k\) is the key/query width. For \(N=16{,}000\), one layer-head has \(256{,}000{,}000\) pairwise scores; for ten seconds, \(N=160{,}000\) gives \(25.6\) billion scores.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["1 sec waveform<br/>16000 samples"] --> B["Raw-sample tokens<br/>N = 16000"]
+    B --> C["Full attention<br/>N squared scores"]
+    A --> D["Windowed audio view"]
+    D --> E["About 100 frames<br/>or tens of patches"]
+    E --> F["Affordable attention<br/>semantic scale"]
+</div>
+<figcaption>Same sound, different token count. The hard part is preserving what matters while throwing away enough granularity.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Raw audio is the purest input, so it must be best."</strong> Raw samples are most faithful, not necessarily most learnable. For recognition, the model often needs robust structure over tens of milliseconds, not a separate token for every tiny amplitude tick.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is 10 seconds of raw 16 kHz audio worse than 1 second?</summary>
+<p>The token count grows by 10x, but full attention scores grow by \(10^2=100\)x: \((160{,}000)^2/(16{,}000)^2=100\). That quadratic jump is the reason audio models compress or chunk.</p></details>
+
+<h3 id="s1b">1.2 Audio is continuous and multi-scale</h3>
+<p>Audio has structure at several clocks at once: samples capture microsecond wiggles; STFT frames capture local frequency content; phonemes and notes last tens to hundreds of milliseconds; words, rhythm, and phrases span seconds. A good transformer input should let attention compare the right scale to the right scale.</p>
+
+<div class="box intuition">
+  <span class="lbl">The design problem</span>
+  <p>Tokenization is not preprocessing trivia. It decides what the model can attend to cheaply: waveform ticks, spectrogram patches, learned speech units, or discrete acoustic codes.</p>
+</div>
+
+<h2 id="s2"><span class="num">2.</span>Representations are the key design choice</h2>
+<p>Before choosing a model, choose the notes on the page. The lecture moves from Fourier/spectrogram views to learned discrete codes because transformers are strong sequence modelers once audio has been written into a manageable sequence.</p>
+
+<h3 id="s2a">2.1 Spectrograms and mel-spectrograms: audio as a time-frequency image</h3>
+<p>A waveform can be decomposed into sinusoids. But speech and music change over time, so we do not Fourier-transform the entire clip once. We slide a short window across the waveform, transform each window, and stack the results. A mel-spectrogram then remaps frequencies to a perceptual scale closer to human hearing.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — short-time Fourier transform</span>
+  <p>$$X(m,k)=\sum_{n=0}^{L-1} x[n+mH]w[n]e^{-j2\pi kn/L}$$</p>
+  <p>\(x[n]\) is the waveform sample, \(w[n]\) is a window of length \(L\), \(H\) is the hop size between windows, \(m\) indexes time frames, and \(k\) indexes frequency bins. Usually the model sees \(\log |X(m,k)|\) or mel-filtered magnitudes.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    W["waveform<br/>pressure over time"] --> S["STFT windows<br/>local Fourier views"]
+    S --> M["mel spectrogram<br/>frequency by time"]
+    M --> P["patch or frame tokens<br/>plus positions"]
+    P --> T["Transformer encoder"]
+    T --> H["task head<br/>classify / transcribe / generate"]
+</div>
+<figcaption>The canonical spectrogram-token pipeline: convert tape to sheet music, patchify it, then let attention compare events.</figcaption>
+</figure>
+
+<p>The <strong>Audio Spectrogram Transformer (AST)</strong> follows the ViT recipe: split the spectrogram into patches, project each flattened patch to a vector, add positional embeddings, and feed the sequence to a transformer encoder for tagging or classification.</p>
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 280" width="100%" height="260" role="img" aria-label="Spectrogram patching schematic">
+  <rect x="35" y="35" width="310" height="190" rx="10" fill="#fff7e6" stroke="#2b2721" stroke-width="3"/>
+  <line x1="35" y1="73" x2="345" y2="73" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="35" y1="111" x2="345" y2="111" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="35" y1="149" x2="345" y2="149" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="35" y1="187" x2="345" y2="187" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="97" y1="35" x2="97" y2="225" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="159" y1="35" x2="159" y2="225" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="221" y1="35" x2="221" y2="225" stroke="#dccfb4" stroke-width="2"/>
+  <line x1="283" y1="35" x2="283" y2="225" stroke="#dccfb4" stroke-width="2"/>
+  <rect x="97" y="73" width="62" height="76" fill="#d9e8ff" stroke="#2f6df6" stroke-width="3"/>
+  <rect x="221" y="149" width="62" height="76" fill="#eadcff" stroke="#7d4cf6" stroke-width="3"/>
+  <text x="190" y="252" text-anchor="middle" font-size="18" fill="#2b2721">mel spectrogram: frequency × time</text>
+  <path d="M365 128 C410 128 410 128 455 128" fill="none" stroke="#2b2721" stroke-width="3" marker-end="url(#arrow)"/>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2b2721"/></marker></defs>
+  <rect x="485" y="55" width="58" height="58" rx="8" fill="#d9e8ff" stroke="#2f6df6" stroke-width="3"/>
+  <rect x="555" y="55" width="58" height="58" rx="8" fill="#fff" stroke="#2b2721" stroke-width="2"/>
+  <rect x="625" y="55" width="58" height="58" rx="8" fill="#eadcff" stroke="#7d4cf6" stroke-width="3"/>
+  <rect x="485" y="140" width="198" height="46" rx="8" fill="#fff7e6" stroke="#2b2721" stroke-width="2"/>
+  <text x="584" y="170" text-anchor="middle" font-size="17" fill="#2b2721">linear patch embedding</text>
+  <text x="584" y="220" text-anchor="middle" font-size="18" fill="#2b2721">tokens: T × d</text>
+</svg>
+</div>
+<figcaption>Patchification trades local time-frequency detail for a shorter sequence of transformer tokens.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what information is lost when a waveform becomes a magnitude spectrogram?</summary>
+<p>Magnitude spectrograms usually discard phase. That is often acceptable for classification and recognition features, but it matters for high-fidelity reconstruction, source separation, and generative audio.</p></details>
+
+<h3 id="s2b">2.2 Learned latent and discrete tokens: audio as a language</h3>
+<p>The other path is to learn a tokenizer. Wav2Vec 2.0 uses a convolutional feature encoder to produce latent speech frames, masks some of them, and trains a transformer to identify the correct quantized target among distractors. VQ-style codebooks and neural audio codecs go further: they map audio to discrete IDs, so generation becomes language modeling over acoustic tokens.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — contrastive masked prediction</span>
+  <p>$$\mathcal{L}_m=-\log\frac{\exp(\operatorname{sim}(c_m,q_m)/\kappa)}{\sum_{\tilde{q}\in Q_m}\exp(\operatorname{sim}(c_m,\tilde{q})/\kappa)}$$</p>
+  <p>At masked time \(m\), \(c_m\) is the transformer's context vector, \(q_m\) is the true quantized target, \(Q_m\) contains the true target plus negative samples, and \(\kappa\) is a temperature. The model learns speech structure without transcripts.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["continuous audio"] --> B["feature encoder<br/>CNN or codec"]
+    B --> C["latent frames"]
+    C --> D["vector quantizer<br/>codebook IDs"]
+    D --> E["Transformer language model<br/>predict next or masked code"]
+    E --> F["decoder or vocoder<br/>audio / units / labels"]
+</div>
+<figcaption>Discrete acoustic tokens let audio borrow the recipe of text language modeling.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Tradeoff triangle</span>
+  <p><strong>Resolution</strong> keeps fine events; <strong>short sequence length</strong> makes attention affordable; <strong>invertibility</strong> lets us reconstruct sound. Spectrogram patches are excellent for recognition, but not perfectly invertible. Codec tokens are compact and generative, but tokenizer quality becomes the ceiling. Raw samples are invertible, but usually too long.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if a codebook has too few audio codes, what happens?</summary>
+<p>Different sounds collapse to the same ID, so the model becomes robust but blurry: it may miss note changes, phonetic detail, or transient events. Too many codes has the opposite failure: long noisy sequences that are hard to model.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Four transformer patterns in audio</h2>
+<p>Once audio has tokens, the architecture choice follows the task. The lecture emphasizes this buffet: raw generative modeling, language modeling over audio codes, and ViT-like spectrogram classification are all the same attention engine wearing different ears.</p>
+
+<h3 id="s3a">3.1 Speech recognition: Whisper and encoder-decoder audio</h3>
+<p><strong>Whisper</strong> turns log-mel spectrogram frames into encoder states and uses a text decoder to emit transcripts, timestamps, or translations. Its practical strength comes from weak supervision at scale: many noisy web audio-transcript pairs, not one tiny curated dataset.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — conditional transcription</span>
+  <p>$$p(y\mid x)=\prod_{t=1}^{U}p(y_t\mid y_{&lt;t},\operatorname{Enc}(\operatorname{mel}(x)))$$</p>
+  <p>\(x\) is waveform audio, \(\operatorname{mel}(x)\) is the log-mel input, \(y_t\) is the next text token, and \(U\) is transcript length. The encoder hears; the decoder writes.</p>
+</div>
+
+<h3 id="s3b">3.2 Audio classification and tagging: AST</h3>
+<p>For environmental sound, music tags, or event detection, AST uses spectrogram patches like image patches. The head may classify a whole clip ("dog bark") or assign multiple tags ("speech", "music", "siren"). This is the self-driving-car and smartwatch side of audio: recognize what is happening from sound alone.</p>
+
+<h3 id="s3c">3.3 Self-supervised speech: Wav2Vec 2.0 and HuBERT</h3>
+<p>Wav2Vec 2.0 learns by contrasting true masked latent speech targets against negatives. HuBERT learns by predicting cluster IDs for masked frames, then improves those clusters iteratively. Both reduce reliance on labeled transcripts and produce representations that downstream recognizers can fine-tune.</p>
+
+<h3 id="s3d">3.4 Music generation: Music Transformer, Jukebox, and codec-style models</h3>
+<p>Music has both local precision and long-range form: a motif may return after many bars. <strong>Music Transformer</strong> introduced efficient relative attention so notes can attend by distance, not only by absolute position. <strong>Jukebox</strong> uses hierarchical VQ-VAE audio codes and autoregressive transformers to generate music at multiple time scales.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — autoregressive acoustic tokens</span>
+  <p>$$p(z_{1:T})=\prod_{t=1}^{T}p(z_t\mid z_{&lt;t},\text{artist},\text{lyrics},\text{level})$$</p>
+  <p>\(z_t\) is a discrete audio/codebook token. Conditioning variables such as artist, lyrics, or hierarchy level steer generation while the transformer predicts the next acoustic code.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    R["Relative attention in music"] --> A["nearby timing<br/>attack, rhythm, harmony"]
+    R --> B["mid-range pattern<br/>motif and call-response"]
+    R --> C["long-range structure<br/>verse / chorus / return"]
+    A --> D["note prediction"]
+    B --> D
+    C --> D
+</div>
+<figcaption>Music needs attention by musical distance: the same motif matters whether it appeared two beats or two sections ago.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why is relative position especially natural for music?</summary>
+<p>A rhythm or motif is meaningful by interval: "repeat the phrase four beats later" is more transferable than "repeat whatever happened at absolute token 913." Relative attention encodes those distances directly.</p></details>
+<h2 id="worked"><span class="num">4.</span>Worked numeric micro-example — one second becomes patch tokens</h2>
+<p>Now compute the scale reduction by hand. This is the core reason spectrogram transformers are practical.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Take a 1-second mono clip at 16 kHz:</p>
+  <p>$$16{,}000\ \text{samples/sec}\times1\ \text{sec}=16{,}000\ \text{raw samples}$$</p>
+  <p>Use STFT window \(L=400\) samples (25 ms) and hop \(H=160\) samples (10 ms). A common practical convention pads/centers enough to get about one frame every 10 ms:</p>
+  <p>$$\text{frames}\approx \frac{1.0\ \text{sec}}{0.010\ \text{sec/frame}}=100\ \text{frames}$$</p>
+  <p>With 80 mel bins, the spectrogram has</p>
+  <p>$$80\times100=8{,}000\ \text{time-frequency pixels}.$$</p>
+  <p>Patchify with \(16\times16\) patches. Along frequency, \(\lceil 80/16\rceil=5\) patches. Along time, \(\lceil100/16\rceil=7\) patches after padding the last partial patch. So</p>
+  <p>$$T=5\times7=35\ \text{patch tokens}.$$</p>
+  <p>The contrast is the point: raw-sample attention would see \(N=16{,}000\); patch attention sees \(T=35\). Pairwise attention scores drop from</p>
+  <p>$$16{,}000^2=256{,}000{,}000\quad\text{to}\quad35^2=1{,}225.$$</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — varying hop size: if hop becomes 80 samples, how many frames and patch tokens?</summary>
+<p>Hop 80 at 16 kHz is 5 ms, so 1 second gives about \(1/0.005=200\) frames. The mel image is \(80\times200\). With \(16\times16\) patches: \(\lceil80/16\rceil=5\), \(\lceil200/16\rceil=13\), so \(T=65\) patch tokens. Better time resolution, longer sequence.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — follow one concrete clip</h2>
+<p>Trace one 1-second spoken clip through an encoder-style recognizer or tagger. Watch where the length reduction happens.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · waveform</td><td>Microphone pressure is sampled at 16 kHz.</td><td class="tt">waveform (16000,)</td></tr>
+  <tr><td>1 · STFT frames</td><td>25 ms windows slide every 10 ms; each window becomes frequency magnitudes.</td><td class="tt">about (100 × freq)</td></tr>
+  <tr><td>2 · mel projection</td><td>Frequency bins are filtered into 80 perceptual mel bands, usually log-scaled.</td><td class="tt">mel (80 × 100)</td></tr>
+  <tr><td>3 · patch embed</td><td>Split into 16 × 16 patches, flatten, project to model width \(d\), add positional embeddings.</td><td class="tt">patch embed (T tokens × d), T ≈ 35</td></tr>
+  <tr><td>4 · transformer encoder</td><td>Self-attention mixes evidence across time and frequency patches.</td><td class="tt">encoder (T × d)</td></tr>
+  <tr><td>5 · pooled / CTC head</td><td>For tagging, pool then classify; for speech, a CTC or decoder head emits text tokens.</td><td class="tt">label / transcript</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The biggest length reduction happens before attention: waveform \((16000,)\) becomes mel frames \((80\times100)\), then patch tokens \((T\times d)\). The transformer is powerful because it receives events, not because it processes every sample.</p>
+</div>
+
+<h2 id="s6"><span class="num">6.</span>Limits and design tradeoffs</h2>
+<p>Audio transformers are strong, not magic. Each representation chooses which errors become easy and which become painful.</p>
+
+<h3 id="s6a">6.1 Sequence length versus resolution</h3>
+<p>Smaller hops, smaller patches, or high-rate codec tokens preserve detail but increase \(N\). Larger patches or coarser codes shorten the sequence but blur transients, consonants, and fast notes. The right point depends on the task: tagging tolerates coarser tokens than waveform synthesis.</p>
+
+<h3 id="s6b">6.2 Streaming and latency</h3>
+<p>Full-context encoders can look into the future, which is convenient offline but unacceptable for live captions or hearing aids. Streaming systems use causal or chunked attention, accept latency, or revise outputs as more audio arrives.</p>
+
+<h3 id="s6c">6.3 Data and evaluation</h3>
+<p>Whisper-style supervision works because scale absorbs noise; smaller domains may not have that luxury. For generation, likelihood and spectrogram metrics do not fully capture human judgments of groove, naturalness, lyrics alignment, or long-range musical coherence.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"A better transformer fixes audio."</strong> Often the bottleneck is the tokenizer, the training data, or the evaluation target. If the representation deletes phase or merges two phonemes into one code, attention cannot recover that missing information downstream.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — choose a tokenizer for real-time wake-word detection</summary>
+<p>You would likely use short-window log-mel frames or a compact learned frontend, not raw samples or a giant non-causal encoder. The system needs low latency, robustness, and a small classification head more than perfect reconstructability.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory before re-reading. The goal is to reconstruct the design logic, not recognize keywords.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does raw 16 kHz audio make ordinary full attention expensive? <a class="ref" href="#s1">(§1)</a></li>
+    <li>How does the STFT turn a waveform into a time-frequency image, and what do \(L\), \(H\), \(m\), and \(k\) mean? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>What tradeoff changes when you use AST-style patches instead of Wav2Vec-style discrete latent units? <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>Redo the worked example in your head: why do \(16{,}000\) samples become about 35 patch tokens? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Why does music benefit from relative positional attention? <a class="ref" href="#s3d">(§3.4)</a></li>
+    <li>Teach it back: explain audio tokenization to a beginner using the magnetic-tape-to-sheet-music analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Waveform</td><td>Raw sampled audio amplitude over time; faithful but extremely long at normal sampling rates.</td></tr>
+  <tr><td>Sampling rate</td><td>How many samples are recorded per second, e.g. 16 kHz means 16,000 samples each second.</td></tr>
+  <tr><td>STFT</td><td>Short-time Fourier transform: Fourier analysis on many short overlapping windows.</td></tr>
+  <tr><td>Mel-spectrogram</td><td>A spectrogram with frequency bins remapped to a perceptual mel scale and often log-compressed.</td></tr>
+  <tr><td>Patch token</td><td>A flattened time-frequency tile projected into a transformer embedding, as in ViT/AST.</td></tr>
+  <tr><td>Vector quantization</td><td>Mapping continuous latent vectors to nearest entries in a discrete codebook.</td></tr>
+  <tr><td>Wav2Vec 2.0</td><td>A self-supervised speech model that predicts masked quantized latent targets from context.</td></tr>
+  <tr><td>HuBERT</td><td>A self-supervised speech model that predicts hidden cluster assignments for masked frames.</td></tr>
+  <tr><td>AST</td><td>Audio Spectrogram Transformer; a ViT-style encoder over spectrogram patches for audio tagging/classification.</td></tr>
+  <tr><td>Whisper</td><td>OpenAI's encoder-decoder speech recognition/translation model trained with large-scale weak supervision.</td></tr>
+  <tr><td>Relative attention</td><td>Attention that uses distances between tokens, useful when patterns recur at shifted positions, as in music.</td></tr>
+  <tr><td>Neural audio codec</td><td>A learned compressor that turns waveform audio into compact discrete acoustic tokens and back.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or central to the lecture</h4>
+<ol class="refs">
+  <li>Oord et al. (2016). <strong>WaveNet: A Generative Model for Raw Audio.</strong> <a class="ref" href="https://arxiv.org/abs/1609.03499">link</a> — the classic sample-level autoregressive audio model discussed as the pre-transformer baseline.</li>
+  <li>Dhariwal et al. (2020). <strong>Jukebox: A Generative Model for Music.</strong> <a class="ref" href="https://arxiv.org/abs/2005.00341">link</a> — hierarchical discrete audio codes plus autoregressive transformers for music.</li>
+  <li>Huang et al. (2018). <strong>Music Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1809.04281">link</a> — relative attention for long-range musical structure.</li>
+  <li>Baevski et al. (2020). <strong>wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations.</strong> <a class="ref" href="https://arxiv.org/abs/2006.11477">link</a> — contrastive masked prediction over quantized latent speech units.</li>
+  <li>Hsu et al. (2021). <strong>HuBERT: Self-Supervised Speech Representation Learning by Masked Prediction of Hidden Units.</strong> <a class="ref" href="https://arxiv.org/abs/2106.07447">link</a> — masked cluster prediction for speech representations.</li>
+  <li>Gong, Chung, and Glass (2021). <strong>AST: Audio Spectrogram Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/2104.01778">link</a> — ViT-style spectrogram patches for audio classification.</li>
+  <li>Radford et al. (2022). <strong>Robust Speech Recognition via Large-Scale Weak Supervision.</strong> <a class="ref" href="https://arxiv.org/abs/2212.04356">link</a> — the Whisper paper.</li>
+  <li>Borsos et al. (2022). <strong>AudioLM: a Language Modeling Approach to Audio Generation.</strong> <a class="ref" href="https://arxiv.org/abs/2209.03143">link</a> — semantic and acoustic tokens for long-form audio generation.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Stanford CS25 lecture video. <strong>Transformers for Music and Audio.</strong> <a class="ref" href="https://www.youtube.com/watch?v=wvE2n8u3drA">link</a> — the source talk for these notes.</li>
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929">link</a> — the ViT recipe that AST adapts to spectrograms.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="08-transformer-circuits.html">◀ Previous: Transformer Circuits</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 09 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Rendering requires an internet connection for CDN fonts, MathJax, and Mermaid.
+</div>
+
+</article>
+</div>
+</body>
+</html>

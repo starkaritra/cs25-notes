@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 48 — Generalization from Parameters vs Context</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Two ways an LLM “knows”</a>
+  <a href="#s1a" class="sub">1.1 The same fact, two stores</a>
+  <a href="#s2">2 · The generalization gap</a>
+  <a href="#s2a" class="sub">2.1 Reversals, syllogisms, codebooks</a>
+  <a href="#s3">3 · Why context can be more flexible</a>
+  <a href="#s3a" class="sub">3.1 Explicit vs latent information</a>
+  <a href="#s4">4 · Bridging the gap</a>
+  <a href="#s4a" class="sub">4.1 Augment, retrieve, or think</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 10 · Note 3 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>Distinct Modes of Generalization from Parameters and Context</h1>
+  <p class="lead">Andrew Lampinen’s core message: language models can store the same information in weights or in context, but those two stores do not generalize in the same way.</p>
+  <div class="meta">
+    <span class="pill">🎓 Andrew Lampinen · Anthropic</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=dJtHauhRasc" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Suppose your system answers from memory that “Sam is Acme’s CEO,” but the user supplied a fresh document saying “Dana is Acme’s CEO.” Should the model trust its <strong>parametric knowledge</strong> or the <strong>in-context evidence</strong>? Lampinen’s talk shows that this is not merely a product-design question. It reflects two genuinely different computational modes: knowledge compressed into weights during training, and knowledge temporarily available in the prompt at inference.</p>
+  <p>This distinction matters for <strong>RAG</strong>, <strong>fine-tuning</strong>, personalization, factual updates, and reasoning. Retrieval is not only a way to add missing facts; it can make already-seen facts usable in a more flexible form. See also <a class="ref" href="03-in-context-learning.html">Note 3 on in-context learning</a> and <a class="ref" href="25-retrieval-augmented-lms.html">Note 25 on retrieval-augmented LMs</a>.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a model as a lawyer with two resources. The <strong>weights</strong> are the lawyer’s long-trained legal instincts: fast, compressed, and broad, but sometimes tied to the exact way precedents were learned. The <strong>context window</strong> is the case file on the desk: limited in size, but inspectable and reusable for the exact question today. The lecture asks when the lawyer reasons from instinct, when from the case file, and how to combine both.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>These are the only moving parts you need before the results.</p>
+  <ul>
+    <li><strong>Parameters / weights</strong> — learned numbers updated by gradient descent; here they are the model’s compressed long-term store of facts, skills, and statistical structure.</li>
+    <li><strong>Prompt / context</strong> — tokens supplied at inference; here they act like a temporary working file that attention can directly inspect.</li>
+    <li><strong>In-context learning</strong> — adapting behavior from examples or facts in the prompt without changing weights; refresh via <a class="ref" href="03-in-context-learning.html">Note 3</a>.</li>
+    <li><strong>Induction heads</strong> — attention circuits that copy or continue patterns from earlier tokens; a mechanistic foothold for in-context learning, linked to <a class="ref" href="08-transformer-circuits.html">Note 8</a>.</li>
+    <li><strong>Softmax over logits</strong> — candidate answers receive scores; \\(p_i=e^{z_i}/\sum_j e^{z_j}\\) turns those scores into probabilities.</li>
+    <li><strong>RAG</strong> — retrieval-augmented generation supplies external documents in context; in this lecture, retrieval also repairs some failures of parametric generalization (<a class="ref" href="25-retrieval-augmented-lms.html">Note 25</a>).</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Two ways an LLM “knows”</h2>
+<p>Start with one made-up fact: <em>Daphne Barrington directed <strong>A Journey Through Time</strong></em>. A model can encounter that sentence during fine-tuning, so the fact becomes part of the weights. Or the sentence can appear in the prompt right before the question. The surprising result is that these two exposures can lead to very different answers when the question changes direction.</p>
+
+<h3 id="s1a">1.1 The same fact, two stores</h3>
+<p><strong>Parametric learning</strong> compresses many documents into reusable parameters. It is fast at test time and supports broad statistical generalization, but it can be hard to update and can be overly tied to how a fact was phrased during training. <strong>In-context learning</strong> keeps the fact as explicit tokens. It is flexible and immediately updatable, but bounded by context length and by the model’s ability to attend to the right tokens.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — two sources combine at decoding</span>
+  <p>$$z(a \mid x,C) \approx z_{\text{param}}(a \mid x;\theta) + z_{\text{ctx}}(a \mid x,C;\theta)$$</p>
+  <p>Here, \\(a\\) is a candidate answer, \\(x\\) is the question, \\(C\\) is the prompt context, and \\(\theta\\) are the learned weights. This is a schematic, not a literal decomposition from the paper: it helps us track how a model may add pressure from long-term memory and from evidence in the current context.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["Question tokens"] --> A["Attention and MLP layers"]
+    C["Context facts / examples"] --> A
+    W["Weights learned during pretraining or fine-tuning"] --> A
+    A --> L["Candidate logits"]
+    L --> S["softmax"]
+    S --> Ans["answer"]
+</div>
+<figcaption>The same forward pass can use both the case file on the desk and the lawyer’s trained instincts.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“If the fact is in the model, the model can use it in every logically equivalent way.”</strong> Lampinen’s evidence says no. A causal next-token model may know how to complete “Daphne Barrington directed …” while still failing “Who directed A Journey Through Time?” if the reverse direction was not made explicit or cued correctly.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which store is easier to update today?</summary>
+<p>Context. You can paste a new fact or retrieved document into the prompt immediately. Updating weights requires training or fine-tuning and risks interference with other behavior.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The generalization gap: same data, different behavior</h2>
+<p>The talk’s central controlled comparison is: put a dataset into the model’s <strong>parameters</strong> via fine-tuning, or put the whole dataset into the <strong>context</strong> of a long-context model. Then ask for generalizations that are implied by the data but not necessarily written in the tested form.</p>
+
+<h3 id="s2a">2.1 Reversals, syllogisms, and codebooks</h3>
+<p>The most memorable case is the <strong>reversal curse</strong>. In one setup, a pre-trained model is at chance on held-out reversals; fine-tuning on only the forward relation can even make reversal accuracy slightly worse than chance; placing the full dataset in context yields about <strong>99%</strong> reversal accuracy in Lampinen’s replication. The fact is available in both cases, but it is more flexibly usable when explicit in context.</p>
+<p>The same theme appears in syllogistic generalization. From statements like “all zamp are snaff” and “no snaff are plusk,” the model should infer “no zamp are plusk.” Fine-tuned models show only modest above-chance latent generalization, while in-context models can use the statements more flexibly. In scratch-trained toy models, Lampinen’s team held out 1% of reversals: the model remembered trained relations and could reverse a relation if it was placed in context, yet got <strong>0%</strong> on the held-out parametric reversals. Codebook tasks show a related failure: the model recalls pieces, and uses pieces flexibly in context, but struggles to compose the latent implication from weights alone.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — explicit statements can imply latent facts</span>
+  <p>$$\text{All }X\subseteq Y,\quad Y\cap Z=\varnothing \quad \Rightarrow \quad X\cap Z=\varnothing$$</p>
+  <p>The left side is explicit in the documents. The right side is latent: true given the documents, but not necessarily written. The lecture’s question is whether the model can recover that latent fact from weights, context, retrieval, or reasoning traces.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    D["Training documents<br/>forward relations + syllogisms"] --> P["Parametric route<br/>gradient descent into weights"]
+    D --> C["In-context route<br/>tokens visible at test time"]
+    P --> PT["Often recalls explicit cue<br/>but weak on latent reversal"]
+    C --> CT["Can inspect statements<br/>and compose relation now"]
+    PT --> G["Generalization gap"]
+    CT --> G
+</div>
+<figcaption>The gap is not about whether the model has ever seen the information; it is about the form in which the information is available at test time.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why use nonsense nouns like “zamp” and “plusk”?</summary>
+<p>They block the model from leaning on real-world semantic associations. If the model succeeds, it is more likely using the provided structure rather than memorized facts about familiar categories.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Why context can be more flexible</h2>
+<p>Lampinen’s interpretation is not “weights are bad, context is good.” It is more precise: weights are excellent at consolidating statistical structure across many documents, while context preserves specific episodes in richer detail. Those have different strengths.</p>
+
+<h3 id="s3a">3.1 Explicit vs latent information</h3>
+<p>Training documents often contain more than their literal surface. “X is Y’s parent” explicitly gives one direction; it latently implies “Y is X’s child.” Two syllogism premises explicitly give two statements; they latently imply a conclusion. A model trained by next-token prediction may become very good at the explicit continuation while failing to expose all latent implications when asked from a new angle.</p>
+<p>At the same time, parametric learning can generalize through <strong>statistics</strong>. If training data contains “eagles fly,” “pigeons are birds,” “pigeons have wings,” “hawks fly,” and many similar co-occurrences, a model may infer “eagles have wings” without doing a crisp logical syllogism. That is a legitimate statistical shortcut in expectation, but it can fail on exceptions such as penguins.</p>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 310" width="100%" height="310" role="img" aria-label="Parametric and in-context generalization schematic">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1b1f24"></path>
+    </marker>
+  </defs>
+  <rect x="30" y="40" width="210" height="210" rx="18" fill="#fff8e8" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="135" y="75" text-anchor="middle" font-size="18" font-weight="700" fill="#1b1f24">Training corpus</text>
+  <text x="55" y="115" font-size="15" fill="#1b1f24">Explicit: X contains Y</text>
+  <text x="55" y="145" font-size="15" fill="#1b1f24">Explicit: all X are Y</text>
+  <text x="55" y="175" font-size="15" fill="#1b1f24">Latent: reverse / compose</text>
+  <text x="55" y="210" font-size="15" fill="#1b1f24">Statistics across many docs</text>
+
+  <rect x="315" y="25" width="210" height="115" rx="18" fill="#e9f2ff" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="420" y="60" text-anchor="middle" font-size="18" font-weight="700" fill="#1b1f24">Weights</text>
+  <text x="340" y="92" font-size="15" fill="#1b1f24">Compressed, broad, fast</text>
+  <text x="340" y="118" font-size="15" fill="#1b1f24">May lose useful detail</text>
+
+  <rect x="315" y="175" width="210" height="115" rx="18" fill="#ebffe9" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="420" y="210" text-anchor="middle" font-size="18" font-weight="700" fill="#1b1f24">Context</text>
+  <text x="340" y="242" font-size="15" fill="#1b1f24">Detailed, inspectable</text>
+  <text x="340" y="268" font-size="15" fill="#1b1f24">Limited by window</text>
+
+  <rect x="600" y="95" width="185" height="120" rx="18" fill="#f6efff" stroke="#1b1f24" stroke-width="2"></rect>
+  <text x="692" y="130" text-anchor="middle" font-size="18" font-weight="700" fill="#1b1f24">Answer</text>
+  <text x="625" y="162" font-size="15" fill="#1b1f24">Which source wins?</text>
+  <text x="625" y="188" font-size="15" fill="#1b1f24">Can latent facts surface?</text>
+
+  <line x1="240" y1="110" x2="315" y2="82" stroke="#1b1f24" stroke-width="2.5" marker-end="url(#arrow)"></line>
+  <line x1="240" y1="185" x2="315" y2="232" stroke="#1b1f24" stroke-width="2.5" marker-end="url(#arrow)"></line>
+  <line x1="525" y1="82" x2="600" y2="132" stroke="#1b1f24" stroke-width="2.5" marker-end="url(#arrow)"></line>
+  <line x1="525" y1="232" x2="600" y2="178" stroke="#1b1f24" stroke-width="2.5" marker-end="url(#arrow)"></line>
+</svg>
+</div>
+<figcaption>The “money” schematic: weights consolidate broadly; context preserves detail; both can push the final answer.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Mechanistic intuition</span>
+  <p>Induction-style circuits and attention can reuse patterns that are literally present in the current sequence: “I saw a relation earlier; now I can copy, reverse, or compose it for this query.” Weights supply the procedures for doing that. But when the relation is only compressed into weights, the model may not retrieve the exact episode in the form the query requires.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is “compression” both a feature and a bug?</summary>
+<p>It is a feature because compression extracts reusable statistical structure across many documents. It is a bug when the compressed representation drops details needed for a later, unanticipated generalization.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Bridging the gap: three paths from the talk</h2>
+<p>The second half of the talk asks how to make latent information usable when plain parametric learning fails. Lampinen organizes the solutions by <strong>when</strong> compute is spent: before deployment, during retrieval, or during test-time reasoning.</p>
+
+<h3 id="s4a">4.1 Augment, retrieve, or think</h3>
+<p><strong>Train-time augmentation</strong> uses in-context learning to generate reasoning traces from the dataset: fill in reversals, connect documents, and make latent conclusions explicit. Those traces are then distilled back into the weights by fine-tuning. This can match in-context performance on reversal-like tasks and even exceed it on syllogisms because many sampled traces create more chances to expose the right link.</p>
+<p><strong>Test-time episodic retrieval</strong> pulls relevant training episodes back into context. Lampinen’s experiments used an oracle memory with perfect recall but imperfect precision: it always includes something useful plus distractors. Even with distractors, retrieval greatly improves reversal and codebook latent tests because the model can reason over the specific retrieved facts as context.</p>
+<p><strong>RL-trained test-time thinking</strong> asks the model to regenerate useful facts in its chain of thought. It helps on several structures and can generalize from one dataset to another, but reversals remain hard: to reverse “X contains Y,” the model often has to find the forward fact first, which becomes an inefficient search at scale.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the augmentation idea</span>
+  <p>$$D_{\text{aug}}=D_{\text{train}}\cup \{\text{ICL}(D_{\text{train}}, d_i)\;:\; d_i\in D_{\text{train}}\}$$</p>
+  <p>Read this as: start with the original training documents \\(D_{\text{train}}\\); ask the model, with the dataset in context, to elaborate each document \\(d_i\\); add those generated implications to form an augmented dataset \\(D_{\text{aug}}\\). The new text does not create magical new information; it makes already-implied information explicit and usable.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Latent fact needed at test time"] --> B{"How can we surface it?"}
+    B --> C["Offline augmentation<br/>generate traces, then fine-tune"]
+    B --> D["Online retrieval<br/>put episodes in context"]
+    B --> E["Online thinking<br/>regenerate useful facts"]
+    C --> F["Cost: train-time compute<br/>Benefit: cheap inference"]
+    D --> G["Cost: longer prompts + retriever<br/>Benefit: fresh facts"]
+    E --> H["Cost: longer reasoning traces<br/>Benefit: less anticipation needed"]
+</div>
+<figcaption>The three repair strategies differ less in intent than in where they spend compute and where the information lives.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Synthetic augmentation discovers brand-new facts.”</strong> The lecture’s stronger claim is subtler: augmentation can extract <em>usable</em> information that was already latent in the data, like a syllogism conclusion implied by premises. This is why the “data processing inequality” objection is not the whole story under computational constraints.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — when would retrieval beat fine-tuning?</summary>
+<p>When the needed information is fresh, rare, user-specific, or useful in an unanticipated way. Retrieval can put the original episode into context without changing the whole model.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked micro-example (#2) — a knowledge conflict by hand</h2>
+<p>Now make the routing problem numerical. The prompt says: <strong>“The CEO of Acme is Dana.”</strong> The model’s weights, from older training data, encode a prior leaning toward <strong>Sam</strong>. We will represent the two candidate answers by logits: one logit from context-supported evidence, one from parametric prior.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Candidate answers: \\(a_c=\\) Dana (context-supported) and \\(a_p=\\) Sam (parametric prior).</p>
+  <p>Strong prompt evidence gives logits</p>
+  <p>$$z_{\text{Dana}}=3.0,\qquad z_{\text{Sam}}=2.0.$$</p>
+  <p>Softmax probabilities are</p>
+  <p>$$p(\text{Dana})=\frac{e^{3.0}}{e^{3.0}+e^{2.0}}=\frac{20.09}{20.09+7.39}=\frac{20.09}{27.48}\approx 0.73,$$</p>
+  <p>$$p(\text{Sam})=\frac{e^{2.0}}{e^{3.0}+e^{2.0}}=\frac{7.39}{27.48}\approx 0.27.$$</p>
+  <p>So the model favors the in-context answer Dana. If the context is weak or buried, its contribution might drop to \\(z_{\text{Dana}}=1.5\\) while the parametric prior remains \\(z_{\text{Sam}}=2.0\\):</p>
+  <p>$$p(\text{Dana})=\frac{e^{1.5}}{e^{1.5}+e^{2.0}}=\frac{4.48}{4.48+7.39}=\frac{4.48}{11.87}\approx 0.38,$$</p>
+  <p>and now Sam wins with probability \\(0.62\\). The arithmetic captures the qualitative point: the model is not guaranteed to obey context; it depends on how strongly context evidence is represented and how strong the weight-based prior is.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what happens when context is absent?</summary>
+<p>If Dana has no context support, imagine logits \\(z_{\text{Dana}}=0.0\\), \\(z_{\text{Sam}}=2.0\\). Then \\(p(\text{Sam})=e^2/(e^2+e^0)=7.39/(7.39+1)=0.88\\). The model mostly follows its parametric prior.</p></details>
+
+<details class="check"><summary>✓ Check yourself — how could a stronger prompt flip the answer more decisively?</summary>
+<p>Raise the context-supported logit, for example by providing a clear retrieved source: \\(z_{\text{Dana}}=4\\), \\(z_{\text{Sam}}=2\\). Then \\(p(\text{Dana})=e^4/(e^4+e^2)=54.60/(54.60+7.39)=0.88\\).</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace (#4) — answer one query from both paths</h2>
+<p>Trace the concrete query: <strong>“Who is the CEO of Acme?”</strong> The prompt includes one sentence: <code>The CEO of Acme is Dana.</code> The weights contain older statistical memory favoring Sam.</p>
+
+<table>
+  <tr><th>Step</th><th>Parametric path</th><th>In-context path</th><th>note</th></tr>
+  <tr><td>0 · query</td><td>Weights encode old associations between <span class="tt">Acme ↔ CEO ↔ Sam</span>.</td><td>The current prompt contains explicit tokens <span class="tt">CEO / Acme / Dana</span>.</td><td>Both sources are available before decoding.</td></tr>
+  <tr><td>1 · encode tokens</td><td>MLP and attention layers activate features for company facts, role questions, and answer style.</td><td>Attention can point from the query tokens back to the context sentence.</td><td>Weights supply the procedure for using context.</td></tr>
+  <tr><td>2 · retrieve evidence</td><td>The model may retrieve a compressed prior: “Acme CEO = Sam.”</td><td>Attention heads bind the current entity and role to the nearby answer token Dana.</td><td>This is where RAG helps: retrieved text becomes inspectable context.</td></tr>
+  <tr><td>3 · compose answer</td><td>The Sam prior contributes positive logit mass to <span class="tt">Sam</span>.</td><td>The Dana sentence contributes stronger logit mass to <span class="tt">Dana</span>.</td><td>In the worked example: Dana 3.0 vs Sam 2.0.</td></tr>
+  <tr><td>4 · decode</td><td>If context is weak, absent, or contradicted by many priors, the model may answer Sam.</td><td>If context is clear and salient, the model answers Dana.</td><td>The final answer reflects the balance, not a guaranteed rule.</td></tr>
+  <tr><td>5 · update choice</td><td>Fine-tune if “Dana is CEO” should become a durable behavior across many future prompts.</td><td>Use prompt/RAG if the fact is fresh, local, auditable, or likely to change.</td><td>This is the deployment tradeoff.</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">When to update weights vs supply context</span>
+  <p><strong>Update weights</strong> when you want a stable capability, style, policy, or recurring domain skill that should generalize across many situations and tolerate missing documents. <strong>Supply context</strong> when the information is fresh, source-grounded, user-specific, legally/auditably tied to documents, or likely to change. Most strong systems need both: weights learn how to reason and use evidence; context provides the particular evidence worth reasoning over today.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory before expanding the lecture again.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What is the difference between a fact stored in weights and a fact placed in context? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why does the reversal curse show a gap between parametric and in-context generalization? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How can statistical co-occurrence help a parametric model while still causing errors on exceptions? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Compare the compute tradeoffs of augmentation, retrieval, and test-time thinking. <a class="ref" href="#s4">(§4)</a></li>
+    <li>In the Acme example, recompute the softmax if the context logit is 2.5 and the parametric logit is 2.0. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain why retrieval can help even for documents that were already in pretraining.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Parametric knowledge</td><td>Information or skill encoded in the model’s weights through training.</td></tr>
+  <tr><td>In-context knowledge</td><td>Information supplied as prompt tokens at inference time, usable without weight updates.</td></tr>
+  <tr><td>Reversal curse</td><td>A failure where a model trained on “A relates to B” cannot answer the logically reversed query “what relates to B?”</td></tr>
+  <tr><td>Latent information</td><td>Information implied by documents but not explicitly written as the target answer.</td></tr>
+  <tr><td>Syllogistic generalization</td><td>Deriving a conclusion from premises, such as “all X are Y” and “no Y are Z” implying “no X are Z.”</td></tr>
+  <tr><td>Episodic retrieval</td><td>Bringing specific past documents or experiences back into context at test time.</td></tr>
+  <tr><td>Train-time augmentation</td><td>Generating extra traces or conclusions before training so latent implications become explicit examples.</td></tr>
+  <tr><td>Test-time compute</td><td>Spending extra inference steps, often reasoning tokens, to retrieve or compose useful information.</td></tr>
+  <tr><td>Knowledge conflict</td><td>A situation where prompt evidence and parametric priors support different answers.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Andrew Lampinen et al. (2025). <strong>On the generalization of language models from in-context learning and finetuning: a controlled study.</strong> <a class="ref" href="https://arxiv.org/abs/2505.00661">arXiv</a> — the main controlled comparison behind this talk.</li>
+  <li>Berglund et al. (2023). <strong>The Reversal Curse: LLMs trained on “A is B” fail to learn “B is A”.</strong> <a class="ref" href="https://arxiv.org/abs/2309.12288">arXiv</a> — the motivating reversal failure.</li>
+  <li>Andrew Kyle Lampinen et al. (2025). <strong>Latent learning: episodic memory complements parametric learning by enabling flexible reuse of experiences.</strong> <a class="ref" href="https://arxiv.org/abs/2509.16189">arXiv</a> — the retrieval / episodic-memory route.</li>
+  <li>Arslan Chaudhry, Sridhar Thiagarajan, and Andrew Lampinen (2026). <strong>Improving Latent Generalization Using Test-time Compute.</strong> <a class="ref" href="https://arxiv.org/abs/2604.01430">arXiv</a> — the RL-trained thinking route described in the talk.</li>
+  <li>Xu et al. (2020). <strong>A Theory of Usable Information Under Computational Constraints.</strong> <a class="ref" href="https://arxiv.org/abs/2002.10689">arXiv</a> — why information being present is different from information being usable.</li>
+  <li>Noroozizadeh et al. (2025). <strong>Deep sequence models tend to memorize geometrically; it is unclear why.</strong> <a class="ref" href="https://arxiv.org/abs/2510.26745">arXiv</a> — the lecture’s example of statistical structure in parametric memory.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="08-transformer-circuits.html">CS25 Note 8 — Transformer Circuits &amp; Induction Heads</a> — for the mechanism-level intuition behind pattern copying in context.</li>
+  <li><a class="ref" href="25-retrieval-augmented-lms.html">CS25 Note 25 — Retrieval-Augmented Language Models</a> — for the parametric vs non-parametric memory framing used in RAG.</li>
+  <li>Lewis et al. (2020). <strong>Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.</strong> <a class="ref" href="https://arxiv.org/abs/2005.11401">arXiv</a> — the classic RAG formulation.</li>
+  <li>Kumaran, Hassabis, and McClelland (2016). <strong>What Learning Systems do Intelligent Agents Need? Complementary Learning Systems Theory Updated.</strong> <a class="ref" href="https://doi.org/10.1016/j.tics.2016.05.004">Trends in Cognitive Sciences</a> — background for the hippocampus/neocortex analogy.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="47-collaborative-ai-agents.html">◀ Previous: Collaborative AI agents</a>
+  <a class="r" href="49-serving-transformers.html">Next: Serving transformers ▶</a>
+</div>
+
+<div class="foot">
+  STANFORD CS25 — study notes · Note 48 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

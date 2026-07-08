@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 43 — From Representation Learning to World Modeling</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · From pictures to latent futures</a>
+  <a href="#s1a" class="sub">1.1 World models as simulators</a>
+  <a href="#s1b" class="sub">1.2 JEPA versus reconstruction</a>
+  <a href="#s2">2 · Causal-JEPA</a>
+  <a href="#s2a" class="sub">2.1 Objects, slots, and masking</a>
+  <a href="#s2b" class="sub">2.2 Actions as nodes</a>
+  <a href="#s3">3 · LeWorldModel</a>
+  <a href="#s3a" class="sub">3.1 Avoiding collapse with SIGReg</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Planning with learned latents</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 9 · Note 3 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>From Representation Learning to World Modeling</h1>
+  <p class="lead">Hazel Nam and Lucas Maes trace a research arc: learn useful representations first, then learn latent-space dynamics that can predict, notice violations, and plan actions.</p>
+  <div class="meta">
+    <span class="pill">🎓 Hazel (Heejeong) Nam · Lucas Maes</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=GBd7iuJkW08" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A robot does not need to predict every pixel of a leaf shaking in the background. It needs to know what will happen if it pushes the blue ball, whether a bar should fall under gravity, and which action sequence moves the T-block into the goal. The talk's central claim is that intelligence needs <strong>representations that preserve predictive structure</strong>, not reconstructions that spend capacity on irrelevant detail.</p>
+  <p>This is the bridge from classic self-supervised representation learning to world models: first learn a compact state; then learn how that state changes under actions. It cross-links naturally with <a class="ref" href="18-predictive-coding.html">Note 18 on predictive coding</a> and <a class="ref" href="39-world-models-for-biology.html">Note 39 on world models for biology</a>.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a mental physics sketchbook</span>
+  <p>Imagine sketching a little comic strip before you act. You do not render every pixel; you draw the objects, their positions, and arrows for likely motion. JEPA-style world models try to learn that sketchbook: object/state embeddings plus rules for how the sketch updates when you act.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Self-supervised learning</strong> — train on structure already present in data, such as predicting a masked part or matching paired views; here it supplies the representation before labels or rewards.</li>
+    <li><strong>Contrastive vs. masked prediction</strong> — contrastive methods such as SimCLR/CLIP pull matched views together and push mismatches apart; masked methods such as BERT/MAE hide part of the input and predict it.</li>
+    <li><strong>Embedding / latent space</strong> — a vector space where the model stores what matters; JEPA predicts there rather than in raw pixels.</li>
+    <li><strong>Energy-based model and collapse</strong> — low energy means compatible pairs; without constraints, a latent model can collapse by mapping every input to the same vector.</li>
+    <li><strong>Model-based RL / planning</strong> — learn a simulator, roll out candidate actions inside it, and choose actions that reach a goal.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>From pictures to latent futures</h2>
+<p>Hazel opens with a simple progression. An autoregressive predictor says: given the previous state, predict the next state. But the world is not only a movie; it is a place where actions intervene. A world model therefore asks, “if I am in state \(s_t\) and take action \(a_t\), what state \(s_{t+1}\) should I expect?”</p>
+
+<h3 id="s1a">1.1 World models as action-conditioned simulators</h3>
+<p>The talk identifies three design questions for a useful world model:</p>
+<ul>
+  <li><strong>State representation:</strong> what compact state faithfully reflects the scene?</li>
+  <li><strong>Transition model:</strong> what regularities govern change, such as gravity or object contact?</li>
+  <li><strong>Dynamics model:</strong> how should the state react to an action?</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — action-conditioned prediction</span>
+  <p>$$ z_{t+1} \approx f_\theta(z_t, a_t) $$</p>
+  <p>Here \(z_t\) is the learned latent state at time \(t\), \(a_t\) is the action, and \(f_\theta\) is the learned transition/predictor. The core shift is from pixels \(x_t\) to latents \(z_t = E_\phi(x_t)\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    O["observation x_t"] --> E["encoder E"]
+    E --> Z["latent state z_t"]
+    A["action a_t"] --> P["predictor f"]
+    Z --> P
+    P --> ZN["predicted latent z_{t+1}"]
+</div>
+<figcaption>A world model is a simulator in a learned state space: current latent plus action predicts the next latent.</figcaption>
+</figure>
+
+<h3 id="s1b">1.2 JEPA versus pixel reconstruction</h3>
+<p>Generative world models compare predictions to raw future pixels. JEPA instead encodes both the context and the target, then compares in representation space. Hazel's reason is uncertainty: future pixels contain details a planner may not need, while a good latent can keep the information that is predictive and actionable.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — JEPA prediction loss</span>
+  <p>$$ \mathcal L_{\text{pred}} = \left\|p_\theta(E_\phi(x), a) - E_\psi(y)\right\|_2^2 $$</p>
+  <p>\(x\) is the context, \(y\) is the target or future, \(E_\phi\) and \(E_\psi\) encode them, and \(p_\theta\) predicts the target embedding. If \(y\) contains irrelevant texture, the target embedding can learn to ignore it.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph G["Generative world model"]
+      GX["context x"] --> GE["encoder"] --> GP["predictor/decoder"] --> GY["future pixels y_hat"]
+      GY --> GL["compare to pixels y"]
+    end
+    subgraph J["JEPA world model"]
+      JX["context x"] --> JE["encoder"] --> JP["predictor"] --> JZ["predicted target embedding"]
+      JY["target/future y"] --> JTE["target encoder"] --> JZT["actual target embedding"]
+      JZ --> JL["compare in latent space"]
+      JZT --> JL
+    end
+</div>
+<figcaption>JEPA removes the pixel decoder from the learning target; the comparison happens between embeddings.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“No decoder” is the whole point.</strong> Not quite. The deeper point is selective prediction: the model should assign low energy to plausible futures and high energy to incompatible futures, without being forced to model every unpredictable visual detail.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is a moving leaf a bad pixel-level target for driving?</summary>
+<p>Because the leaf may dominate pixel loss while contributing little to the driving decision. A latent target can represent road geometry, objects, and motion while discarding leaf texture or exact flutter.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Causal-JEPA: make the model need object interactions</h2>
+<p>Hazel's Causal-JEPA part asks a sharper question: if the scene is made of objects, can the model learn how objects influence one another? The talk's concrete examples are Push-T, CLEVRER, and PHYRE: pushing a T-shaped block, answering counterfactual video questions, and judging physical plausibility.</p>
+
+<h3 id="s2a">2.1 Objects, slots, and masking</h3>
+<p>Instead of representing an image as many DINO patches, Causal-JEPA uses object-centric representations. Slot attention is the mental model: features are gathered into a fixed number of “baskets,” ideally one per object. The twist is <strong>object masking</strong>. If one object's future slot is hidden, the predictor cannot succeed by copying or interpolating that object alone; it must attend to relevant other objects.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    F["history frames"] --> S["object-centric encoder<br/>slots over time"]
+    S --> M["mask selected object slots"]
+    A["action token<br/>as separate node"] --> T["bidirectional transformer predictor"]
+    M --> T
+    T --> H["predicted masked slots"]
+    Y["target slots from future"] --> L["latent prediction loss"]
+    H --> L
+</div>
+<figcaption>Causal-JEPA trains by hiding object slots and forcing the predictor to infer them from other objects, history, and action.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The monkey-and-banana test</span>
+  <p>Hazel's motivating example: if the banana is hidden but the monkey keeps chewing, a good world model should infer that the banana is shrinking. If the monkey is hidden while the banana disappears, it should infer that the monkey is eating. Masking turns that intuition into a training pressure.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — masked object prediction</span>
+  <p>$$ \mathcal L_{\text{C-JEPA}} = \sum_{(i,t)\in M}\left\|\hat z_{i,t} - z_{i,t}\right\|_2^2 $$</p>
+  <p>\(i\) indexes an object slot, \(t\) indexes time, \(M\) is the set of masked slots, \(\hat z_{i,t}\) is the predictor's guess, and \(z_{i,t}\) is the target slot embedding.</p>
+</div>
+
+<h3 id="s2b">2.2 Actions as nodes, not pasted-on features</h3>
+<p>The talk criticizes concatenating the same action embedding onto every visual token. In Causal-JEPA, the action is treated more like another node in an interaction graph. That matches the causal motivation: objects and actions are entities whose relations explain change. Hazel is careful about epistemic status: the method does <em>not</em> recover the true causal graph; it learns temporally directed predictive dependencies under assumptions.</p>
+
+<details class="check"><summary>✓ Check yourself — why does masking help more than “object slots only”?</summary>
+<p>Object slots make the state cleaner, but the model can still learn shortcuts. Masking removes the easy path for selected objects, so the predictor must use an influence neighborhood: the other objects/history/actions sufficient to predict the hidden slot.</p></details>
+
+<div class="box pitfall">
+  <span class="lbl">Limits named in the talk</span>
+  <p>Causal-JEPA depends on faithful object-centric encoders. Occlusion, appearing/disappearing objects, slot swapping, and choosing how many slots to mask remain pain points. The “causal” claim is about predictive dependencies, not guaranteed recovery of a true causal graph.</p>
+</div>
+
+<h2 id="s3"><span class="num">3.</span>LeWorldModel: end-to-end JEPA without the usual tricks</h2>
+<p>Lucas then asks how to train the JEPA world model itself simply. Prior JEPAs often rely on frozen encoders, exponential moving averages, stop-gradients, masking recipes, or multi-term anti-collapse losses. LeWorldModel's thesis is deliberately minimal: encode the current and next observations, predict the next embedding from current embedding plus action, and add a single regularizer to prevent collapse.</p>
+
+<h3 id="s3a">3.1 Avoiding collapse with SIGReg</h3>
+<p>Collapse is the trivial solution \(E(x)=c\) for every input. Prediction becomes easy, but the representation contains no state. LeWorldModel uses SIGReg, the Sketched Isotropic Gaussian Regularizer: project batch embeddings onto many random one-dimensional directions and push those projected distributions toward a standard Gaussian. By the Cramér-Wold intuition, matching many one-dimensional projections constrains the full high-dimensional distribution.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — LeWorldModel loss</span>
+  <p>$$ \mathcal L = \underbrace{\left\|p_\theta(z_t,a_t)-z_{t+1}\right\|_2^2}_{\text{predict the next latent}} + \lambda\,\underbrace{\mathcal R_{\text{SIGReg}}(z_t,z_{t+1})}_{\text{avoid collapse}} $$</p>
+  <p>Only \(\lambda\) balances the prediction term and the regularizer. The talk emphasizes this as a practical simplification compared with six-term alternatives such as PLDM-style losses.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    B["batch of embeddings"] --> R1["random direction r_1"]
+    B --> R2["random direction r_2"]
+    B --> RK["random direction r_k"]
+    R1 --> U1["1-D projected samples"]
+    R2 --> U2["1-D projected samples"]
+    RK --> UK["1-D projected samples"]
+    U1 --> N["make projections look Gaussian"]
+    U2 --> N
+    UK --> N
+    N --> C["non-collapsed latent space"]
+</div>
+<figcaption>SIGReg prevents the “everything maps to one point” solution by shaping the batch distribution of embeddings.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why would constant embeddings minimize prediction loss?</summary>
+<p>If every observation encodes to \(c\), then the predictor can always output \(c\). The error \(\|c-c\|^2\) is zero, but the representation has discarded the world state. Anti-collapse regularization forbids that degenerate distribution.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked example — a JEPA objective in 2-D</h2>
+<p>Numbers make the latent-prediction idea concrete. Suppose a context embedding predicts the target embedding for the next/hidden part of a scene.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Let the actual target embedding be \(z=[2,1]\) and the predictor output be \(\hat z=[1.5,1.2]\). The squared-error JEPA loss is</p>
+  <p>$$\begin{aligned}
+  \mathcal L &= \|\hat z-z\|_2^2 \\
+  &= (1.5-2)^2 + (1.2-1)^2 \\
+  &= (-0.5)^2 + (0.2)^2 \\
+  &= 0.25 + 0.04 = 0.29.
+  \end{aligned}$$</p>
+  <p>Now compare with pixel reconstruction. Imagine the target has two meaningful latent coordinates but also a nuisance pixel detail \(\epsilon\) for texture/noise. Two futures can share \(z=[2,1]\) while having \(\epsilon=0.1\) or \(\epsilon=0.9\). A pixel loss must chase that difference; a latent JEPA loss can ignore it if \(E\) maps both to the same predictive state.</p>
+</div>
+
+<table>
+  <tr><th>Quantity</th><th>Value</th><th>Interpretation</th></tr>
+  <tr><td>Prediction</td><td class="tt">[1.5, 1.2]</td><td>The model's sketch of the hidden/future target.</td></tr>
+  <tr><td>Target embedding</td><td class="tt">[2.0, 1.0]</td><td>The target encoder's sketch of what actually happened.</td></tr>
+  <tr><td>Error vector</td><td class="tt">[-0.5, 0.2]</td><td>Underpredicted coordinate 1, slightly overpredicted coordinate 2.</td></tr>
+  <tr><td>Loss</td><td class="tt">0.29</td><td>The training signal for the predictor and, in end-to-end versions, the encoder.</td></tr>
+</table>
+
+<details class="check"><summary>✓ Check yourself — if \(\hat z=[1.8,0.7]\), what is the loss?</summary>
+<p>\((1.8-2)^2+(0.7-1)^2=(-0.2)^2+(-0.3)^2=0.04+0.09=0.13\). This prediction is closer than the first one.</p></details>
+
+<details class="check"><summary>✓ Check yourself — why can embedding prediction avoid wasting capacity on noise?</summary>
+<p>The target encoder can map nuisance variations to nearly the same latent state when they do not help predict dynamics or solve downstream tasks. Pixel reconstruction cannot do that because every visible detail contributes directly to the loss.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one predictive/world-model training step</h2>
+<p>Follow one masked-frame training example through the pipeline. The shapes are illustrative: \(B\) is batch size, \(K\) object slots or tokens, \(d\) latent width, and \(m\) masked targets.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · input</td><td>Take a masked image/video context or current frame \(x_t\), plus action \(a_t\) if this is control.</td><td class="tt">x_t: B×H×W×C; a_t: B×A</td></tr>
+  <tr><td>1 · encoder</td><td>Encode the visible context into latent tokens or object slots.</td><td class="tt">z_t: B×K×d</td></tr>
+  <tr><td>2 · context embedding</td><td>Keep visible slots/history; replace selected future/object slots with learned mask tokens.</td><td class="tt">context: B×K×d; mask M: B×m</td></tr>
+  <tr><td>3 · predictor</td><td>A transformer predicts target embeddings from context, history, and action-as-node/action-conditioning.</td><td class="tt">z_hat_target: B×m×d</td></tr>
+  <tr><td>4 · target encoder</td><td>Encode the masked/future part \(y\) to obtain the target embedding.</td><td class="tt">z_target: B×m×d</td></tr>
+  <tr><td>5 · loss</td><td>Compare predicted and actual target embeddings; add anti-collapse regularization when training end-to-end.</td><td class="tt">scalar L = MSE + λR</td></tr>
+  <tr><td>6 · update</td><td>Backpropagate through predictor and, for LeWorldModel-style training, through the encoder too.</td><td class="tt">θ, φ updated</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Representation-prediction vs. pixel-reconstruction</span>
+  <p>Pixel reconstruction asks, “can you redraw the frame?” Representation prediction asks, “can you predict the state that matters?” That is why the learned model can be useful for planning even when it is not a perfect video generator.</p>
+</div>
+
+<h2 id="s6"><span class="num">6.</span>Planning with learned latents — and what remains open</h2>
+<p>Once a world model predicts latents, an agent can plan by rolling it forward. Lucas describes sampling or optimizing action sequences, rolling out \(z_{t+1}, z_{t+2},\dots\), and minimizing distance to a goal embedding. This is close in spirit to Dreamer-style model-based RL, but the talk emphasizes JEPA latent prediction rather than reconstructive latent dynamics.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — latent planning objective</span>
+  <p>$$ \min_{a_{t:t+H-1}} \sum_{h=1}^{H} d\!\left(z_{t+h}(a_{t:t+h-1}), z_g\right) $$</p>
+  <p>The planner searches for an action sequence whose rolled-out latent states get close to the goal latent \(z_g\). In the talk, distance can be mean-squared error in latent space.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    C["current observation"] --> EC["encode to z_1"]
+    G["goal observation"] --> EG["encode to z_g"]
+    EC --> R["roll out candidate actions"]
+    R --> Z2["z_2"] --> Z3["z_3"] --> ZH["z_H"]
+    EG --> D["distance to goal"]
+    Z2 --> D
+    Z3 --> D
+    ZH --> D
+    D --> A["optimize actions"]
+</div>
+<figcaption>Planning uses the learned world model as an internal simulator, then chooses actions that reduce latent distance to a goal.</figcaption>
+</figure>
+
+<p>The empirical claims in the lecture are practical rather than final: Causal-JEPA improves counterfactual/object-dynamics behavior in CLEVRER, Push-T, and PHYRE-style settings; LeWorldModel can be trained end-to-end from pixels with a small model and, in reported tasks, plan much faster than patch-heavy baselines. The frontier is still open: longer horizons, hierarchy, real robotics, partial observability, goal specification, and evaluating whether VLA-style policies really understand action consequences.</p>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 240" width="100%" height="240" role="img" aria-label="JEPA sketchbook schematic">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1b1f24" /></marker>
+  </defs>
+  <rect x="20" y="30" width="145" height="150" rx="14" fill="#ffffff" stroke="#1b1f24" />
+  <text x="92" y="58" text-anchor="middle" font-size="16" fill="#1b1f24">raw frames</text>
+  <circle cx="65" cy="115" r="22" fill="#6ea8fe" opacity="0.85" />
+  <rect x="100" y="96" width="40" height="40" rx="6" fill="#c8a2ff" opacity="0.9" />
+  <path d="M165 105 C210 105, 210 105, 255 105" stroke="#1b1f24" stroke-width="3" fill="none" marker-end="url(#arrow)" />
+  <rect x="255" y="30" width="155" height="150" rx="14" fill="#ffffff" stroke="#1b1f24" />
+  <text x="333" y="58" text-anchor="middle" font-size="16" fill="#1b1f24">latent sketch</text>
+  <text x="333" y="100" text-anchor="middle" font-size="15" fill="#1b1f24">objects + state</text>
+  <text x="333" y="130" text-anchor="middle" font-size="15" fill="#1b1f24">not every pixel</text>
+  <path d="M410 105 C455 105, 455 105, 500 105" stroke="#1b1f24" stroke-width="3" fill="none" marker-end="url(#arrow)" />
+  <rect x="500" y="30" width="220" height="150" rx="14" fill="#ffffff" stroke="#1b1f24" />
+  <text x="610" y="58" text-anchor="middle" font-size="16" fill="#1b1f24">world model</text>
+  <text x="610" y="95" text-anchor="middle" font-size="15" fill="#1b1f24">predicts next sketch</text>
+  <text x="610" y="125" text-anchor="middle" font-size="15" fill="#1b1f24">under action a_t</text>
+  <text x="610" y="155" text-anchor="middle" font-size="15" fill="#2f6df6">plan by rollout</text>
+</svg>
+</div>
+<figcaption>The “money” schematic: world modeling as learning and rolling forward a compact mental sketchbook.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why can LeWorldModel plan faster than patch-level DINO World Model?</summary>
+<p>Patch-level models roll out many tokens and pay transformer attention costs over them. LeWorldModel represents the state with a single/global embedding in the talk, so each rollout step is much cheaper.</p></details>
+
+<div class="box pitfall">
+  <span class="lbl">Opinion / epistemic status</span>
+  <p>The speakers argue that physical AI needs world models because reliable interaction requires predicting action consequences. That is a research thesis, not a settled theorem. The evidence is strongest in controlled tasks; real-world robotics, long-horizon hierarchy, and goal specification remain active research problems.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does a world model need actions, not only previous states? <a class="ref" href="#s1a">(§1.1)</a></li>
+    <li>What changes when JEPA compares in latent space instead of pixel space? <a class="ref" href="#s1b">(§1.2)</a></li>
+    <li>How does object masking in Causal-JEPA pressure the model to learn interactions? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Why does collapse happen, and how does SIGReg fight it? <a class="ref" href="#s3a">(§3.1)</a></li>
+    <li>Redo the 2-D loss computation with a new prediction. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain JEPA world modeling to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>World model</td><td>A learned simulator that predicts future state, often conditioned on actions.</td></tr>
+  <tr><td>JEPA</td><td>Joint-Embedding Predictive Architecture: predict a target's embedding rather than reconstructing raw input.</td></tr>
+  <tr><td>Representation collapse</td><td>A degenerate solution where every input maps to the same embedding.</td></tr>
+  <tr><td>Object-centric representation</td><td>A latent state organized around objects or slots instead of image patches alone.</td></tr>
+  <tr><td>Slot attention</td><td>An attention mechanism that binds features to a fixed set of learned object slots.</td></tr>
+  <tr><td>Influence neighborhood</td><td>The predictively sufficient set of other objects/history/actions needed to infer a masked object state.</td></tr>
+  <tr><td>SIGReg</td><td>Sketched Isotropic Gaussian Regularizer; pushes latent embeddings toward a non-collapsed Gaussian distribution using random projections.</td></tr>
+  <tr><td>Model predictive control</td><td>Plan by repeatedly rolling out a model over a horizon, taking an action, and replanning.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Yann LeCun (2022). <strong>A Path Towards Autonomous Machine Intelligence.</strong> <a class="ref" href="https://openreview.net/forum?id=BZ5a1r-kVsf" target="_blank">OpenReview</a> — the JEPA / energy-based world-model program behind the lecture.</li>
+  <li>Assran et al. (2023). <strong>Self-Supervised Learning from Images with a Joint-Embedding Predictive Architecture.</strong> <a class="ref" href="https://arxiv.org/abs/2301.08243" target="_blank">arXiv</a> — I-JEPA: predict representations of masked image regions.</li>
+  <li>Bardes et al. (2024). <strong>Revisiting Feature Prediction for Learning Visual Representations from Video.</strong> <a class="ref" href="https://arxiv.org/abs/2404.08471" target="_blank">arXiv</a> — V-JEPA: video JEPA with spatiotemporal masking.</li>
+  <li>Locatello et al. (2020). <strong>Object-Centric Learning with Slot Attention.</strong> <a class="ref" href="https://arxiv.org/abs/2006.15055" target="_blank">arXiv</a> — the slot-attention mechanism Hazel uses as background.</li>
+  <li>Yi et al. (2019). <strong>CLEVRER: Collision Events for Video Representation and Reasoning.</strong> <a class="ref" href="https://arxiv.org/abs/1910.01442" target="_blank">arXiv</a> — benchmark for predictive, explanatory, and counterfactual video reasoning.</li>
+  <li>Bakhtin et al. (2019). <strong>PHYRE: A New Benchmark for Physical Reasoning.</strong> <a class="ref" href="https://arxiv.org/abs/1908.05656" target="_blank">arXiv</a> — physical-interaction benchmark named in the Causal-JEPA experiments.</li>
+  <li>Hafner et al. (2023). <strong>Mastering Diverse Domains through World Models.</strong> <a class="ref" href="https://arxiv.org/abs/2301.04104" target="_blank">arXiv</a> — DreamerV3 as a canonical model-based RL reference.</li>
+  <li>Maes et al. (2026). <strong>LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels.</strong> <a class="ref" href="https://le-wm.github.io/" target="_blank">project page</a> — Lucas Maes's end-to-end JEPA world model discussed in the talk.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Meta AI. <strong>V-JEPA 2.</strong> <a class="ref" href="https://ai.meta.com/blog/v-jepa-2-world-model-benchmarks/" target="_blank">blog</a> — action-conditioned JEPA-style world modeling at larger scale.</li>
+  <li>stable-worldmodel. <strong>Open-source world-model training library.</strong> <a class="ref" href="https://github.com/galilai-group/stable-worldmodel" target="_blank">GitHub</a> — the library Lucas advertises for training and evaluating baselines.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="42-v6-overview.html">◀ Previous: V6 overview</a>
+  <a class="r" href="44-state-space-models-tradeoffs.html">Next: State-space models tradeoffs ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 43 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>
+

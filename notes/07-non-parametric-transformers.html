@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 07 — Non-Parametric Transformers (NPTs)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why parametric prediction is not the only game</a>
+  <a href="#s1a" class="sub">1.1 The frozen-cookbook problem</a>
+  <a href="#s2">2 · Data as a matrix, not isolated rows</a>
+  <a href="#s2a" class="sub">2.1 Entries, masks, and embeddings</a>
+  <a href="#s3">3 · Attention between datapoints and attributes</a>
+  <a href="#s3a" class="sub">3.1 ABD: rows talk</a>
+  <a href="#s3b" class="sub">3.2 ABA: columns talk</a>
+  <a href="#s4">4 · Masked training objective</a>
+  <a href="#worked">5 · Worked numeric micro-example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Why it matters, when it helps, and limits</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 2 · Note 3 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V1 — LECTURE 7</div>
+  <h1>Self-Attention Between Datapoints: Non-Parametric Transformers (NPTs)</h1>
+  <p class="lead">NPTs ask a transformer to predict a masked table entry by looking not only across features, but across the other datapoints in the dataset.</p>
+  <div class="meta">
+    <span class="pill">🎓 Jannik Kossen &amp; Neil Band, introduced by Aidan Gomez</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=zejXBg-2Vpk" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Most deep models are like students who study a training set, compress it into weights \(\theta\), close the book, and answer each test question alone. That is convenient, but it throws away a powerful clue: at prediction time, nearby training examples, other test examples, and missing-feature patterns may still be sitting right there. Non-Parametric Transformers challenge that habit: feed the dataset itself to the model, and let datapoints look at each other before predicting.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a study hall, not solo exams</span>
+  <p>A parametric model takes a solo exam using only what it memorized in its notebook. An NPT sits the whole class in a study hall: each student is a datapoint, each subject column is an attribute, and attention lets students compare notes. The model still has learned rules, but the answer for one student can depend on what similar students wrote down.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh. Each is one line; skim, and dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Self-attention and Q/K/V</strong> — each item makes a query, compares it to keys, softmaxes scores, and averages values; here the "items" can be datapoints or attributes.</li>
+    <li><strong>Parametric vs non-parametric prediction</strong> — an MLP predicts from learned weights alone; kNN or Gaussian processes explicitly use stored data at prediction time.</li>
+    <li><strong>BERT-style masking</strong> — hide selected entries, ask the model to reconstruct them, and compute loss only where the answer was hidden.</li>
+    <li><strong>Tabular data</strong> — rows are examples and columns are semantically named attributes such as age, income, pixel, category, or target.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Why parametric prediction is not the only game</h2>
+<p>Imagine predicting a house price. A standard neural network can use the house's square footage, neighborhood, and age, plus whatever it encoded in \(\theta\) during training. But if three nearly identical houses in the current dataset sold yesterday, a human would look at them. NPTs give the model that option.</p>
+
+<h3 id="s1a">1.1 The frozen-cookbook problem</h3>
+<p>In the lecture's framing, most supervised deep learning does this:</p>
+<ol>
+  <li>Collect training pairs \((x_i,y_i)\).</li>
+  <li>Optimize parameters \(\theta\) on those pairs.</li>
+  <li>At test time, predict one new input \(x_*\) from \(\theta\) and \(x_*\), independent of the rest of the data.</li>
+</ol>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — parametric vs dataset-conditioned prediction</span>
+  <p>$$
+  \text{parametric:}\quad p(y_*\mid x_*,\theta)
+  $$</p>
+  <p>$$
+  \text{NPT-style:}\quad p(y_*\mid x_*,\mathcal{D}_{\text{context}},\theta)
+  $$</p>
+  <p>\(\mathcal{D}_{\text{context}}\) is the available batch or whole dataset, including observed features and sometimes observed training targets. \(\theta\) still matters, but it no longer has to be the only memory.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Train once<br/>learn theta"] --> B["Parametric prediction<br/>one row at a time"]
+    C["Dataset plus mask<br/>many rows together"] --> D["NPT prediction<br/>rows compare evidence"]
+    B --> E["Answer depends on<br/>x star and theta"]
+    D --> F["Answer depends on<br/>x star, theta, and context rows"]
+</div>
+<figcaption>Same supervised goal, different prediction interface: NPTs keep the data in the room.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Non-parametric" means "no learned parameters."</strong> Not here. NPTs have transformer weights. The non-parametric part is that predictions can explicitly depend on other datapoints supplied at prediction time, like a learned version of nearest-neighbor reasoning.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if the test batch changes, can an NPT's prediction for the same row change?</summary>
+<p>Yes. Because the row attends to other rows, the context set is part of the input. A parametric MLP's prediction for one row would not change merely because a different neighboring test example was present; an NPT's can.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Data as a matrix, not isolated rows</h2>
+<p>The primitive object in NPT is not a single feature vector. It is a table: \(n\) datapoints by \(d\) attributes. Some entries are observed; some are masked because they are targets to predict or features we deliberately hide during training.</p>
+
+<h3 id="s2a">2.1 Entries, masks, and embeddings</h3>
+<p>Let \(X\in\mathbb{R}^{n\times d}\) be the dataset matrix. NPT also receives a binary mask \(M\in\{0,1\}^{n\times d}\), where \(M_{ij}=1\) says "the entry \(X_{ij}\) is hidden and should be predicted." Each cell is embedded into an \(e\)-dimensional vector, so the working representation has shape \(n\times d\times e\).</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — cellwise embedding</span>
+  <p>$$
+  H^{(0)}_{i,j} = \operatorname{Embed}_j\!\left(X_{i,j}, M_{i,j}, \operatorname{type}(j)\right)\in\mathbb{R}^{e}
+  $$</p>
+  <p>\(i\) indexes rows/datapoints, \(j\) indexes attributes/columns, and \(\operatorname{Embed}_j\) may be different per attribute because "age" and "diagnosis" should not be exchangeable.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["Dataset matrix X<br/>n rows by d columns"] --> S["Stack mask M<br/>observed vs hidden entries"]
+    S --> E["Cell embeddings<br/>n by d by e"]
+    E --> L["NPT layers<br/>alternate row and column attention"]
+    L --> P["Predictions<br/>masked entries only"]
+</div>
+<figcaption>The model sees both values and the mask that says where prediction is required.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why the mask is part of the input</span>
+  <p>In the study-hall analogy, a blank answer is not the same as a zero. The mask tells the class which boxes are blank because we are asking for help, so attention can route evidence toward those blanks.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why learn different embeddings for different columns?</summary>
+<p>Because tabular columns have different semantics. A value of 1 in "is smoker" does not mean the same thing as a value of 1 in "number of rooms." Column-specific embeddings let the model treat attributes as named fields, not anonymous positions.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Attention between datapoints and attention between attributes</h2>
+<p>The architectural trick is to alternate two views of the same tensor. First, let rows compare complete datapoint representations. Then reshape and let columns inside each row compare feature representations. Rows talk; columns talk; repeat.</p>
+
+<h3 id="s3a">3.1 ABD: rows talk to rows</h3>
+<p><strong>Attention Between Datapoints (ABD)</strong> treats each row as one token by flattening its \(d\) attribute embeddings into a \(d e\)-dimensional row vector. Self-attention then runs across the \(n\) rows.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — ABD shapes</span>
+  <p>$$
+  H\in\mathbb{R}^{n\times d\times e}
+  \quad\xrightarrow{\operatorname{reshape}}\quad
+  R\in\mathbb{R}^{n\times (de)}
+  $$</p>
+  <p>$$
+  \operatorname{ABD}(R)=\operatorname{softmax}\!\left(\frac{Q_RK_R^\top}{\sqrt{h}}\right)V_R,
+  \qquad Q_RK_R^\top\in\mathbb{R}^{n\times n}.
+  $$</p>
+  <p>The \(n\times n\) attention matrix is the learned "who should I listen to?" graph over datapoints. \(h\) is the head dimension for one attention head.</p>
+</div>
+
+<h3 id="s3b">3.2 ABA: columns talk inside each row</h3>
+<p><strong>Attention Between Attributes (ABA)</strong> reshapes back to \(n\times d\times e\). For each datapoint \(i\), the \(d\) attribute tokens attend to one another. This lets "age" interact with "blood pressure," or "card value" interact with "suit" in the poker-hand example from the discussion.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — ABA shapes</span>
+  <p>$$
+  H_i\in\mathbb{R}^{d\times e},\qquad
+  \operatorname{ABA}(H_i)=\operatorname{softmax}\!\left(\frac{Q_iK_i^\top}{\sqrt{h}}\right)V_i,
+  \qquad Q_iK_i^\top\in\mathbb{R}^{d\times d}.
+  $$</p>
+  <p>ABD exchanges evidence between students; ABA lets each student organize their own subjects before the next round of comparison.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Dataset plus mask<br/>X and M: n by d"] --> B["Embed cells<br/>H: n by d by e"]
+    B --> C["ABD across rows<br/>attention map: n by n"]
+    C --> D["Reshape back<br/>n by d by e"]
+    D --> E["ABA across attributes<br/>per-row map: d by d"]
+    E --> F["Repeat for L layers"]
+    F --> G["Predict masked<br/>features or targets"]
+</div>
+<figcaption>NPT alternates the two axes of attention: datapoint-to-datapoint, then attribute-to-attribute.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — which axis gets the quadratic cost in ABD?</summary>
+<p>The row axis. ABD builds an \(n\times n\) score matrix, so its main attention memory/time grows like \(O(n^2)\) with the number of datapoints in the input batch.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>The masked training objective makes rows genuinely useful</h2>
+<p>If a model always saw all labels, it could cheat. If it never saw any labels from other rows, it would collapse toward ordinary parametric prediction. NPT uses stochastic masking to land between those extremes: hide some entries, reveal others, and train only on what was hidden.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — masked negative log-likelihood</span>
+  <p>$$
+  \mathcal{L}(\theta)=
+  \lambda_y\sum_{(i,j)\in\Omega_y} -\log p_\theta\!\left(X_{i,j}\mid X_{\neg\Omega},M\right)
+  +
+  \lambda_x\sum_{(i,j)\in\Omega_x} -\log p_\theta\!\left(X_{i,j}\mid X_{\neg\Omega},M\right)
+  $$</p>
+  <p>\(\Omega_y\) are masked target entries, \(\Omega_x\) are masked feature entries, and \(X_{\neg\Omega}\) means all unmasked entries. The model is never scored on a target value that was visible as input.</p>
+</div>
+
+<p>The lecture emphasizes two roles:</p>
+<ul>
+  <li><strong>Feature masking</strong> adds BERT-like self-supervision and regularization: the model learns useful structure by reconstructing hidden feature values.</li>
+  <li><strong>Target masking</strong> lets some training labels be visible while other labels are hidden. This lets NPT learn functions like "find rows with matching features, then use their labels" without memorizing every input-output pair in \(\theta\).</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Visible training targets mean label leakage."</strong> The leakage problem would be scoring the model on a label it could directly see. NPT avoids that: visible labels can be context, but the loss is computed on masked labels. At test time, test targets are masked.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what forces the model to use other datapoints?</summary>
+<p>Masked target prediction can reveal some rows' targets and hide others. To reduce loss on hidden targets, the model benefits from learning how observed rows relate to masked rows. The corruption experiments in the lecture then test whether performance drops when those row relationships are destroyed.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">5.</span>Worked numeric micro-example — one ABD row, by hand</h2>
+<p>Use the smallest honest table: \(n=3\) datapoints and \(d=2\) attributes. Think of attribute 1 as a feature and attribute 2 as a target. Datapoint 3 has its target masked, and ABD lets it listen to datapoints 1 and 2.</p>
+
+<table>
+  <tr><th>Datapoint</th><th>Feature \(x\)</th><th>Target \(y\)</th><th>Status</th></tr>
+  <tr><td>1</td><td>0</td><td>10</td><td>observed</td></tr>
+  <tr><td>2</td><td>1</td><td>20</td><td>observed</td></tr>
+  <tr><td>3</td><td>0.8</td><td>?</td><td>masked target</td></tr>
+</table>
+
+<p>Suppose one ABD head produces these raw compatibility scores over datapoints. Row 3 is the row we care about:</p>
+<div class="box eqn">
+  <span class="lbl">Step 1 — raw ABD scores</span>
+  <p>$$
+  S=QK^\top=
+  \begin{bmatrix}
+  2.0 &amp; 0.5 &amp; 0.3\\
+  0.4 &amp; 2.1 &amp; 1.0\\
+  0.0 &amp; 1.0 &amp; -2.0
+  \end{bmatrix}
+  $$</p>
+  <p>The third row says datapoint 3 scores datapoint 1 by \(0\), datapoint 2 by \(1\), and itself by \(-2\). A real NPT learns these scores from embedded rows; here we choose round numbers.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Step 2 — softmax the third row</span>
+  <p>$$
+  \operatorname{softmax}([0,1,-2])
+  =\frac{[e^0,e^1,e^{-2}]}{e^0+e^1+e^{-2}}
+  =\frac{[1,2.718,0.135]}{3.853}
+  \approx [0.260,0.705,0.035].
+  $$</p>
+  <p>Datapoint 3 mostly listens to datapoint 2, somewhat to datapoint 1, and barely to itself.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Step 3 — weighted blend of label evidence</span>
+  <p>If this head's value channel carried target evidence \(v=[10,20,0]\), then datapoint 3 receives</p>
+  <p>$$
+  0.260\cdot 10 + 0.705\cdot 20 + 0.035\cdot 0
+  =2.60+14.10+0
+  =16.70.
+  $$</p>
+  <p>That is the learned-nearest-neighbor flavor: the masked row's prediction can be a learned weighted blend of other rows, then refined by later ABD/ABA layers and output heads.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what changes if datapoint 2's target is also masked?</summary>
+<p>Its label value can no longer be used as visible evidence. In this toy value channel, replace \(v_2=20\) with a mask embedding rather than the true label. The same attention weight \(0.705\) may still point to datapoint 2 because its feature is similar, but it cannot copy the hidden label directly; the model must infer from other observed entries or learned parametric structure.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — follow one concrete masked target</h2>
+<p>Trace datapoint 3's missing target through the whole NPT pipeline. The important thing to track is both the shape and the axis on which attention runs.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / attention axis</th></tr>
+  <tr><td>0 · dataset + mask</td><td>Input a table and a binary mask; target \(X_{3,2}\) is hidden.</td><td class="tt">X,M: n×d = 3×2</td></tr>
+  <tr><td>1 · embed</td><td>Each value plus its mask bit and column identity becomes an \(e\)-dimensional cell vector.</td><td class="tt">H: n×d×e = 3×2×e</td></tr>
+  <tr><td>2 · ABD</td><td>Flatten each row to a token; datapoint 3 attends to datapoints 1, 2, and 3.</td><td class="tt">rows: n tokens; scores n×n = 3×3</td></tr>
+  <tr><td>3 · reshape</td><td>Restore the table-like representation so each row again has separate attribute tokens.</td><td class="tt">H: 3×2×e</td></tr>
+  <tr><td>4 · ABA</td><td>Within each datapoint, attributes attend to each other: feature token and target-mask token interact.</td><td class="tt">per row: d tokens; scores d×d = 2×2</td></tr>
+  <tr><td>5 · ×L layers</td><td>Repeat ABD and ABA, allowing higher-order relationships such as "rows like my neighbors' neighbors."</td><td class="tt">3×2×e throughout</td></tr>
+  <tr><td>6 · predict masked targets</td><td>An output head reads the final representation at masked entries and predicts values or class probabilities.</td><td class="tt">prediction for Ω: here ŷ₃</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>NPT is not "a transformer on a long list of cells." It preserves two axes and alternates who communicates: whole datapoints compare globally, then each datapoint reorganizes its own attributes locally.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where would a feature interaction like "age matters only with high blood pressure" be modeled?</summary>
+<p>Primarily in ABA, because it attends across attributes within one row. ABD can then share that enriched row representation with similar datapoints.</p></details>
+
+<!-- ================= SECTION 7 ================= -->
+<h2 id="s7"><span class="num">7.</span>Why it matters, when it helps, and where it hurts</h2>
+<p>The lecture's empirical emphasis is tabular data: a domain where tree ensembles like XGBoost, CatBoost, and LightGBM are hard to beat. NPTs performed strongly across the tabular benchmarks in the paper, and the authors used corruption experiments to show that, on many datasets, performance drops when cross-row information is destroyed.</p>
+
+<h3 id="s7a">7.1 What NPTs can learn beyond vanilla kNN</h3>
+<p>A fixed kNN model chooses neighbors with a hand-designed distance. NPT learns the representation, the attention weights, and the value transformation end-to-end. In the lecture's semi-synthetic duplicate-row experiment, NPT learned to find a matching duplicate row and copy its target; when duplicate targets were shifted by +1, NPT could also learn to subtract 1 before predicting.</p>
+
+<div class="box intuition">
+  <span class="lbl">The practical promise</span>
+  <p>NPTs are a learned relational predictor for tables: they can behave like a neural nearest-neighbor model when that helps, and like an ordinary parametric model when cross-row evidence is not useful.</p>
+</div>
+
+<h3 id="s7b">7.2 The cost: quadratic row attention</h3>
+<p>ABD creates an \(n\times n\) attention matrix. If \(n=8{,}000\), that is 64 million pairwise scores per head per layer before values, gradients, and activations. For much larger datasets, the paper and lecture rely on mini-batching or point toward sparse/retrieval-style approximations.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — where scaling bites</span>
+  <p>$$
+  \text{ABD cost per layer} \sim O(n^2 h),\qquad
+  \text{ABA cost per layer} \sim O(n d^2 h).
+  $$</p>
+  <p>ABD is the bottleneck when many datapoints are present. ABA becomes important when a table has many attributes.</p>
+</div>
+
+<ul>
+  <li><strong>Helps most when:</strong> labels or features of nearby rows are informative, dataset context at prediction time is available, and relational/lookup behavior is useful.</li>
+  <li><strong>May not help when:</strong> a single row already contains almost all predictive information, the batch is too small or unrepresentative, or cross-row attention cost dominates.</li>
+  <li><strong>Engineering limits:</strong> memory, batching/subsampling, heterogeneous feature preprocessing, and careful masking to avoid accidental leakage.</li>
+</ul>
+
+<details class="check"><summary>✓ Check yourself — why can NPT fall back to parametric behavior?</summary>
+<p>If other rows are not useful for a dataset, the learned attention can place little useful weight on them, and the model can rely on transformations of the row's own features. The lecture notes this as a feature: NPT is not forced to use non-parametric evidence when it does not improve loss.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What assumption about prediction does NPT challenge? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What are the shapes of \(X\), \(M\), and the embedded tensor \(H\)? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Which attention matrix is \(n\times n\), and which one is \(d\times d\)? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why does stochastic target masking enable learned nearest-neighbor behavior without directly scoring visible labels? <a class="ref" href="#s4">(§4)</a></li>
+    <li>In the micro-example, why did datapoint 3 predict closer to 20 than to 10? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain NPTs to a beginner in three sentences using the study-hall analogy.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Parametric prediction</td><td>Prediction that depends on learned parameters and the current example, but not explicitly on stored training examples at test time.</td></tr>
+  <tr><td>Non-parametric prediction</td><td>Prediction that explicitly uses available data points as part of the predictor, as in kNN, Gaussian processes, or NPT context rows.</td></tr>
+  <tr><td>NPT</td><td>Non-Parametric Transformer: a transformer architecture that takes a dataset or batch as input and predicts masked entries using attention.</td></tr>
+  <tr><td>ABD</td><td>Attention Between Datapoints: self-attention over rows, producing an \(n\times n\) interaction map.</td></tr>
+  <tr><td>ABA</td><td>Attention Between Attributes: self-attention over columns within each row, producing \(d\times d\) maps per datapoint.</td></tr>
+  <tr><td>Mask matrix \(M\)</td><td>A binary table that marks which entries are hidden and should be reconstructed or predicted.</td></tr>
+  <tr><td>Stochastic target masking</td><td>Randomly hiding some labels during training while leaving others visible as context; loss is computed only on hidden labels.</td></tr>
+  <tr><td>Permutation equivariance</td><td>If rows are reordered, outputs reorder the same way; the model should not care about arbitrary dataset row order.</td></tr>
+  <tr><td>Corruption experiment</td><td>A test from the lecture: shuffle other rows' attributes while preserving one row, to see whether predictions relied on cross-row relationships.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Kossen, Band, Lyle, Gomez, Rainforth &amp; Gal (2021). <strong>Self-Attention Between Datapoints: Going Beyond Individual Input-Output Pairs in Deep Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2106.02584">arXiv:2106.02584</a> — the NPT paper behind the lecture.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a> — the transformer foundation Aidan reviews at the start.</li>
+  <li>Devlin et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805">arXiv:1810.04805</a> — the masking objective NPT adapts from NLP.</li>
+  <li>Zaheer et al. (2017). <strong>Deep Sets.</strong> <a class="ref" href="https://arxiv.org/abs/1703.06114">arXiv:1703.06114</a> — a core reference for permutation-invariant/equivariant set processing.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Lee et al. (2018). <strong>Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks.</strong> <a class="ref" href="https://arxiv.org/abs/1810.00825">arXiv:1810.00825</a> — useful background for attention over sets.</li>
+  <li>Kim et al. (2018). <strong>Attentive Neural Processes.</strong> <a class="ref" href="https://arxiv.org/abs/1901.05761">arXiv:1901.05761</a> — related context-based prediction with attention.</li>
+  <li>Bronstein et al. (2021). <strong>Geometric Deep Learning: Grids, Groups, Graphs, Geodesics, and Gauges.</strong> <a class="ref" href="https://arxiv.org/abs/2104.13478">arXiv:2104.13478</a> — connects the "datapoints as nodes in a learned fully connected graph" discussion.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="06-perceiver.html">◀ Previous: Perceiver &amp; Perceiver IO</a>
+  <a class="r" href="08-transformer-circuits.html">Next: Transformer Circuits ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 07 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

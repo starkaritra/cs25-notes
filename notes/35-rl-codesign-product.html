@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 35 — RL as a Co-Design of Product & Research</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Product and research are one loop</a>
+  <a href="#s1a" class="sub">1.1 Two ways to build research products</a>
+  <a href="#s2">2 · Post-training shapes behavior</a>
+  <a href="#s2a" class="sub">2.1 Refusals, persona, and tools</a>
+  <a href="#s3">3 · Evaluation and data flywheels</a>
+  <a href="#s3a" class="sub">3.1 Offline evals versus product signals</a>
+  <a href="#worked">4 · Worked example</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Lessons for AI product builders</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 7 · Note 5 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>RL as a Co-Design of Product and Research — Karina Nguyen</h1>
+  <p class="lead">Frontier chat models are not “pretrain, then ship.” Karina Nguyen’s central lesson is that product form factors, real user feedback, and RL/post-training shape one another in a compounding loop.</p>
+  <div class="meta">
+    <span class="pill">🎓 Karina Nguyen</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=gLwiPrwUDJ8" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>When ChatGPT, Claude, Canvas, Tasks, or agents feel useful, the win is not only a larger base model. The product team had to decide <em>what interaction should exist</em>; the research team had to teach the model the behavior that makes that interaction work; then deployment produced the next round of evidence. The model’s “character” is therefore a product surface, not a side effect.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a frontier model as a brilliant new teammate joining a real workplace. Pretraining gives broad talent; post-training is onboarding; product design is the office and tools; user feedback is the manager’s observation of what actually helped. Nguyen’s talk is about designing the teammate and the workplace together.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You will follow this note smoothly if these are fresh. Each item is one line; jump to the linked notes if it feels shaky.</p>
+  <ul>
+    <li><strong>Pretraining versus post-training</strong> — pretraining predicts text; post-training shapes assistant behavior. This distinction drives the whole lecture.</li>
+    <li><strong>Policy \(\\pi\)</strong> — the model as a distribution over responses; RL changes which responses become more likely. See <a class="ref" href="12-language-human-alignment.html">Note 12</a>.</li>
+    <li><strong>RLHF / RLAIF</strong> — use human or AI feedback to prefer one response over another, then update the policy. See <a class="ref" href="22-helpful-chatbots.html">Note 22</a>.</li>
+    <li><strong>Reward model \(r(x,y)\)</strong> — a learned scorer for a prompt \(x\) and answer \(y\); it compresses preference data into a scalar.</li>
+    <li><strong>Preference data</strong> — pairs like “answer A was better than answer B,” often easier to collect than perfect gold answers.</li>
+    <li><strong>Logistic \(\\sigma(z)\)</strong> — \(\\sigma(z)=1/(1+e^{-z})\), used to turn reward gaps into preference probabilities.</li>
+    <li><strong>A/B testing and evals</strong> — compare candidate systems with offline tests and real product outcomes; both can disagree.</li>
+    <li><strong>Open alignment context</strong> — SFT, DPO, and preference optimization recipes are reviewed in <a class="ref" href="28-aligning-open-llms.html">Note 28</a>.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Product and research are one loop, not a handoff</h2>
+<p>Nguyen opens with product vignettes: ChatGPT explaining Gaussian distributions in Canvas, a user selecting part of a paper and asking follow-ups, front-end code rendered from a prompt, image generation turning sketches into polished assets, and tiny games produced on a plane. These examples share one lesson: as model capabilities grow, the chat box stops being enough.</p>
+
+<h3 id="s1a">1.1 Two ways to build research-driven products</h3>
+<p>Nguyen names two recurring patterns from OpenAI and Anthropic work.</p>
+<ol>
+  <li><strong>Unfamiliar capability → familiar form factor.</strong> CLIP becomes fashion search; 100K context becomes file upload; chain-of-thought reasoning becomes a streaming “thinking” experience; Canvas makes generation editable instead of trapped in chat.</li>
+  <li><strong>Strong product belief → train the model to do it.</strong> If you believe the model should collaborate in a document, schedule diverse tasks, personalize titles, or act like a Slack teammate, then the behavior must be post-trained rather than merely wrapped in UI.</li>
+</ol>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — capability is not product utility</span>
+  <p>$$
+  Q_{\text{product}} \approx f\left(C_{\text{model}},\;B_{\text{post-train}},\;I_{\text{interface}},\;E_{\text{eval}},\;U_{\text{usage}}\right)
+  $$</p>
+  <p>
+  \(C_{\text{model}}\) is raw capability, \(B_{\text{post-train}}\) is learned behavior, \(I_{\text{interface}}\) is the form factor, \(E_{\text{eval}}\) is the measurement system, and \(U_{\text{usage}}\) is what users actually do. The point is not the exact formula; it is the dependency graph.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Research demo<br/>new capability"] --> B["Product form factor<br/>chat, files, Canvas, tasks"]
+    B --> C["Real users<br/>use cases and failures"]
+    C --> D["Feedback data<br/>prompts, ratings, traces"]
+    D --> E["RL / post-training<br/>behavior updates"]
+    E --> F["New model behavior<br/>tool use, persona, refusals"]
+    F --> B
+    E --> A
+</div>
+<figcaption>The co-design loop: research unlocks behaviors, product reveals needs, and RL turns those needs into the next behavior distribution.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Concrete before abstract</span>
+  <p>Canvas is Nguyen’s clean example. The product vision was not “make a chat model slightly better.” It was “make an AI collaborator that can edit a shared artifact, choose when to rewrite versus patch, decide when to render code, and cooperate with other tools.” That vision created a research problem.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why was file upload a natural product for 100K context?</summary>
+<p>Because the unfamiliar capability was “the model can read very long documents.” File upload is a familiar human action that exposes that capability without requiring users to understand context windows.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Post-training shapes behavior, not just correctness</h2>
+<p>A pretrained model is like a talented teammate who has read everything but has not learned the workplace norms. It may know enough to answer, yet still be verbose, sycophantic, over-refuse, misuse tools, ignore product affordances, or fail to say what it can and cannot do. Post-training is where those norms become behavior.</p>
+
+<h3 id="s2a">2.1 Refusals, persona, and tools are trainable product behavior</h3>
+<p>Nguyen’s most detailed case study is Claude refusals. Claude 2.1 sometimes refused benign prompts that merely sounded dangerous: edgy creative writing, long-document attachments, or tool-call situations where the model had contradictory self-knowledge. The fix was not one magic label; it required a taxonomy, targeted evals, data cleanup, and preference data that controlled the specific behavioral feature being changed.</p>
+<ul>
+  <li><strong>Character / persona.</strong> The model may need opinions with caveats: decisive when asked directly, honest about uncertainty, and less sycophantic than early RLHF assistants.</li>
+  <li><strong>Charitable interpretation.</strong> A prompt like “write dialogue between two fictional heist characters” should usually be treated as creative writing, not automatically as operational harm.</li>
+  <li><strong>Nonviolent refusal style.</strong> Nguyen describes using “I” statements, acknowledging impact, and asking whether the user can modify the request rather than judging the user.</li>
+  <li><strong>Tool self-knowledge.</strong> A model should not refuse a task because “I have no body” if the product has given it a scheduling tool; product affordance and model self-description must agree.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — preference learning for behavior</span>
+  <p>$$
+  \mathcal{L}_{\mathrm{RM}}
+  =-\log\sigma\big(r_\phi(x,y_w)-r_\phi(x,y_l)\big)
+  $$</p>
+  <p>
+  \(x\) is a prompt, \(y_w\) is the preferred behavior, \(y_l\) is the rejected behavior, \(r_\phi\) is the reward model, and \(\\sigma\) maps the reward gap into a probability. For refusals, \(y_w\) might be “helpfully comply with a benign creative prompt,” while \(y_l\) is “refuse because it sounds superficially risky.”</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — RL update with a behavioral leash</span>
+  <p>$$
+  \max_{\pi}\;\mathbb{E}_{x,\,y\sim\pi(\cdot\mid x)}\left[
+  r_\phi(x,y)-\beta D_{\mathrm{KL}}\!\left(\pi(\cdot\mid x)\,\|\,\pi_{\mathrm{ref}}(\cdot\mid x)\right)
+  \right]
+  $$</p>
+  <p>The reward term nudges the teammate toward the desired workplace behavior. The KL term keeps the teammate from learning a weird shortcut that pleases the grader but harms the product.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Base model<br/>broad knowledge"] --> B["SFT<br/>assistant format"]
+    B --> C["Preference data<br/>chosen vs rejected behavior"]
+    C --> D["Reward model or DPO<br/>learn the taste signal"]
+    D --> E["RL / post-training<br/>update policy"]
+    E --> F["Product behavior<br/>persona, tools, refusals, concision"]
+    G["Policy and safety principles<br/>charitable, bounded, helpful"] --> C
+</div>
+<figcaption>Post-training is behavior design: the model learns not only whether an answer is correct, but how it should act in the product.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Safety tuning means making the model say no more often.”</strong> Nguyen’s refusal example says the opposite: useful safety requires calibrated boundaries. Over-refusal makes the product unusable; under-refusal violates policy. The target is nuanced behavior, not maximum refusal rate.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the difference between teaching a tool and teaching collaboration?</summary>
+<p>Teaching a tool means the model can call or use the affordance. Teaching collaboration means it knows when the tool is appropriate, when to patch versus rewrite, when to ask, when to take initiative, and how its action affects the human’s workflow.</p></details>
+
+<details class="check"><summary>✓ Check yourself — why control only one feature inside a preference pair?</summary>
+<p>If the preferred answer differs in ten ways, the reward model may learn the wrong cue: length, markdown, tone, or model identity. Controlling one behavior isolates the causal signal you actually want to train.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Evaluation and data flywheels decide what RL learns</h2>
+<p>Nguyen repeatedly returns to evaluation: before changing a behavior, decide which evals you would trust. For subjective product behavior, the hard part is not writing down a loss; it is constructing prompts, rubrics, product signals, and failure taxonomies that actually represent what users need.</p>
+
+<h3 id="s3a">3.1 Offline evals versus product signals</h3>
+<p>For the refusal work, Nguyen describes a suite: manually collected prompts that induced refusals, synthetically generated prompts near the helpfulness/harmlessness boundary, non-malicious prompt sets, and open datasets such as WildChat with ambiguous real user interactions. But she also stresses manual inspection: many model weirdnesses become visible only by playing with the model and reading outputs.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — an A/B test view of product quality</span>
+  <p>$$
+  \Delta = \mathbb{E}[m \mid \text{new model}] - \mathbb{E}[m \mid \text{old model}]
+  $$</p>
+  <p>
+  \(m\) could be task success, user retention, thumbs-up rate, corrected refusal rate, or a human rubric score. The danger: a positive \(\Delta\) on one metric can hide regressions in safety, trust, latency, or creative quality.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Offline evals<br/>benchmarks, rubrics, red-team prompts"] --> D{"Ship?"}
+    B["Human inspection<br/>read weird outputs"] --> D
+    C["Product telemetry<br/>A/B tests, feedback, usage"] --> D
+    D --> E["Data curation<br/>clean, targeted, diverse"]
+    E --> F["Next training run<br/>SFT, RM, RL, DPO"]
+    F --> A
+    F --> C
+</div>
+<figcaption>Evaluation is itself part of the co-design loop: it decides which failures become training data and which product bets survive.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 Subjective tasks are the next frontier</h3>
+<p>The talk’s forward-looking claim is that labs have optimized many easy-to-measure tasks—math, competitive programming, short benchmark questions—so the frontier is moving toward useful but subjective domains: emotional intelligence in voice, writing, aesthetics, visual design, and long-horizon software engineering. These are measurable only after decomposition: character consistency, world-building, follow-up questions, design principles, task completion, user satisfaction, and safety guardrails.</p>
+
+<div class="box intuition">
+  <span class="lbl">Why product thinking becomes reward design</span>
+  <p>If you want a model to ask meaningful follow-up questions without becoming annoying, the reward cannot simply be “asks a question.” It must encode timing, user intent, social context, task completion, and the cost of interruption. That is product judgment translated into an RL environment.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Benchmarks and user value are the same thing.”</strong> Nguyen’s examples separate them. A model can win a static benchmark yet fail in Canvas because it rewrites the whole document, refuses a harmless attachment, or chooses the wrong tool. Product quality lives in the full interaction.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one offline signal and one real product signal for refusal quality.</summary>
+<p>Offline: a curated set of benign prompts that previously triggered over-refusals. Product: user feedback or A/B outcomes showing fewer frustrating refusals without an increase in policy-violating completions.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">4.</span>Worked example — one preference update from product feedback</h2>
+<p>Suppose users repeatedly abandon a verbose answer in Canvas but keep working after a concise answer. We turn that product evidence into a preference pair for the prompt: <em>“Summarize this paper section and suggest two follow-up questions.”</em></p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>The reward model scores two candidate behaviors:</p>
+  <p>$$
+  r_{\text{concise}} = 1.6,\qquad r_{\text{verbose}} = 0.8
+  $$</p>
+  <p>Compute the reward gap:</p>
+  <p>$$
+  \Delta r = 1.6-0.8=0.8
+  $$</p>
+  <p>Convert the gap into a preference probability:</p>
+  <p>$$
+  \sigma(0.8)=\frac{1}{1+e^{-0.8}}\approx\frac{1}{1+0.449}=0.690
+  $$</p>
+  <p>So the reward model currently predicts about a <strong>69%</strong> chance that the concise behavior is preferred. An RL update then increases the policy probability of concise, useful replies in contexts where the product evidence says that behavior helps.</p>
+  <p>One possible loss value for the observed preference is:</p>
+  <p>$$
+  \mathcal{L}=-\log(0.690)\approx0.371
+  $$</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if the verbose answer scored 1.4 instead of 0.8, what changes?</summary>
+<p>The gap becomes \(1.6-1.4=0.2\). Then \(\sigma(0.2)\approx0.55\), so the model is barely confident that concise wins. The preference label would push harder to separate the two behaviors.</p></details>
+<details class="check"><summary>✓ Check yourself — why use product feedback, not only static labels?</summary>
+<p>Static labels can say which answer looks good in isolation. Product feedback reveals what helped a real workflow: whether the user kept editing, asked follow-ups, abandoned the task, corrected the model, or chose a different tool.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one turn of the co-design loop</h2>
+<p>Follow one product iteration from deployment to redeployment. The state column is the “teammate onboarding record”: what evidence exists, what research does with it, and what behavior changes.</p>
+<table>
+  <tr><th>Stage</th><th>Product side</th><th>Research/RL side</th><th>Output</th></tr>
+  <tr><td>1 · deploy model</td><td>Ship a chat or Canvas model to a user cohort.</td><td>Freeze a candidate policy \(\pi_0\) and logging plan.</td><td class="tt">live product baseline</td></tr>
+  <tr><td>2 · collect interactions and feedback</td><td>Users write, code, upload files, rate replies, abandon turns, or correct mistakes.</td><td>Convert traces into candidate prompts, outcomes, and failure clusters.</td><td class="tt">raw usage evidence</td></tr>
+  <tr><td>3 · curate preference data</td><td>Product examples reveal the behavior users wanted: concise patch, not full rewrite; answer, not over-refusal.</td><td>Construct controlled pairs \((x,y_w,y_l)\) and targeted evals.</td><td class="tt">preference set + eval suite</td></tr>
+  <tr><td>4 · reward model</td><td>Product desiderata become rubrics: helpful, safe, non-annoying, tool-aware.</td><td>Train \(r_\phi(x,y)\) or an LLM judge; inspect for spurious cues.</td><td class="tt">behavior scorer</td></tr>
+  <tr><td>5 · RL / post-training update</td><td>Decide acceptable trade-offs: fewer over-refusals without unsafe compliance, better collaboration without taking agency.</td><td>Run SFT, DPO, PPO, or RLAIF with KL/reference constraints.</td><td class="tt">updated policy \(\pi_1\)</td></tr>
+  <tr><td>6 · new model behavior</td><td>Users see more charitable refusals, better Canvas edits, better tool choice, or more useful follow-ups.</td><td>Compare offline evals and A/B metrics against \(\pi_0\).</td><td class="tt">candidate product improvement</td></tr>
+  <tr><td>7 · redeploy</td><td>Ship the improved model, monitor regressions, and discover new use cases.</td><td>Feed new failures and successes into the next loop.</td><td class="tt">data flywheel restarts</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why the loop compounds</span>
+  <p>A better model creates a better product; a better product attracts richer use; richer use produces better feedback; better feedback teaches subtler behavior. That is the data flywheel Nguyen is pointing at. The loop also compounds mistakes, so measurement and safety gates matter.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where would you catch a reward hack in this trace?</summary>
+<p>At stages 4–6: inspect whether the scorer rewards superficial cues, run adversarial evals, compare with human/product outcomes, and verify that the updated policy did not exploit the grader while harming the workflow.</p></details>
+
+<!-- ================= SECTION 6 ================= -->
+<h2 id="s6"><span class="num">6.</span>Practical lessons for building AI products</h2>
+<p>Nguyen ends by widening the lens. Reasoning is getting cheaper, raw intelligence is becoming more available, and the bottleneck shifts toward interfaces, verification, reward design, and social intelligence. The best builders will not merely call a model API; they will invent product environments where the model can learn useful behaviors.</p>
+
+<h3 id="s6a">6.1 Reward design is product design under another name</h3>
+<p>For software engineering, “good” may mean a correct PR, clean tests, no hidden vulnerability, and maintainable code. For creative writing, it may mean world consistency, character development, voice, surprise, and emotional payoff. For social voice agents, it may mean knowing when to guide versus when to let the human keep agency. These are product definitions before they are reward functions.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — reward hacking warning</span>
+  <p>$$
+  \arg\max_y\; r_{\text{proxy}}(x,y)\;\not\equiv\;\arg\max_y\; U_{\text{user}}(x,y)
+  $$</p>
+  <p>
+  \(r_{\text{proxy}}\) is the measured reward; \(U_{\text{user}}\) is what actually helps the user. Reward hacking happens when the model finds outputs that score well under the proxy while failing the real objective.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Product ambition<br/>AI teammate, writer, designer, agent"] --> B["Define task environment<br/>tools, context, users, time horizon"]
+    B --> C["Define rewards<br/>success, style, safety, social fit"]
+    C --> D["Train and evaluate<br/>RL, synthetic data, human review"]
+    D --> E{"Does it help real users?"}
+    E -->|"yes"| F["Scale and monitor"]
+    E -->|"no"| G["Revise product belief<br/>or reward design"]
+    G --> B
+</div>
+<figcaption>The builder’s loop: every ambitious product idea eventually becomes an environment, reward, and evaluation question.</figcaption>
+</figure>
+
+<h3 id="s6b">6.2 Verification and future interfaces</h3>
+<p>Nguyen’s future vignettes include dynamic generative UI, personalized education and healthcare, AI-assisted storytelling, consumer hardware, and more natural coworking form factors such as screen-sharing pair programming. The remaining gap is not only IQ; it is verification and social intelligence: can the model explain what it did, let humans inspect high-stakes outputs, and collaborate without taking over?</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“The future product is just a smarter chat box.”</strong> Nguyen argues the opposite. Chat was a first familiar form factor. As capabilities become multimodal, agentic, and long-horizon, the interface may become a generated workspace, a verifier, a collaborator, or a personalized explainer.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can synthetic data be both powerful and dangerous?</summary>
+<p>Powerful: strong reasoning models can generate diverse, controlled training pairs cheaply. Dangerous: synthetic data can collapse modes, encode the teacher’s biases, or teach spurious behavior unless humans or trusted models inspect it and diversity is deliberately curated.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is “research builds the model, product ships it” the wrong mental model for frontier chat products? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Give one example of unfamiliar capability becoming a familiar form factor. <a class="ref" href="#s1a">(§1.1)</a></li>
+    <li>Explain why post-training can change refusals, persona, and tool use without changing the base pretraining objective. <a class="ref" href="#s2">(§2)</a></li>
+    <li>Write the reward-model preference loss and explain \(y_w\), \(y_l\), and \(\sigma\). <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Why can a benchmark improvement fail to transfer to product quality? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the concise-versus-verbose arithmetic if the reward gap is \(0.2\). <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain the product ↔ RL ↔ research flywheel to a beginner in three sentences. <a class="ref" href="#trace">(trace)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Co-design loop</td><td>A cycle where product needs, research capabilities, and post-training data shape each other instead of happening in sequence.</td></tr>
+  <tr><td>Post-training</td><td>Training after pretraining that shapes assistant behavior: SFT, preference learning, RLHF, RLAIF, DPO, tool-use data, and safety tuning.</td></tr>
+  <tr><td>Policy \(\pi\)</td><td>The model viewed as a probability distribution over possible responses or actions.</td></tr>
+  <tr><td>Reward model</td><td>A learned function that scores prompt-response pairs according to human or AI preference data.</td></tr>
+  <tr><td>Preference pair</td><td>A prompt with two candidate responses, one marked preferred and one rejected: \((x,y_w,y_l)\).</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement learning from human feedback: train from human preferences, then optimize the model toward those preferences.</td></tr>
+  <tr><td>RLAIF</td><td>Reinforcement learning from AI feedback: use AI-generated critiques or comparisons, often guided by principles or rubrics.</td></tr>
+  <tr><td>Over-refusal</td><td>A model refuses a benign request because it superficially resembles a harmful one.</td></tr>
+  <tr><td>Reward hacking</td><td>The model gets high measured reward by exploiting the evaluator rather than satisfying the real objective.</td></tr>
+  <tr><td>Data flywheel</td><td>Deployment produces feedback; feedback improves training data; training improves the model; the improved model attracts richer use.</td></tr>
+  <tr><td>Dynamic generative UI</td><td>An interface generated or adapted by the model for the user’s context, rather than a fixed chat transcript.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Karina Nguyen (2026). <strong>RL as a Co-Design of Product and Research.</strong> <a class="ref" href="https://www.youtube.com/watch?v=gLwiPrwUDJ8">CS25 lecture video</a> — the talk this note is based on.</li>
+  <li>OpenAI (2024). <strong>Introducing canvas.</strong> <a class="ref" href="https://openai.com/index/introducing-canvas/">link</a> — product example Nguyen uses for breaking out of pure chat into collaborative artifacts.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">arXiv</a> — canonical InstructGPT / RLHF recipe.</li>
+  <li>Bai et al. (2022). <strong>Constitutional AI: Harmlessness from AI Feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2212.08073">arXiv</a> — principle-guided AI feedback relevant to refusal behavior and RLAIF.</li>
+  <li>Zhao et al. (2024). <strong>WildChat: 1M ChatGPT Interaction Logs in the Wild.</strong> <a class="ref" href="https://arxiv.org/abs/2405.01470">arXiv</a> — real chatbot interactions Nguyen mentions as useful for ambiguous product-like prompts.</li>
+  <li>Weng (2024). <strong>Reward Hacking in Reinforcement Learning.</strong> <a class="ref" href="https://lilianweng.github.io/posts/2024-11-28-reward-hacking/">blog</a> — Nguyen specifically recommends Lilian Weng’s overview for reward hacking.</li>
+  <li>OpenAI (2025). <strong>Monitoring reasoning models for misbehavior and the risks of promoting obfuscation.</strong> <a class="ref" href="https://openai.com/index/monitoring-reasoning-models-for-misbehavior-and-the-risks-of-promoting-obfuscation/">link</a> — related to Nguyen’s warning that optimizing chain-of-thought can hide intent.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="12-language-human-alignment.html">CS25 Note 12</a> — background on language model alignment and human preference signals.</li>
+  <li><a class="ref" href="22-helpful-chatbots.html">CS25 Note 22</a> — helpful chatbot training pipeline and RLHF foundations.</li>
+  <li><a class="ref" href="28-aligning-open-llms.html">CS25 Note 28</a> — open alignment recipes: SFT, reward models, DPO, and evaluation.</li>
+  <li>Lambert (2023). <strong>Illustrating Reinforcement Learning from Human Feedback.</strong> <a class="ref" href="https://huggingface.co/blog/rlhf">Hugging Face blog</a> — visual refresher on RLHF mechanics.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="34-v5-overview.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 35 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>
+

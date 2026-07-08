@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 15 — Robotics & Imitation Learning</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why robots need imitation</a>
+  <a href="#s1a" class="sub">1.1 The offline turn</a>
+  <a href="#s2">2 · Behavior cloning</a>
+  <a href="#s2a" class="sub">2.1 The BC objective</a>
+  <a href="#s2b" class="sub">2.2 Covariate shift</a>
+  <a href="#s3">3 · Transformer robot policies</a>
+  <a href="#s3a" class="sub">3.1 RT-1 tokens</a>
+  <a href="#s3b" class="sub">3.2 Scaling signals</a>
+  <a href="#s4">4 · Language and foundation models</a>
+  <a href="#s4a" class="sub">4.1 SayCan and Inner Monologue</a>
+  <a href="#s4b" class="sub">4.2 DIAL-style data scaling</a>
+  <a href="#s5">5 · Limits</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 3 · Note 5 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Transformers for Robotics &amp; Imitation Learning</h1>
+  <p class="lead">Ted Xiao's lecture argues that robot learning is shifting from hand-built controllers and online RL toward offline, language-conditioned imitation learning scaled with transformer-style foundation-model ingredients.</p>
+  <div class="meta">
+    <span class="pill">🎓 Ted Xiao</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=ct4tdyyNDY4" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A kitchen robot does not need a prettier demo video; it needs a policy that turns messy observations into safe actions again and again: <strong>camera image + goal → next motor command</strong>. Hand-coding every contact-rich case fails, and RL from scratch burns expensive real-world interaction plus reward design. Imitation learning starts from the one resource humans can provide: demonstrations of what good behavior looks like.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of the robot as an apprentice chef in a chaotic kitchen. Classic programming gives it a rigid recipe card for one counter. RL says, "try things until dinner is good," which is costly and messy. Imitation learning lets the apprentice watch many chefs; transformer policies try to turn all those watched clips into a reusable kitchen sense.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the robot starts moving.</p>
+  <ul>
+    <li><strong>Policy \(\pi(a\mid o)\)</strong> — a mapping from observation \(o\) to an action distribution over \(a\); here it is the robot's learned controller.</li>
+    <li><strong>RL setup</strong> — an agent acts in an environment to maximize reward; the lecture contrasts this with offline imitation from already-collected trajectories.</li>
+    <li><strong>Supervised learning / cross-entropy</strong> — train by predicting the expert's label; behavior cloning treats expert actions as labels.</li>
+    <li><strong>Tokenization recap</strong> — turn images, language, proprioception, and actions into vectors or discrete IDs so a transformer can process them as a sequence.</li>
+    <li><strong>Decision Transformer one-liner</strong> — <a class="ref" href="w4Bw8WYL8Ps.html">Note 5</a> framed RL trajectories as token sequences; robot transformers make a similar move for embodied control.</li>
+    <li><strong>Sim-to-real</strong> — train or augment in simulation, then deploy on hardware; useful because real robot data is expensive, but visual/dynamics mismatch can break transfer.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Why robots need imitation learning</h2>
+<p>Start with the kitchen apprentice. If the task is "pick up the Coke can," the robot must notice clutter, choose a grasp, avoid collisions, close the gripper, react if the can slides, and stop when done. The same verb looks different on every table.</p>
+
+<h3 id="s1a">1.1 The lecture's historical arc: online RL → offline demonstrations</h3>
+<p>Ted Xiao describes Google's robotics path as a sequence of hard lessons. Around 2016, the team used a 24/7 KUKA "arm farm" for online RL in bins, including QT-Opt and simulation-to-real work such as CycleGAN-style image transfer. Around 2020, the team moved into office micro-kitchens, tried multitask RL and BC-Z-style imitation, and then consolidated around <strong>multi-task imitation learning</strong> because it could reach high real-world success and improve with more demonstrations.</p>
+
+<div class="box intuition">
+  <span class="lbl">The paradigm shift</span>
+  <p>The key move is to decouple <strong>data generation</strong> from <strong>data consumption</strong>. Instead of requiring the robot to learn only from its own current trial-and-error loop, collect a static and growing pile of demonstrations, relabel or merge it, and train larger policies offline.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Hand-coded controller<br/>one engineered recipe"] --> B["Online robot RL<br/>try actions and rewards"]
+    B --> C["Offline imitation data<br/>teleoperated demos"]
+    C --> D["Transformer policy<br/>tokens in, action tokens out"]
+    D --> E["Closed-loop robot<br/>act, observe, repeat"]
+</div>
+<figcaption>The lecture's arc: robotics borrows the foundation-model recipe only after data becomes reusable offline.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why is offline data such a big deal for robotics?</summary>
+<p>Because every real robot action costs wall-clock time, hardware wear, supervision, and safety risk. A static dataset can be trained on many times, mixed with other datasets, relabeled, and scaled with compute without physically re-running every experiment.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Behavior cloning: the simplest imitation learner</h2>
+<p>Before the transformer, imagine a spreadsheet of demonstrations. Each row says: when the camera/proprioception looked like this and the language instruction was this, the expert moved the wrist this way and opened or closed the gripper like that. Behavior cloning simply trains the apprentice to choose the same action.</p>
+
+<h3 id="s2a">2.1 The BC objective</h3>
+<p>Let the dataset contain expert pairs \((o,a)\), where \(o\) is the observation and \(a\) is the demonstrated action. The policy \(\pi_\theta(a\mid o)\) assigns probability to actions. Training minimizes negative log-likelihood of the expert action.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — behavior cloning</span>
+  <p>$$\min_\theta \; \mathbb{E}_{(o,a)\sim \text{demo}}\big[-\log \pi_\theta(a\mid o)\big]$$</p>
+  <p>Here \(\theta\) are the policy parameters, \(\text{demo}\) is the demonstration distribution, and \(-\log \pi_\theta(a\mid o)\) is the cross-entropy loss for making the expert action likely.</p>
+</div>
+
+<p>In RT-1, the continuous robot actions are discretized into bins, so action prediction can be trained like categorical token prediction. That is why a robotics controller can start to look like a language model: predict the next token, except the token moves a gripper.</p>
+
+<h3 id="s2b">2.2 The core problem: covariate shift and compounding errors</h3>
+<p>Supervised learning assumes train and test examples come from the same distribution. Robotics breaks that assumption. One small action error moves the robot into a state the expert never visited; the policy is now off the demonstration road, so it makes a worse action, and the drift compounds.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Pitfall — tiny errors are not tiny in closed loop</span>
+  <p><strong>Wrong mental model:</strong> "If the policy has only 5% per-step error, a 100-step task should have about five bad actions." In closed-loop control, one early bad action changes all future observations. The robot is no longer sampling expert states, so the loss measured on the demo set can dramatically understate real rollout failure.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — compounding-error intuition</span>
+  <p>$$\text{supervised-looking mistakes}\approx \epsilon H,\qquad \text{closed-loop exposure cost}\approx \epsilon\sum_{t=1}^{H}t=\epsilon\frac{H(H+1)}{2}$$</p>
+  <p>\(\epsilon\) is the per-step chance of making an error on expert-like states, and \(H\) is the horizon. The second expression captures that an error at time \(t\) can contaminate many later steps.</p>
+</div>
+
+<p>The classic repair is <strong>DAgger</strong>, dataset aggregation: let the current policy visit its own states, ask the expert what should be done there, add those labeled states to the dataset, retrain, and repeat. In apprentice-chef terms: do not only watch perfect cooking videos; practice, freeze the moments you went off-script, and ask the chef what to do from there.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    S["Expert demo states<br/>clean counter path"] --> P["BC policy trained here"]
+    P --> R["Rollout on robot"]
+    R --> O["Small slip<br/>off-demo state"]
+    O --> W["Policy less reliable<br/>larger correction needed"]
+    W --> O
+    O --> D["DAgger query expert<br/>label visited state"]
+    D --> S
+</div>
+<figcaption>Covariate shift is a feedback loop; DAgger breaks it by labeling the states the learner actually visits.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why does DAgger query the expert on learner states, not only expert states?</summary>
+<p>Because deployment observations are generated by the learner's own actions. Labeling learner-visited states makes the training distribution closer to the rollout distribution.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Transformers as robot policies</h2>
+<p>Once robot experience is a sequence, a transformer can be the apprentice's memory. RT-1, the lecture's central system, takes recent camera frames and a language instruction, compresses them into tokens, applies a causal transformer, and emits discretized action tokens at about three hertz.</p>
+
+<h3 id="s3a">3.1 RT-1 tokenizes vision, language, history, and actions</h3>
+<p>The lecture gives the concrete recipe: RGB image input is patchified, passed through a FiLM-EfficientNet tokenizer, reduced by TokenLearner from many image patches to a small set of task-relevant tokens, mixed with tokenized language instructions, and fed into a decoder-style transformer. The output is not prose; it is a discretized robot action.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — closed-loop transformer policy</span>
+  <p>$$p_\theta(a_t\mid o_{t-k:t},\; g)=\prod_{j=1}^{J}p_\theta(z_{t,j}\mid z_{t,&lt;j},\; \operatorname{Tok}(o_{t-k:t}),\; \operatorname{Tok}(g))$$</p>
+  <p>\(g\) is the language goal, \(o_{t-k:t}\) is the recent observation history, \(z_{t,j}\) are discrete action tokens such as pose bins or gripper state, and \(J\) is the number of action dimensions/tokens predicted for this control step.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    I["RGB images<br/>recent 6 frames"] --> P["image patches<br/>81 candidates"]
+    P --> L["TokenLearner<br/>select 8 tokens"]
+    G["language instruction<br/>pick coke can"] --> T["text tokens"]
+    L --> X["decoder transformer<br/>causal action prediction"]
+    T --> X
+    X --> A["discrete action tokens<br/>pose plus gripper plus terminate"]
+    A --> R["robot executes<br/>3 Hz closed loop"]
+</div>
+<figcaption>RT-1 is sequence modeling under hardware constraints: keep enough tokens to act, but not so many that the robot reacts too slowly.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 What scaled in the lecture: tasks, data diversity, interoperability</h3>
+<p>RT-1 was trained on roughly 130,000 demonstrations over about 700 templated tasks. The striking result in the lecture is not merely that a transformer ran on a robot; it was that RT-1 handled seen/unseen tasks, distractors, new kitchens, and even mixtures of data from different sources, including simulation and an older KUKA arm-farm dataset. Gato and BC-Z appear as comparison baselines, with Gato retrained on the team's robot data rather than using its original dataset.</p>
+
+<div class="box intuition">
+  <span class="lbl">Scaling lesson from the ablations</span>
+  <p>The lecture emphasizes task diversity: reducing the number of unique tasks hurt more than reducing the number of demonstrations per task. For the apprentice chef, watching the same onion chop 10,000 more times is less useful than seeing many dishes, tools, counters, lighting conditions, and recovery moves.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why discretize continuous robot actions into bins?</summary>
+<p>It makes action prediction a categorical token problem, which reuses the stable training machinery of sequence models. The cost is resolution: too few bins produce coarse control; too many bins lengthen or sparsify the prediction problem.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Language-conditioned policies and foundation-model scaffolding</h2>
+<p>The lecture's broader thesis is that robotics should exploit models that are improving anyway. Language becomes a shared API between humans, LLM planners, vision-language perception, and low-level skills.</p>
+
+<h3 id="s4a">4.1 SayCan and Inner Monologue: planning above the policy</h3>
+<p>A language model can propose semantically sensible plans, but it does not know what the robot can actually do from the current kitchen state. <strong>SayCan</strong> combines two scores: the LLM's likelihood that a skill is useful for the instruction and the robot's affordance/value estimate that the skill is feasible now.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SayCan-style skill choice</span>
+  <p>$$s^*=\arg\max_{s\in\mathcal{S}}\; p_{\text{LLM}}(s\mid G,\text{context})\; V_{\text{robot}}(s\mid o)$$</p>
+  <p>\(s\) is a candidate skill from the robot's skill library \(\mathcal{S}\), \(G\) is the user's goal, \(p_{\text{LLM}}\) measures semantic relevance, and \(V_{\text{robot}}\) measures whether the robot can execute that skill in observation \(o\).</p>
+</div>
+
+<p><strong>Inner Monologue</strong> adds language feedback loops: scene descriptions, active questions, human or VQA answers, and success/failure detectors can be written back into the planner's context so it can replan after the Coke can falls or the human changes their mind.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    U["human goal<br/>I spilled my drink"] --> M["LLM planner<br/>semantic candidates"]
+    O["robot observation<br/>current kitchen"] --> V["affordance or value<br/>can I do this now?"]
+    M --> C["combine scores<br/>useful times feasible"]
+    V --> C
+    C --> S["choose skill<br/>find sponge"]
+    S --> E["execute skill"]
+    E --> F["feedback as language<br/>success, scene, question"]
+    F --> M
+</div>
+<figcaption>Language is the glue: it lets symbolic planning, perception, feedback, and motor skills exchange information.</figcaption>
+</figure>
+
+<h3 id="s4b">4.2 DIAL: scaling instructions without recollecting all data</h3>
+<p>RT-1's original data used hundreds of templated commands, but natural language is much richer. DIAL-style instruction augmentation labels a small fraction of demos with verbose captions, trains or uses a vision-language model, then pseudo-labels the rest. The same episode "pick Coke can" can become "pick up the red Coke can on the right" or "move the lonely object to the others," adding semantic and spatial supervision without recollecting every trajectory.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — pseudo-labeled imitation data</span>
+  <p>$$\mathcal{D}_{\text{aug}}=\mathcal{D}_{\text{template}}\cup\{(o_{1:T},\; \hat g,\; a_{1:T}) : \hat g=f_{\text{VLM}}(o_{1:T})\}$$</p>
+  <p>\(f_{\text{VLM}}\) is a vision-language labeler, \(\hat g\) is its generated instruction/caption, and \(\mathcal{D}_{\text{aug}}\) is the enlarged language-conditioned imitation dataset.</p>
+</div>
+
+<div class="box check">
+  <span class="lbl">Systems covered in the lecture</span>
+  <p><strong>BC-Z</strong> supplies the earlier multi-task imitation baseline and templated language conditioning. <strong>RT-1</strong> is the main transformer control policy. <strong>Gato</strong> is discussed as a generalist-agent baseline retrained on the robot data. <strong>SayCan</strong> and <strong>Inner Monologue</strong> use LLM/VLM scaffolding for planning and feedback. <strong>DIAL</strong> uses VLMs to expand language labels for robot demos. The transcript does not substantially cover RT-2 or diffusion policies; those are best read as follow-up systems.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did the lecture care so much about language labels?</summary>
+<p>Because language turns task identity into a compositional interface. "Pick Coke can" is close to a one-hot label; "pick the red can on the right" exposes color, object, and spatial relations that can recombine at test time.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>What still limits transformer imitation policies</h2>
+<p>The lecture is optimistic, but not a claim that transformers magically solve robotics. The apprentice still needs enough varied, safe practice and a way to recover when the kitchen surprises it.</p>
+
+<h3 id="s5a">5.1 Data quality, coverage, and real-world cost</h3>
+<p>Demonstrations are expensive: RT-1-scale data required many robots, teleoperators, and time. Coverage matters more than repetition. If the dataset never contains a recovery from a slipped can, a policy may not invent that recovery at test time. Noisy labels can be tolerable at scale, as DIAL suggests, but too much false grounding teaches the wrong skill-language alignment.</p>
+
+<h3 id="s5b">5.2 Safety and generalization</h3>
+<p>Robots act in the physical world. A language-conditioned policy must refuse unsafe instructions, avoid collisions, detect failures, and generalize without overclaiming. Multi-embodiment and sim-to-real data help, but different grippers, cameras, action spaces, and dynamics make interoperability a research problem rather than a file-format trick.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"More transformer parameters will automatically make a household robot."</strong> The lecture's bottlenecks include context length, real-time inference, data collection throughput, task diversity, affordance coverage, and safety. Larger models help only if the robot can feed them the right tokens and execute their outputs reliably.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one bottleneck that is not model architecture.</summary>
+<p>Examples: collecting diverse demonstrations, labeling them with grounded language, real-time inference latency, safe exploration, recovery data, multi-robot action interoperability, or planner affordance coverage.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">6.</span>Worked numeric micro-example — compounding error by hand</h2>
+<p>Now compute the failure mode that makes naïve behavior cloning fragile. Use a tiny per-step error probability \(\epsilon=0.05\) and a horizon of \(H=100\) control steps.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>If every step were an independent supervised prediction on expert-like states, the expected number of mistaken actions would be roughly</p>
+  <p>$$\epsilon H = 0.05\times100=5.$$</p>
+  <p>But suppose one wrong action pushes the robot off the expert distribution and makes later states unreliable. A simple exposure-cost approximation counts how many future time steps can be affected:</p>
+  <p>$$\epsilon\sum_{t=1}^{H}t=0.05\times\frac{100\times101}{2}.$$</p>
+  <p>Compute the triangular number:</p>
+  <p>$$\frac{100\times101}{2}=5050.$$</p>
+  <p>Then multiply by the per-step error probability:</p>
+  <p>$$0.05\times5050=252.5.$$</p>
+  <p>The units are "contaminated future-step exposures," not literal separate crashes. The contrast is the lesson: <strong>supervised counting scales like \(O(\epsilon H)\), while closed-loop compounding can scale like \(O(\epsilon H^2)\)</strong>.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if you double the horizon to \(H=200\), what happens?</summary>
+<p>Supervised-looking mistakes double: \(0.05\times200=10\). The compounding exposure becomes \(0.05\times(200\times201/2)=0.05\times20100=1005\). Doubling \(H\) makes the quadratic-style term about four times larger, not merely twice as large.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one transformer control step</h2>
+<p>Follow one concrete instruction through an RT-1-style policy. The shapes are illustrative but aligned with the lecture: recent images, language tokens, compact learned visual tokens, transformer context, then discrete action bins.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · input</td><td>Robot sees the table and receives the natural-language goal.</td><td class="tt">6 RGB frames + "pick up the coke can" + proprioception</td></tr>
+  <tr><td>1 · image patches</td><td>Each image is patchified and encoded by a visual tokenizer such as FiLM-EfficientNet.</td><td class="tt">per frame: 81 image patch features</td></tr>
+  <tr><td>2 · token selection</td><td>TokenLearner keeps task-relevant visual tokens so inference stays fast.</td><td class="tt">per frame: 8 visual tokens × d</td></tr>
+  <tr><td>3 · language and robot state</td><td>Text tokens and proprioceptive/action-history tokens are embedded into the same model width.</td><td class="tt">goal tokens + joint/gripper state tokens</td></tr>
+  <tr><td>4 · transformer</td><td>A decoder-style transformer attends over recent visual history and goal context under a causal mask.</td><td class="tt">context sequence → hidden states (N × d)</td></tr>
+  <tr><td>5 · action tokens</td><td>Heads predict categorical bins for end-effector motion, rotation, gripper, and termination.</td><td class="tt">Δpose bins + gripper open/close + terminate?</td></tr>
+  <tr><td>6 · execute</td><td>The selected action is converted to robot control, sent to hardware, and the next camera frame arrives.</td><td class="tt">one 3 Hz closed-loop control step</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The transformer is not directly "understanding pixels" or "speaking motor torques." The system works because every modality is translated into a shared token sequence, and the final prediction is made discrete enough to train like supervised next-token prediction.</p>
+</div>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory before re-reading. If one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why did the lecture frame offline imitation data as robotics' version of an internet-scale corpus? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Write the behavior cloning objective and explain every symbol. <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Why can a 5% per-step error be much worse than five mistakes in a 100-step rollout? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>What gets tokenized in RT-1, and why is TokenLearner useful? <a class="ref" href="#s3a">(§3.1)</a></li>
+    <li>How does SayCan combine semantic relevance with physical feasibility? <a class="ref" href="#s4a">(§4.1)</a></li>
+    <li>Teach it back: explain transformer imitation learning to a beginner using the apprentice-chef analogy in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Behavior cloning</td><td>Supervised imitation: train a policy to predict the expert's action from the observed state or sensor input.</td></tr>
+  <tr><td>Covariate shift</td><td>The train-time observations differ from deployment observations, often because the policy's own mistakes create new states.</td></tr>
+  <tr><td>DAgger</td><td>Dataset Aggregation: run the learner, ask the expert to label learner-visited states, add them to training, and repeat.</td></tr>
+  <tr><td>Affordance</td><td>An estimate of what actions or skills are physically possible from the current state.</td></tr>
+  <tr><td>Action token</td><td>A discrete ID representing one part of a robot command, such as a binned wrist displacement or gripper state.</td></tr>
+  <tr><td>Language-conditioned policy</td><td>A controller whose behavior changes according to a natural-language instruction.</td></tr>
+  <tr><td>TokenLearner</td><td>A learned module that selects a small number of informative visual tokens from many image patch features.</td></tr>
+  <tr><td>Sim-to-real</td><td>Using simulated data or training and transferring to physical hardware despite visual and dynamics gaps.</td></tr>
+  <tr><td>Multi-embodiment data</td><td>Robot datasets collected from different bodies, sensors, grippers, or action spaces.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Brohan et al. (2022). <strong>RT-1: Robotics Transformer for Real-World Control at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2212.06817" target="_blank">arXiv:2212.06817</a> — the central transformer policy system in the talk.</li>
+  <li>Jang et al. (2022). <strong>BC-Z: Zero-Shot Task Generalization with Robotic Imitation Learning.</strong> <a class="ref" href="https://arxiv.org/abs/2202.02005" target="_blank">arXiv:2202.02005</a> — earlier language-conditioned multitask imitation work from the team.</li>
+  <li>Reed et al. (2022). <strong>A Generalist Agent.</strong> <a class="ref" href="https://arxiv.org/abs/2205.06175" target="_blank">arXiv:2205.06175</a> — Gato, discussed as a generalist-agent baseline.</li>
+  <li>Ahn et al. (2022). <strong>Do As I Can, Not As I Say: Grounding Language in Robotic Affordances.</strong> <a class="ref" href="https://arxiv.org/abs/2204.01691" target="_blank">arXiv:2204.01691</a> — SayCan's LLM-plus-affordance planner.</li>
+  <li>Huang et al. (2022). <strong>Inner Monologue: Embodied Reasoning through Planning with Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2207.05608" target="_blank">arXiv:2207.05608</a> — closed-loop language feedback for embodied planning.</li>
+  <li>Xiao et al. (2023). <strong>Robotic Skill Acquisition via Instruction Augmentation with Vision-Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2211.11736" target="_blank">arXiv:2211.11736</a> — DIAL-style relabeling of demonstrations with VLMs.</li>
+  <li>Ross, Gordon, and Bagnell (2011). <strong>A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning.</strong> <a class="ref" href="https://proceedings.mlr.press/v15/ross11a.html" target="_blank">PMLR</a> — the DAgger paper behind the distribution-shift fix.</li>
+  <li>Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html" target="_blank">essay</a> — the scaling principle Ted Xiao explicitly invokes.</li>
+  <li>Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682" target="_blank">arXiv:2206.07682</a> — emergence framing referenced early in the lecture.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Chen et al. (2021). <strong>Decision Transformer: Reinforcement Learning via Sequence Modeling.</strong> <a class="ref" href="https://arxiv.org/abs/2106.01345" target="_blank">arXiv:2106.01345</a> and <a class="ref" href="w4Bw8WYL8Ps.html">local Note 5</a> — the sequence-modeling bridge from RL to action prediction.</li>
+  <li>Brohan et al. (2023). <strong>RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control.</strong> <a class="ref" href="https://arxiv.org/abs/2307.15818" target="_blank">arXiv:2307.15818</a> — a post-lecture follow-up that pushes the RT-1 idea toward web-scale VLA transfer.</li>
+  <li>Chi et al. (2023). <strong>Diffusion Policy: Visuomotor Policy Learning via Action Diffusion.</strong> <a class="ref" href="https://arxiv.org/abs/2303.04137" target="_blank">arXiv:2303.04137</a> — a neighboring imitation-learning policy family for high-dimensional continuous actions.</li>
+  <li>Jiang et al. (2022). <strong>VIMA: General Robot Manipulation with Multimodal Prompts.</strong> <a class="ref" href="https://arxiv.org/abs/2210.03094" target="_blank">arXiv:2210.03094</a> — referenced for generalization levels and multimodal robot prompting.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="14-strategic-games.html">◀ Note 14 · Strategic Games</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 15 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

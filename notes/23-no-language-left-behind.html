@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 23 — No Language Left Behind</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The missing languages problem</a>
+  <a href="#s1a" class="sub">1.1 Human-centered motivation</a>
+  <a href="#s1b" class="sub">1.2 The scaling misconception</a>
+  <a href="#s2">2 · Evaluation before training</a>
+  <a href="#s2a" class="sub">2.1 FLORES-200</a>
+  <a href="#s2b" class="sub">2.2 Quality and safety checks</a>
+  <a href="#s3">3 · Mining parallel data</a>
+  <a href="#s3a" class="sub">3.1 Embeddings and nearest neighbors</a>
+  <a href="#s3b" class="sub">3.2 LASER3 and shared space</a>
+  <a href="#s4">4 · The multilingual Transformer</a>
+  <a href="#s4a" class="sub">4.1 Encoder-decoder translation</a>
+  <a href="#s4b" class="sub">4.2 MoE capacity, curriculum, back-translation</a>
+  <a href="#s5">5 · Results, impact, limits</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 5 · Note 3 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>No Language Left Behind: Scaling Human-Centered Machine Translation</h1>
+  <p class="lead">Angela Fan's lecture explains how Meta's NLLB project pushed machine translation toward 200 languages by treating low-resource translation as a data, evaluation, modeling, and safety problem — not merely a bigger-model problem.</p>
+  <div class="meta">
+    <span class="pill">🎓 Angela Fan, Meta AI Research</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=ckNMsUuLryM" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>There are roughly 7,000 languages in the world, and thousands have little or no digital text. Translation technology has historically served languages with abundant web data, government proceedings, and commercial translation markets. NLLB asks a more human question: <strong>what would it take for people speaking low-resource languages to access information, services, and each other with translation quality they can trust?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a global postal service</span>
+  <p>Think of multilingual translation as a postal network. High-resource languages are cities with paved roads, labeled addresses, and lots of mail. Low-resource languages are villages with few roads and many local naming conventions. NLLB had to build the map, train address readers, discover which letters correspond, add specialist sorting counters, and audit whether deliveries were safe.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the pipeline; each appears immediately.</p>
+  <ul>
+    <li><strong>Encoder-decoder / seq2seq MT</strong> — an encoder reads the source sentence and a decoder generates the target sentence token by token; translation models are conditional language models.</li>
+    <li><strong>Subword tokenization</strong> — words are split into reusable pieces so rare words, scripts, and morphology can still be represented; NLLB must share vocabulary across many languages.</li>
+    <li><strong>Sentence embedding and cosine similarity</strong> — a sentence becomes a vector; cosine similarity measures whether two vectors point in the same meaning direction, which powers bitext mining.</li>
+    <li><strong>Mixture of Experts</strong> — a sparse model routes each token to a few expert feed-forward networks, adding capacity without activating every parameter; see <a class="ref" href="05-mixture-of-experts.html">Note 6 / MoE</a>.</li>
+    <li><strong>BLEU / chrF++</strong> — automatic MT metrics that compare model outputs with references; BLEU uses n-gram overlap, while chrF++ is character-aware and helpful for morphology-rich languages.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The missing languages problem</h2>
+<p>Imagine typing a health notice, school announcement, or immigration form into a translation app and discovering your language is missing — or present but unreliable. Angela Fan frames NLLB from that concrete failure mode: many communities want translation tools, but the data infrastructure behind modern MT was never built evenly.</p>
+
+<h3 id="s1a">1.1 Human-centered motivation</h3>
+<p>The project began with interviews: about 44 native speakers across 36 low-resource languages. The team heard both fear of language decline and excitement about being included in translation systems. That matters because the goal is not a leaderboard row labeled "supports 200 languages." The goal is <strong>usable, safe translation for real people</strong>.</p>
+<p>In the postal analogy, asking speakers is like visiting the villages before drawing highways. You learn where mail actually needs to go, which names and scripts people use, and what counts as a respectful delivery.</p>
+
+<h3 id="s1b">1.2 The scaling misconception</h3>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Just train a bigger multilingual model on what's online."</strong> That works best where online text already exists. For many low-resource languages, the relevant bitext is scarce, monolingual data may be tiny or script-fragmented, and web text may be noisy, religious-domain-heavy, or absent. Scaling compute cannot translate data that was never collected.</p>
+</div>
+<div class="box eqn">
+  <span class="lbl">Key equation — the data bottleneck</span>
+  <p>$$\mathcal{D}_{\text{MT}}=\{(x_i,y_i,\ell_s,\ell_t)\}_{i=1}^{N_{\ell_s,\ell_t}}$$</p>
+  <p>Here each pair \\(x_i,y_i\\) is a source-target translation, and \\(N_{\ell_s,\ell_t}\\) is the number of pairs for language direction \\(\ell_s\to\ell_t\\). For high-resource directions, \\(N\\) can be huge; for low-resource directions, it may be near zero.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is "more parameters" not enough for a language with almost no text?</summary>
+<p>Parameters can memorize and generalize from evidence, but they cannot invent reliable translation conventions, scripts, terminology, or evaluation references without data. NLLB therefore invests in seed data, mining, back-translation, language identification, and human evaluation.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Evaluation before training: how do we know it works?</h2>
+<p>Before building the biggest sorting center, NLLB first built test routes. Evaluation is especially hard for low-resource languages because there may be no established benchmark, no large translator market, and disagreement over standards, dialects, or scripts.</p>
+
+<h3 id="s2a">2.1 FLORES-200: a benchmark across 200 languages</h3>
+<p>FLORES-200 is a human-translated many-to-many MT benchmark. English source documents were translated into 200 languages, including many lower- and mid-resource languages, with document context and broad domains rather than only news. Because every language shares aligned content, researchers can evaluate directions like Chinese→French or Wolof→English, not only English-centric pairs.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Source documents<br/>broad domains"] --> B["Translator group 1<br/>human translation"]
+    B --> C["Automatic checks<br/>length, script, format"]
+    C --> D["Independent reviewers<br/>quality ratings"]
+    D --> E{"Pass quality bar?"}
+    E -->|"No"| B
+    E -->|"Yes"| F["FLORES-200<br/>benchmark entries"]
+</div>
+<figcaption>FLORES is the postal inspection route: translations are created, checked, reviewed, corrected, and only then admitted to the benchmark.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Quality and safety checks</h3>
+<p>Fan emphasizes that "translation quality" is not one number. FLORES uses automatic metrics such as BLEU and chrF++, but NLLB also uses human evaluation because a five-point German translation rating and a five-point low-resource translation rating are not automatically comparable. Safety adds another axis: some errors are merely awkward, while others change medical advice, distance units, or introduce profanity into benign text.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — metric as a proxy, not the truth</span>
+  <p>$$\operatorname{BLEU}(\hat{y},y)\approx\text{n-gram overlap},\qquad \operatorname{chrF++}(\hat{y},y)\approx\text{character F-score}$$</p>
+  <p>The model output is \\(\hat{y}\\), the human reference is \\(y\\). Both metrics are fast enough for research iteration, but human review is still needed for adequacy, fluency, dialect, script, and safety.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why collect multiple scripts for one language variant?</summary>
+<p>If a language community writes in more than one script, supporting only one script bakes a social choice into the technology. Multiple-script evaluation helps avoid silently privileging one group of speakers over another.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Mining parallel data: finding letters with the same meaning</h2>
+<p>Parallel data, or <strong>bitext</strong>, is the fuel of supervised MT: source sentence here, human-equivalent target sentence there. For low-resource languages, there may be little public bitext beyond narrow sources such as religious text. NLLB therefore mines translations from monolingual web corpora.</p>
+
+<h3 id="s3a">3.1 Embeddings and nearest neighbors</h3>
+<p>The mining recipe is concrete. Download and clean web text, identify each sentence's language, split documents into sentences, embed every sentence into a multilingual vector space, then look for nearest neighbors across languages. If an Assamese sentence and an English sentence land near each other in meaning-space, they may be translations.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Monolingual corpora<br/>Common Crawl, Wiki, web"] --> B["Language ID<br/>filter and clean"]
+    B --> C["Sentence splitting<br/>language-specific rules"]
+    C --> D["LASER / LASER3<br/>dense sentence embeddings"]
+    D --> E["Nearest-neighbor search<br/>cosine + margin"]
+    E --> F["Mined bitext<br/>candidate translation pairs"]
+    F --> G["Small MT validation<br/>quality feedback loop"]
+</div>
+<figcaption>Bitext mining turns disconnected piles of monolingual text into candidate translation pairs by matching nearby sentence embeddings.</figcaption>
+</figure>
+<div class="box eqn">
+  <span class="lbl">Key equation — cosine similarity for mining</span>
+  <p>$$\cos(s,t)=\frac{s\cdot t}{\lVert s\rVert\,\lVert t\rVert}$$</p>
+  <p>The source sentence embedding is \\(s\\), the target sentence embedding is \\(t\\), \\(s\cdot t\\) is their dot product, and the denominator normalizes away vector length so direction carries the meaning match.</p>
+</div>
+
+<h3 id="s3b">3.2 LASER3 and shared space</h3>
+<p>Sentence encoders are the address system. If they are bad for Urdu, Telugu, Tagalog, or another low-resource language, mining finds false addresses. NLLB improves LASER-style encoders with masked language modeling and multilingual distillation: a multilingual teacher keeps specialized student encoders in the same vector space while allowing them to focus on language families.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — distilling a shared embedding space</span>
+  <p>$$\mathcal{L}_{\text{distill}}=1-\cos\big(e_{\text{teacher}}(x),e_{\text{student}}(x)\big)$$</p>
+  <p>The teacher embedding \\(e_{\text{teacher}}(x)\\) and student embedding \\(e_{\text{student}}(x)\\) see the same sentence \\(x\\). Minimizing this loss keeps student encoders compatible for cross-language mining.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why not train one unrelated encoder per language family?</summary>
+<p>Mining depends on comparing vectors across languages. If each encoder learns its own coordinate system, "near" in one space is not comparable with "near" in another. Distillation ties the specialized students back to a common teacher space.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>The multilingual Transformer: one sorting center, many counters</h2>
+<p>After data comes the translation model. NLLB uses a multilingual encoder-decoder Transformer: the encoder reads the source, the decoder generates the target autoregressively, and a target-language token tells the model which delivery route to use.</p>
+
+<h3 id="s4a">4.1 Encoder-decoder translation</h3>
+<div class="box eqn">
+  <span class="lbl">Key equation — conditional translation objective</span>
+  <p>$$p_\theta(y\mid x,\ell_t)=\prod_{j=1}^{T_t}p_\theta(y_j\mid y_{&lt;j},x,\ell_t),\qquad \mathcal{L}=-\sum_j\log p_\theta(y_j\mid y_{&lt;j},x,\ell_t)$$</p>
+  <p>The source sentence is \\(x\\), the target language token is \\(\ell_t\\), and \\(y_j\\) is the next target subword. Training minimizes negative log-likelihood of the human or mined target tokens.</p>
+</div>
+<p>Positive transfer is the upside: languages share names, numbers, concepts, syntax fragments, or scripts, so one model can learn reusable translation behavior. Interference is the danger: high-resource languages dominate training, while low-resource languages are overfit or overwritten.</p>
+
+<h3 id="s4b">4.2 MoE capacity, curriculum, and back-translation</h3>
+<p>NLLB scales capacity using a sparsely gated Mixture of Experts. Instead of every token passing through one dense feed-forward block, a router sends a token representation to a small number of expert networks. More counters are available, but each letter visits only a few counters, so compute grows more slowly than total parameters.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — sparse expert routing</span>
+  <p>$$h'=\sum_{e\in \operatorname{TopK}(g(h))}p_e(h)\,E_e(h)$$</p>
+  <p>The hidden token state is \\(h\\), router \\(g\\) selects a few experts \\(E_e\\), and \\(p_e(h)\\) weights their outputs. In NLLB, the challenge is not only adding experts; it is regularizing routing so low-resource languages do not overfit.</p>
+</div>
+<p>The lecture highlights three supporting moves:</p>
+<ul>
+  <li><strong>Gating regularization</strong> masks or regularizes the router so MoE capacity does not memorize tiny low-resource datasets too early.</li>
+  <li><strong>Curriculum learning</strong> introduces languages at different times: high-resource languages train longer; very-low-resource languages enter later to reduce overfitting.</li>
+  <li><strong>Back-translation</strong> creates synthetic source-target pairs by translating monolingual target text backward, adding silver data when human bitext is scarce.</li>
+</ul>
+<details class="check"><summary>✓ Check yourself — what problem does curriculum solve for Wolof-like low-resource data?</summary>
+<p>If the model sees the tiny low-resource dataset for the whole training run, it may overfit long before high-resource languages finish learning. Introducing it later gives useful training without repeatedly memorizing the same limited examples.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Results, impact, and limits</h2>
+<p>NLLB reported large gains over prior multilingual MT systems on FLORES-101 and produced the first broad FLORES-200 results. Fan notes that the model improved not only automatic BLEU/chrF++ scores but also human evaluation deltas against a baseline Transformer trained on the same data. The system was open-sourced and helped power real translation experiences.</p>
+<div class="box intuition">
+  <span class="lbl">Impact in one sentence</span>
+  <p>NLLB is important because it made low-resource MT less like charity coverage at the edge of an English-centric system and more like a first-class multilingual engineering target: data, benchmarks, model capacity, safety, and open tools all moved together.</p>
+</div>
+<p>The limitations are equally important. The lowest-resource languages still suffer from missing monolingual text, dialect and script variation, domain mismatch, and uncertain evaluation reliability. Going from 100 to 200 languages was already hard; going toward thousands demands simpler pipelines, better speech-first support, and deeper community participation.</p>
+<details class="check"><summary>✓ Check yourself — name one NLLB limitation that more BLEU alone would not reveal.</summary>
+<p>Examples: a dialect is unsupported, a script variant is missing, a translation is toxic despite word overlap, a benchmark domain differs from everyday use, or the community's preferred language standard was not represented.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — bitext mining by cosine similarity</h2>
+<p>Suppose we have one source sentence embedding \\(s\\) and three candidate target sentence embeddings \\(t_1,t_2,t_3\\). The mining system scores them by cosine similarity:</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$\cos(s,t)=\frac{s\cdot t}{\lVert s\rVert\,\lVert t\rVert}$$</p>
+  <p>For candidate \\(t_1\\), suppose \\(s\cdot t_1=8.6\\), \\(\lVert s\rVert=2\\), and \\(\lVert t_1\rVert=5\\). Then</p>
+  <p>$$\cos(s,t_1)=\frac{8.6}{2\cdot 5}=\frac{8.6}{10}=0.86.$$</p>
+  <p>The three target candidates have scores \\([0.86,0.42,0.71]\\). A simple mining rule might require both a threshold and a margin:</p>
+  <p>$$\max_i \cos(s,t_i)\ge 0.80\quad\text{and}\quad \max_i\cos(s,t_i)-\operatorname{2ndmax}_i\cos(s,t_i)\ge 0.10.$$</p>
+  <p>The best score is \\(0.86\\), the runner-up is \\(0.71\\), and the margin is \\(0.15\\). Since \\(0.86\ge0.80\\) and \\(0.15\ge0.10\\), the pair \\((s,t_1)\\) is selected as mined bitext.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why does a margin criterion reduce false pairs compared with raw cosine?</summary>
+<p>A raw score can be high for generic sentences or crowded neighborhoods in embedding space. The margin asks whether the best candidate is clearly better than plausible alternatives, so it rejects ambiguous matches like two target sentences that both look similarly close.</p></details>
+<details class="check"><summary>✓ Check yourself — if the runner-up score became 0.82, would we mine the pair?</summary>
+<p>No under this rule. The best score is still 0.86, but the margin is only 0.04, which is below the 0.10 requirement. The system would treat the match as ambiguous.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one sentence through NLLB-style translation</h2>
+<p>Now follow one concrete delivery through the sorting center: translating "Wash your hands" into a target language.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/Output</th></tr>
+  <tr><td>0 · input</td><td>Source sentence is prepended or paired with a target-language token that says which language to generate.</td><td class="tt">"&lt;2wol&gt; Wash your hands"</td></tr>
+  <tr><td>1 · tokenize</td><td>Subword tokenizer splits the source into reusable pieces, including words, fragments, punctuation, and script-specific units.</td><td class="tt">source ids: T_s tokens</td></tr>
+  <tr><td>2 · encoder</td><td>Transformer encoder builds contextual source states; in MoE layers, the router sends token states to selected experts.</td><td class="tt">H_enc ∈ R^{T_s×d}</td></tr>
+  <tr><td>3 · decoder input</td><td>Decoder starts from the target-language token and previously generated target subwords.</td><td class="tt">prefix length 1…T_t</td></tr>
+  <tr><td>4 · cross-attention</td><td>Each decoder step attends to encoder states while self-attending to the target prefix; MoE routing can occur in decoder feed-forward blocks too.</td><td class="tt">p(y_j | y_&lt;j, x, ℓ_t)</td></tr>
+  <tr><td>5 · generate</td><td>Target tokens are produced autoregressively until an end token appears.</td><td class="tt">target ids: T_t tokens</td></tr>
+  <tr><td>6 · detokenize</td><td>Subwords are merged into a readable target sentence.</td><td class="tt">target sentence</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>One model shares knowledge <strong>across</strong> languages because the encoder-decoder machinery, subword vocabulary, attention patterns, and experts can reuse facts learned from related or higher-resource languages. That is positive transfer. The hard engineering problem is preserving that transfer without letting high-resource traffic drown out low-resource routes.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where does the MoE decision happen in this trace?</summary>
+<p>Inside selected Transformer feed-forward layers. The router looks at a token hidden state and chooses a small set of experts for that token, in the encoder and/or decoder depending on the model configuration.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; then jump back if one link feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why did NLLB start with speaker interviews rather than only architecture design? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What misconception is captured by "just train a bigger multilingual model on what's online," and why does it fail? <a class="ref" href="#s1b">(§1.2)</a></li>
+    <li>How does FLORES-200 make many-to-many evaluation possible across 200 languages? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Explain bitext mining from monolingual corpora in four verbs: identify, split, embed, match. <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why can MoE help multilingual MT, and why can it overfit low-resource languages? <a class="ref" href="#s4b">(§4.2)</a></li>
+    <li>Redo the cosine mining decision if the threshold is raised to 0.90. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain NLLB to a beginner using the global postal-service analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Low-resource language</td><td>A language with limited usable digital data for training or evaluating NLP systems; not necessarily a language with few speakers.</td></tr>
+  <tr><td>Bitext</td><td>Parallel source-target sentence pairs used to train translation systems.</td></tr>
+  <tr><td>LASER / LASER3</td><td>Meta sentence-embedding models that map sentences from many languages into a shared vector space for retrieval and mining.</td></tr>
+  <tr><td>Nearest-neighbor mining</td><td>Finding candidate translations by searching for target sentence vectors closest to a source sentence vector.</td></tr>
+  <tr><td>Margin</td><td>A gap between the best match and runner-up match; used to avoid ambiguous mined pairs.</td></tr>
+  <tr><td>FLORES-200</td><td>A human-translated benchmark covering 200 languages for many-to-many MT evaluation.</td></tr>
+  <tr><td>chrF++</td><td>A character-level translation metric useful when words have rich morphology or tokenization differs across languages.</td></tr>
+  <tr><td>Back-translation</td><td>Creating synthetic parallel data by translating monolingual text backward into the source language.</td></tr>
+  <tr><td>Sparsely gated MoE</td><td>A model layer where each token activates only a few expert networks, adding capacity without using every parameter for every token.</td></tr>
+  <tr><td>Interference</td><td>When learning one language or direction hurts another, often because capacity or training data is imbalanced.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>NLLB Team (2022). <strong>No Language Left Behind: Scaling Human-Centered Machine Translation.</strong> <a class="ref" href="https://arxiv.org/abs/2207.04672">arXiv</a> — the 200-language system paper behind the lecture.</li>
+  <li>Meta AI. <strong>No Language Left Behind project page.</strong> <a class="ref" href="https://ai.meta.com/research/no-language-left-behind/">link</a> — overview, demos, and project framing.</li>
+  <li>Facebook Research. <strong>fairseq NLLB repository.</strong> <a class="ref" href="https://github.com/facebookresearch/fairseq/tree/nllb">GitHub</a> — model and pipeline release linked from the talk.</li>
+  <li>Facebook Research. <strong>FLORES benchmark repository.</strong> <a class="ref" href="https://github.com/facebookresearch/flores">GitHub</a> — FLORES-101/200 data and related resources.</li>
+  <li>Artetxe and Schwenk (2019). <strong>Massively Multilingual Sentence Embeddings for Zero-Shot Cross-Lingual Transfer and Beyond.</strong> <a class="ref" href="https://aclanthology.org/Q19-1038/">TACL</a> — LASER-style shared sentence embeddings.</li>
+  <li>Schwenk et al. (2021). <strong>WikiMatrix: Mining 135M Parallel Sentences in 1620 Language Pairs from Wikipedia.</strong> <a class="ref" href="https://aclanthology.org/2021.eacl-main.115/">EACL</a> — one precursor to large-scale mined bitext.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Papineni et al. (2002). <strong>BLEU: a Method for Automatic Evaluation of Machine Translation.</strong> <a class="ref" href="https://aclanthology.org/P02-1040/">ACL</a> — the classic BLEU metric.</li>
+  <li>Popović (2015). <strong>chrF: character n-gram F-score for automatic MT evaluation.</strong> <a class="ref" href="https://aclanthology.org/W15-3049/">WMT</a> — background for chrF and chrF++-style metrics.</li>
+  <li>Meta AI (2023). <strong>SeamlessM4T: massively multilingual speech and text translation.</strong> <a class="ref" href="https://ai.meta.com/blog/seamless-m4t/">link</a> — a follow-up direction Fan mentions for speech-first languages.</li>
+  <li>OPUS. <strong>Open parallel corpora.</strong> <a class="ref" href="https://opus.nlpl.eu/">link</a> — public bitext source discussed as useful but noisy and uneven.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="22-helpful-chatbots.html">◀ Previous: Helpful chatbots</a>
+  <a class="r" href="24-beyond-llms-agents-reasoning.html">Next: Beyond LLMs, agents &amp; reasoning ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 23 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF; CDN assets require internet for first render.
+</div>
+
+</article>
+</div>
+</body>
+</html>

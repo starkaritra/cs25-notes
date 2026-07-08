@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 39 — Multimodal World Models for Drug Discovery</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Biology as a world model</a>
+  <a href="#s1a" class="sub">1.1 Translation vs disambiguation</a>
+  <a href="#s2">2 · Multimodal transformer tools</a>
+  <a href="#s2a" class="sub">2.1 Five fusion patterns</a>
+  <a href="#worked">3 · Worked example</a>
+  <a href="#s4">4 · Noetik's tumor data stack</a>
+  <a href="#s4a" class="sub">4.1 Why cancer is a transformer playground</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Drug discovery loop</a>
+  <a href="#s6a" class="sub">6.1 What can go wrong</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 8 · Note 4 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>Multimodal World Models for Drug Discovery — Eshed Margalit (Noetik.ai)</h1>
+  <p class="lead">Noetik.ai's bet: if a model can fuse tumor images, spatial omics, proteins, and perturbations into a predictive simulator, drug discovery can move from slow trial-and-error toward high-throughput in-silico experiments.</p>
+  <div class="meta">
+    <span class="pill">🎓 Eshed Margalit</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=8kXIaUM3h1E" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Most cancer drug ideas fail late, after years of biology, animal studies, and clinical trials. Margalit's lecture asks a sharper question: before testing a therapy in a patient, can we build a <strong>world model of tumor biology</strong> that predicts how cells, neighborhoods, and tissue will respond to interventions?</p>
+  <p>This continues the theme from <a class="ref" href="17-biomedical-transformers.html">Note 17 on biomedical transformers</a>, but shifts from “biology as sequences” to “biology as a spatial, multimodal, perturbable world.”</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a tumor city simulator</span>
+  <p>Imagine a city planner with satellite photos, street-level sensors, census tables, and emergency drills. A single sensor misses too much. A useful simulator fuses them, then asks: “If we close this road, where does traffic go?” Here the city is a tumor microenvironment, roads are cell-cell signals, and the “road closure” is a drug or gene perturbation.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow this note smoothly if these are fresh.</p>
+  <ul>
+    <li><strong>Transformers &amp; tokens</strong> — a transformer processes a sequence of vectors; here tokens can be image patches, gene-expression bins, protein channels, or perturbation descriptors.</li>
+    <li><strong>Multimodal fusion</strong> — combine different data streams early, late, or mid-network; see <a class="ref" href="31-llms-to-multimodal.html">Note 31</a> for the vision-language version.</li>
+    <li><strong>Embeddings &amp; cosine similarity</strong> — vectors close in angle are semantically similar; this is how CLIP-like models align images and text, and how we score outcomes below.</li>
+    <li><strong>Self-supervised masked modeling</strong> — hide part of the input and train the model to reconstruct it; in the talk, Noetik masks most gene tokens so the model must learn biology, not shortcuts.</li>
+    <li><strong>Spatial omics &amp; histology</strong> — spatial transcriptomics measures RNA locations in tissue; H&amp;E histology is a cheap stained tissue image showing morphology.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Biology as a world model, not a static classifier</h2>
+<p>Margalit opens with a familiar macroscopic example: when you approach a chaotic Stanford roundabout, you use vision, sound, and prior warnings to predict what happens if you step forward. Noetik wants the microscopic analogue: given a patient's tumor tissue, predict what happens if we perturb the system with a therapy.</p>
+
+<h3 id="s1a">1.1 Translation vs disambiguation</h3>
+<p>The talk separates two reasons to combine modalities. <strong>Translation</strong> asks one modality to recover another: H&amp;E morphology predicts spatial transcriptomics, much like text can generate an image. <strong>Disambiguation</strong> uses one modality to resolve what another cannot know: a cell's few visible gene markers may be ambiguous until its neighbors, morphology, or protein context identify the local state.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the biological world model</span>
+  <p>$$\hat{s}_{t+1}=f_\theta(s_t, a_t, m_t), \qquad \Delta=\hat{s}_{t+1}-s_t.$$</p>
+  <p>
+    Here \(s_t\) is the current biological state of a cell, neighborhood, or tissue; \(a_t\) is an action such as a drug, knockout, or simulated gene-expression shift; \(m_t\) is the set of observed modalities; and \(\Delta\) is the predicted change the scientist cares about.
+  </p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Tissue reality<br/>tumor microenvironment"] --> B["Sensors<br/>H&amp;E, proteins, spatial RNA, genetics"]
+    B --> C["Transformer world model<br/>joint latent state"]
+    D["Intervention<br/>drug or gene perturbation"] --> C
+    C --> E["Predicted future<br/>cell state, marker, response"]
+    E --> F["Decision<br/>target, patient stratum, next assay"]
+</div>
+<figcaption>A biological world model is useful only if it can condition on observations and interventions.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“A world model is just a big classifier with a fancy name.” Not quite. A classifier maps a sample to a label. A world model must represent state, accept counterfactual actions, and make predictions that can be checked in wet-lab or clinical data.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — in the city analogy, which part corresponds to a drug?</summary>
+<p>The drug is the planned intervention: closing a road, changing a traffic light, or adding a bus lane. It is not another sensor; it is the action whose consequences the simulator predicts.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Multimodal transformer tools from the first half of the talk</h2>
+<p>Before entering cancer biology, Margalit tours multimodal ML designs. The common trick is to make unlike measurements compatible enough that attention, contrastive losses, or conditioning layers can exchange information.</p>
+
+<h3 id="s2a">2.1 Five fusion patterns</h3>
+<ol>
+  <li><strong>Joint embedding spaces:</strong> CLIP and ImageBind learn one geometry where paired modalities are close and mismatched pairs are far.</li>
+  <li><strong>Raw concatenation:</strong> if channels align spatially, an RGB image and a depth map can be stapled into a 4-channel input.</li>
+  <li><strong>Cross-attention:</strong> one stream supplies queries while another supplies keys and values, letting modalities mingle mid-network.</li>
+  <li><strong>Token concatenation:</strong> once everything is tokens, append image, text, omics, or conditioning tokens into one transformer sequence.</li>
+  <li><strong>Adaptive LayerNorm:</strong> a conditioning modality predicts scale/shift/gate parameters that steer the primary transformer block efficiently.</li>
+</ol>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — self-attention becomes cross-attention</span>
+  <p>$$\operatorname{Attn}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V,$$</p>
+  <p>$$Q=XW_Q,\qquad K=YW_K,\qquad V=YW_V.$$</p>
+  <p>
+    In self-attention, \(X=Y\). In cross-attention, \(X\) might be spatial-RNA tokens while \(Y\) is an H&amp;E or neighborhood stream, so one modality asks questions of another.
+  </p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Multimodal fusion choices"] --> B["Joint embedding<br/>CLIP / ImageBind"]
+    A --> C["Raw or token concat<br/>early token soup"]
+    A --> D["Cross-attention<br/>queries meet keys/values"]
+    A --> E["Adaptive LayerNorm<br/>conditioning scales blocks"]
+    B --> F["Translation<br/>recover one modality from another"]
+    C --> G["Shared transformer processing"]
+    D --> H["Disambiguation<br/>one stream fills another's blind spot"]
+    E --> H
+</div>
+<figcaption>The lecture's fusion toolbox maps naturally onto translation and disambiguation.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why tokens make transformers attractive for biology</span>
+  <p>Biology arrives as awkwardly mixed objects: images, sparse gene counts, protein panels, patient mutations, and perturbation metadata. Once each is projected into tokens, the transformer supplies a generic mixing operator without requiring every assay to look like a natural sentence.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did Margalit like adaptive LayerNorm?</summary>
+<p>It is parameter-efficient. A conditioning stream can steer a main transformer block through learned scale/shift/gate parameters instead of forcing a full cross-attention module at every layer.</p></details>
+
+<h2 id="worked"><span class="num">3.</span>Worked example — perturbation response as embedding similarity</h2>
+<p>Suppose the model embeds a current T-cell state as \(z\), embeds a candidate drug perturbation as \(p\), and predicts a post-perturbation embedding \(\hat{z}'=z+p\). We compare \(\hat{z}'\) with three candidate outcomes: exhausted cell, tumor-killing cell, and unrelated inflammatory state.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Cosine similarity scores alignment:</p>
+  <p>$$\cos(\hat{z}',c_i)=\frac{\hat{z}'\cdot c_i}{\|\hat{z}'\|\,\|c_i\|}.$$</p>
+  <p>Assume the three cosine scores are exactly the lecture-style toy scores requested here:</p>
+  <p>$$[s_1,s_2,s_3]=[0.30,0.85,0.50].$$</p>
+  <p>Use a temperature \(\tau=0.2\) to turn them into probabilities:</p>
+  <p>$$s/\tau=[1.50,4.25,2.50].$$</p>
+  <p>Exponentiate:</p>
+  <p>$$e^{1.50}=4.482,\qquad e^{4.25}=70.105,\qquad e^{2.50}=12.182.$$</p>
+  <p>Add the weights:</p>
+  <p>$$Z=4.482+70.105+12.182=86.769.$$</p>
+  <p>Normalize:</p>
+  <p>$$p=[4.482/Z,70.105/Z,12.182/Z]\approx[0.052,0.808,0.140].$$</p>
+  <p>The model predicts <strong>outcome 2</strong>: the perturbation most resembles the desired tumor-killing response.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if outcome 3's cosine rose to 0.90, what would happen?</summary>
+<p>Outcome 3 would win. With scores \([0.30,0.85,0.90]\) and \(\tau=0.2\), scaled scores are \([1.5,4.25,4.5]\); softmax gives roughly \([0.027,0.435,0.558]\).</p></details>
+
+<details class="check"><summary>✓ Check yourself — why can multimodal fusion beat a single assay?</summary>
+<p>A single assay has blind spots. H&amp;E may show morphology but not gene programs; spatial RNA may show transcripts but miss protein abundance; a cell's own tokens may be ambiguous without neighborhood context. Fusion lets one stream disambiguate another.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Noetik's tumor data stack: the sensors for the simulator</h2>
+<p>Noetik collects human tumor specimens, punches tiny roughly 1 mm tissue cores, and runs aligned assays on the same physical regions. Margalit emphasizes that one core can contain thousands of cells and millions of spatially localized measurements.</p>
+
+<h3 id="s4a">4.1 Why cancer is a transformer playground</h3>
+<p>The modalities in the talk are unusually rich and aligned:</p>
+<ul>
+  <li><strong>H&amp;E histology:</strong> cheap, common stained tissue images showing morphology.</li>
+  <li><strong>16-plex protein immunofluorescence:</strong> a multi-channel image where antibodies mark proteins such as T-cell, B-cell, and tumor markers.</li>
+  <li><strong>Spatial transcriptomics:</strong> CosMx-style RNA detections with \((x,y,z,\text{gene})\) tuples; the talk mentions 1,000-gene panels and whole-transcriptome runs above 18,000 genes.</li>
+  <li><strong>Whole-exome sequencing:</strong> patient mutation information that can later label clusters or explain biology.</li>
+  <li><strong>Perturbation hypotheses:</strong> synthetic knockdowns, overexpression, or drug-like changes expressed in model input space.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — masked biological autoencoding</span>
+  <p>$$\mathcal{L}_{\text{mask}}(\theta)=-\sum_{i\in M}\log p_\theta(x_i\mid x_{\setminus M}, c),\qquad |M|/L\gtrsim0.9.$$</p>
+  <p>
+    \(x_i\) is a gene-identity plus expression-level token for one cell; \(M\) is the masked set; \(c\) is context such as nearby cells or H&amp;E morphology. Noetik uses very high masking so the model learns regularities of patient biology rather than reconstructing from nearly complete inputs.
+  </p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    H["Histology image<br/>H&amp;E patches"] --> EH["Image encoder"]
+    R["Spatial RNA<br/>gene/expression tokens"] --> ER["Omics encoder"]
+    P["Protein IF<br/>16-channel image"] --> EP["Protein encoder"]
+    G["Genetics and perturbation<br/>mutation/action tokens"] --> EG["Metadata encoder"]
+    EH --> J["Joint token space"]
+    ER --> J
+    EP --> J
+    EG --> J
+    J --> T["Transformer world model"]
+    T --> O["Predicted response<br/>markers, states, targets"]
+</div>
+<figcaption>Multimodal inputs become tokens, fuse in a shared latent space, and produce perturbation-sensitive predictions.</figcaption>
+</figure>
+
+<h3 id="s4b">4.2 Concrete models shown in the talk</h3>
+<p>Several Noetik examples instantiate the same pattern. A masked autoencoder predicts missing gene tokens for a single cell. A neighborhood model compresses the eight nearest cells through a bottleneck transformer and uses that context to improve predictions. An H&amp;E-conditioned model masks all gene tokens at inference and predicts where tumor markers such as keratin 19 should appear from morphology alone. A protein-image model predicts multiplexed protein images while receiving other modalities as extra tokens.</p>
+<p>The foundation-model recipe is: pretrain on large aligned tumor data with self-supervised objectives such as masking and contrastive alignment, then attach readouts for perturbation response, patient outcome, or therapeutic target discovery.</p>
+
+<div class="box intuition">
+  <span class="lbl">Why 90%+ masking matters</span>
+  <p>With mild masking, the task can be solved by local shortcuts: 999 genes nearly determine the last one. With aggressive masking, the model must infer cell type, state, and local biology from sparse clues and context — the same regime needed for counterfactual simulation.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does spatial alignment between assays matter?</summary>
+<p>It lets the model learn correspondences at the same tissue location. If an H&amp;E patch, protein channel, and RNA point cloud refer to the same neighborhood, H&amp;E can supervise transcriptomic translation and omics can disambiguate morphology.</p></details>
+
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one tissue sample through the pipeline</h2>
+<p>Follow one concrete sample: a non-small-cell lung tumor core with a candidate immunotherapy perturbation. The key state is the representation shape or output at each stage.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/Output</th></tr>
+  <tr><td>0 · tissue sample</td><td>A 1 mm tumor core is cut from a patient specimen and spatially registered across assays.</td><td class="tt">tissue core with thousands of cells</td></tr>
+  <tr><td>1 · multimodal assays</td><td>Collect histology image patches, spatial transcriptomics tokens, proteomics / immunofluorescence channels, genetics, and a proposed perturbation.</td><td class="tt">{image patches, RNA tokens, 16 protein channels, mutation/action tokens}</td></tr>
+  <tr><td>2 · per-modality encoders</td><td>Each stream is projected into vectors: patch embeddings, gene-expression tokens, protein image tokens, and perturbation tokens.</td><td class="tt">tokens × d per modality</td></tr>
+  <tr><td>3 · fuse into joint tokens</td><td>Tokens are concatenated, cross-attended, or used to condition adaptive LayerNorm inside the backbone.</td><td class="tt">joint sequence (L_total × d)</td></tr>
+  <tr><td>4 · transformer world model</td><td>Masked-autoencoder or response-prediction layers infer missing biology and simulate local state changes.</td><td class="tt">contextual latent states (L_total × d)</td></tr>
+  <tr><td>5 · predict therapy response</td><td>Readout heads estimate markers such as cytotoxicity, tumor immunogenicity, or patient-level response proxies.</td><td class="tt">response scores / marker heat maps</td></tr>
+  <tr><td>6 · prioritized target</td><td>Rank perturbations for wet-lab follow-up, patient stratification, or clinical-trial re-analysis.</td><td class="tt">target list + experiment plan</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why a shared latent space enables in-silico experiments</span>
+  <p>Once images, RNA, proteins, genetics, and perturbations live in one learned state space, a scientist can change one input arm — for example, knock down a gene in a synthetic neighborhood — and ask how the predicted tissue state moves. The latent space becomes the tumor-city simulator's coordinate system.</p>
+</div>
+
+<h2 id="s6"><span class="num">6.</span>From predictions to drug discovery</h2>
+<p>The talk's drug-discovery claim is deliberately not “the model cures cancer alone.” It is a lower-latency hypothesis engine. Noetik can run billions of virtual cell simulations, then pass prioritized ideas into biologist review, in-house assays, and in-vivo mouse experiments.</p>
+
+<h3 id="s6a">6.1 Applications and failure modes</h3>
+<p>The hard parts are not only architectural. The talk repeatedly returns to data scale, assay heterogeneity, privacy-protected hospital silos, causal validation, generalization across patients and tissues, and the need for wet-lab loops that evaluate predictions outside the model.</p>
+<table>
+  <tr><th>Application</th><th>What the world model contributes</th><th>Reality check</th></tr>
+  <tr><td>Target identification</td><td>Simulate synthetic knockdowns or up-regulation and rank changes in cytotoxic or immunogenic markers.</td><td>Requires wet-lab validation and mechanism-of-action work.</td></tr>
+  <tr><td>Patient stratification</td><td>Cluster predicted biology to find the subset likely to respond to an existing or failed therapy.</td><td>Clinical data can be noisy, small, biased, or missing responders.</td></tr>
+  <tr><td>Immunotherapy response</td><td>Predict whether perturbing the tumor immune microenvironment reactivates T-cell killing.</td><td>The model sees snapshots of disease, not the full healthy immune history.</td></tr>
+  <tr><td>Experiment prioritization</td><td>Search many hypotheses before expensive animal or clinical testing.</td><td>An agent or scientist still needs to choose useful simulations.</td></tr>
+</table>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — counterfactual target ranking</span>
+  <p>$$\operatorname{score}(g)=R\!\left(f_\theta(s, a_g, m)\right)-R\!\left(f_\theta(s, a_0, m)\right).$$</p>
+  <p>
+    \(a_g\) is a gene-targeting intervention, \(a_0\) is the no-treatment baseline, and \(R\) is a readout such as predicted tumor immunogenicity or T-cell cytotoxicity. High positive score means “worth testing,” not “guaranteed drug.”
+  </p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“If the simulator ranks a target highly, clinical trials become unnecessary.” Safety and efficacy in humans still have to be established. The near-term win is narrowing the funnel: better targets, better patient subsets, and fewer uninformative experiments.</p>
+</div>
+
+<div class="box check">
+  <span class="lbl">What the Q&amp;A added</span>
+  <p>Noetik is not only a model API company: Margalit described an in-house full-stack setup with data generation, machine learning, biologists, immunologists, and mouse models. He also flagged privacy, hospital data silos, missing healthy tissue, and cross-scale integration as open problems.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is causality harder than correlation here?</summary>
+<p>Paired patient data can reveal that marker patterns co-occur with response, but a drug changes a causal system. The model's counterfactual must be validated by perturbation screens, animal studies, or clinical evidence to show the intervention actually causes the desired shift.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What makes a biological world model different from a classifier? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Which fusion method would you choose for H&amp;E conditioning, and why? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Why does aggressive masking make the learned representation more useful for simulation? <a class="ref" href="#s4">(§4)</a></li>
+    <li>In the worked example, why did outcome 2 win after softmax? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Trace one patient sample from tissue core to prioritized target. <a class="ref" href="#trace">(trace)</a></li>
+    <li>Teach it back: explain “multimodal world model for drug discovery” to a biology student in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>World model</td><td>A learned simulator that predicts future biological state under observations and interventions.</td></tr>
+  <tr><td>Tumor microenvironment</td><td>The tumor plus nearby immune cells, stromal cells, signals, vessels, and tissue structure.</td></tr>
+  <tr><td>H&amp;E</td><td>Hematoxylin and eosin staining: a common histology image showing tissue morphology.</td></tr>
+  <tr><td>Spatial transcriptomics</td><td>RNA measurements that retain where each transcript appeared in the tissue.</td></tr>
+  <tr><td>Immunofluorescence</td><td>Protein imaging using fluorescent antibodies that bind selected markers.</td></tr>
+  <tr><td>Masked autoencoder</td><td>A model trained by hiding most input tokens and reconstructing the hidden values.</td></tr>
+  <tr><td>Adaptive LayerNorm</td><td>A conditioning method where another modality predicts normalization scale/shift/gate parameters.</td></tr>
+  <tr><td>Counterfactual simulation</td><td>A “what if we changed this?” prediction, such as knocking down a gene in a virtual neighborhood.</td></tr>
+  <tr><td>Patient stratification</td><td>Finding which patient subgroup is likely to respond to a therapy.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in or directly tied to the lecture</h4>
+<ol class="refs">
+  <li>Eshed Margalit, CS25 talk. <strong>Multimodal World Models for Drug Discovery.</strong> <a class="ref" href="https://www.youtube.com/watch?v=8kXIaUM3h1E">video</a> — the source transcript for this note.</li>
+  <li>Noetik. <strong>Research.</strong> <a class="ref" href="https://www.noetik.ai/research">link</a> — company research page for multimodal tumor foundation models.</li>
+  <li>Noetik. <strong>Celleporter.</strong> <a class="ref" href="https://celleporter.noetik.ai">link</a> — public explorer referenced in the talk for virtual-cell predictions.</li>
+  <li>Radford et al. (2021). <strong>Learning Transferable Visual Models From Natural Language Supervision.</strong> <a class="ref" href="https://arxiv.org/abs/2103.00020">CLIP</a> — joint image-text embedding example.</li>
+  <li>Girdhar et al. (2023). <strong>ImageBind: One Embedding Space To Bind Them All.</strong> <a class="ref" href="https://arxiv.org/abs/2305.05665">link</a> — broader multimodal contrastive alignment.</li>
+  <li>Lu et al. (2019). <strong>ViLBERT: Pretraining Task-Agnostic Visiolinguistic Representations.</strong> <a class="ref" href="https://arxiv.org/abs/1908.02265">link</a> — cross-attention-style vision-language fusion.</li>
+  <li>Ramesh et al. (2021). <strong>Zero-Shot Text-to-Image Generation.</strong> <a class="ref" href="https://arxiv.org/abs/2102.12092">DALL·E</a> — text and image tokens in an autoregressive model.</li>
+  <li>Peebles &amp; Xie (2022). <strong>Scalable Diffusion Models with Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2212.09748">DiT</a> — adaptive LayerNorm conditioning example.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Read <a class="ref" href="17-biomedical-transformers.html">Note 17</a> for the broader biomedical-transformer stack: proteins, genomes, clinical text, and single-cell models.</li>
+  <li>Read <a class="ref" href="31-llms-to-multimodal.html">Note 31</a> for visual-token fusion, CLIP-style alignment, and multimodal connector design.</li>
+  <li>NanoString. <strong>CosMx Spatial Molecular Imager.</strong> <a class="ref" href="https://nanostring.com/products/cosmx-spatial-molecular-imager/">link</a> — platform family for spatial molecular imaging mentioned in the transcript.</li>
+  <li>Learn the biology side with a cancer immunotherapy primer from the National Cancer Institute. <a class="ref" href="https://www.cancer.gov/about-cancer/treatment/types/immunotherapy">link</a></li>
+</ol>
+
+<div class="navbtns">
+  <a href="38-biology-of-an-llm.html">◀ Previous: Biology of an LLM</a>
+  <a class="r" href="40-diffusion-transformers.html">Next: Diffusion Transformers ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 39 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 28 — Aligning Open Language Models</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why open alignment became a field</a>
+  <a href="#s1a" class="sub">1.1 The product recipe becomes a weights recipe</a>
+  <a href="#s2">2 · The first open wave</a>
+  <a href="#s2a" class="sub">2.1 Distillation, human data, and access</a>
+  <a href="#s3">3 · Preference optimization</a>
+  <a href="#s3a" class="sub">3.1 RLHF: reward model + PPO</a>
+  <a href="#s3b" class="sub">3.2 DPO: the open simplifier</a>
+  <a href="#s4">4 · Evaluation and open culture</a>
+  <a href="#s4a" class="sub">4.1 Leaderboards: signal, not truth</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 6 · Note 3 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Aligning Open Language Models</h1>
+  <p class="lead">A timeline-plus-recipe for how open builders reproduced, simplified, and debated the ChatGPT-style alignment stack.</p>
+  <div class="meta">
+    <span class="pill">🎓 Nathan Lambert · Allen Institute for AI</span>
+    <span class="pill">⏱ ≈1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=AdLgPmcrXwQ" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>After ChatGPT, the central question was not only “can closed labs align assistants?” It was: <strong>can an open ecosystem reproduce enough of the recipe to make useful, inspectable, reusable chat models?</strong> Nathan Lambert’s answer is a history of artifacts: Alpaca, Vicuna, Dolly, OpenAssistant, Llama-2-Chat, Zephyr, Tülu, Starling, and the evaluation culture that made progress visible.</p>
+  <p>This note complements <a class="ref" href="12-language-human-alignment.html">Note 12 on language and human alignment</a> and <a class="ref" href="22-helpful-chatbots.html">Note 22 on the helpful-chatbot recipe</a>. Those explain the closed-lab recipe; this one explains how the open recipe became a community craft.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — opening a restaurant recipe</span>
+  <p>Think of a base language model as a powerful kitchen: it can cook many things, but it does not know the house style. Alignment is the recipe book, tasting panel, and quality-control loop. Closed labs ran private kitchens. Open alignment is the community reconstructing the recipe from public ingredients, shared tasting notes, and repeated cook-offs.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the timeline. Each term appears repeatedly in the lecture.</p>
+  <ul>
+    <li><strong>Language model</strong> — a next-token predictor trained by autoregressive loss; alignment changes how that predictor behaves in conversations.</li>
+    <li><strong>SFT / instruction tuning</strong> — continue training on prompt–answer examples so the model follows instructions and chat templates; see <a class="ref" href="22-helpful-chatbots.html">Note 22</a>.</li>
+    <li><strong>Preference data</strong> — triples like \(x, y_w, y_l\): prompt, preferred answer, rejected answer; they turn taste into trainable signal.</li>
+    <li><strong>Reward model / RLHF</strong> — learn a scalar reward from comparisons, then optimize the model with an RL method such as PPO while staying near a reference model; see <a class="ref" href="12-language-human-alignment.html">Note 12</a>.</li>
+    <li><strong>Logistic \(\sigma\)</strong> — \(\sigma(z)=1/(1+e^{-z})\) converts a score difference into a probability, used in preference losses.</li>
+    <li><strong>KL / reference model</strong> — a “do not drift too far from the old chef” anchor that preserves fluency, format, and broad capabilities while optimizing preferences.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why open alignment became a field</h2>
+<p>Lambert starts before ChatGPT because the punchline depends on the long arc: Shannon-style sequence modeling, transformers, GPT/BERT scaling, GPT-3 prompting, and then ChatGPT. The technical surprise was not that next-token prediction mattered; it was that <strong>post-training</strong> could turn a raw predictor into something people experienced as an assistant.</p>
+
+<h3 id="s1a">1.1 The product recipe becomes a weights recipe</h3>
+<p>The InstructGPT / ChatGPT-style stack had three ingredients: a pretrained base model, supervised demonstrations, and preference optimization. Closed labs could add private data, product moderation, and hidden evaluations. Open builders had to ask a harder question: <em>which parts can be reproduced with released weights, public data, public code, and modest compute?</em></p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the raw ingredient is next-token likelihood</span>
+  <p>$$
+  \mathcal{L}_{\text{LM}}(\theta)=-\sum_{t=1}^{T}\log \pi_\theta(x_t\mid x_{&lt;t})
+  $$</p>
+  <p>Here \(\pi_\theta\) is the model, \(x_t\) is the next token, and \(x_{&lt;t}\) is the prefix. Pretraining makes the kitchen broadly capable; it does not by itself specify “be helpful, conversational, and safe.”</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["InstructGPT / ChatGPT<br/>closed alignment recipe"] --> B["LLaMA weights<br/>base-model commons"]
+    B --> C["Alpaca<br/>52k self-instruct examples"]
+    B --> D["Vicuna and Koala<br/>ShareGPT plus mixed data"]
+    C --> E["Dolly and OpenAssistant<br/>human-written open data"]
+    D --> E
+    E --> F["Llama-2-Chat<br/>open RLHF write-up"]
+    F --> G["Zephyr and Tülu<br/>DPO-based open alignment"]
+    G --> H["Llama 3 era<br/>SFT, rejection sampling, DPO, PPO"]
+</div>
+<figcaption>The lecture’s broad arc: open alignment moved from imitation data to preference optimization and then to multi-stage recipes.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Open ChatGPT” means open-sourcing a product.</strong> Lambert stresses that ChatGPT is a model plus product system: prompts, filters, interfaces, policies, monitoring, and private data. The open ecosystem usually releases weights, datasets, code, and reports—not the full closed-lab product stack.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what was the open community trying to reproduce?</summary>
+<p>Not merely the UI of ChatGPT. It was trying to reproduce the <em>post-training behavior</em>: instruction following, chat formatting, helpfulness, lower refusal weirdness, and preference-shaped responses using open weights and shareable data.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The first open wave: instruction tuning as recipe copying</h2>
+<p>The first open breakthroughs did not require full RLHF. They asked a simpler question: if a stronger model can answer many instructions, can we distill those demonstrations into a smaller open base model?</p>
+
+<h3 id="s2a">2.1 Distillation, human data, and access</h3>
+<p><strong>Alpaca</strong> used 52k self-instruct-style examples generated from <code>text-davinci-003</code>. <strong>Vicuna</strong> raised the bar with ShareGPT conversations—messier and legally gray, but closer to what people actually asked ChatGPT. <strong>Koala</strong> mixed data sources. <strong>Dolly</strong> and <strong>OpenAssistant</strong> mattered because they added human-written, openly released data. <strong>QLoRA / Guanaco</strong> lowered the memory barrier so more people could fine-tune 7B–65B models.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SFT copies demonstrated answers</span>
+  <p>$$
+  \mathcal{L}_{\text{SFT}}(\theta)=-\mathbb{E}_{(x,y)\sim\mathcal{D}_{\text{inst}}}\left[\sum_{t}\log \pi_\theta(y_t\mid x,y_{&lt;t})\right]
+  $$</p>
+  <p>\(x\) is an instruction, \(y\) is a demonstrated answer, and \(\mathcal{D}_{\text{inst}}\) is the instruction dataset. The model learns the chat format and answer style by imitating examples.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Seed tasks<br/>human prompts"] --> B["Stronger teacher model<br/>generate more tasks"]
+    B --> C["Teacher completions<br/>question-answer pairs"]
+    C --> D["SFT on open base model"]
+    D --> E["Instruction-tuned model"]
+    F["Human open data<br/>Dolly / OpenAssistant"] --> D
+</div>
+<figcaption>Instruction tuning turns a base model into a chatty assistant by training on prompt–answer examples; the source and license of those examples become central.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why this worked</span>
+  <p>In the restaurant analogy, Alpaca and Vicuna did not discover new cooking physics. They obtained many plated examples from a strong chef, then trained apprentices to imitate the plating and response style. That was enough to make open models feel dramatically more assistant-like.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why was ShareGPT powerful and problematic?</summary>
+<p>Powerful: it contained real ChatGPT-style conversations, giving open builders a richer prompt distribution than synthetic seed tasks. Problematic: many conversations were scraped or redistributed in a legally and consent-wise gray area, so the data-transparency story was weak.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Preference optimization: RLHF versus DPO</h2>
+<p>Instruction tuning says “copy this answer.” Preference optimization says “between these two possible answers, move toward the one people prefer.” This is the point where alignment becomes tasting: the community needs comparisons, judges, and optimization methods.</p>
+
+<h3 id="s3a">3.1 RLHF: reward model + PPO</h3>
+<p>The classic RLHF recipe learns a reward model \(r_\phi(x,y)\) from pairwise preferences. Then PPO updates the policy \(\pi_\theta\) to get higher reward while staying near a reference policy \(\pi_{\text{ref}}\). Llama-2-Chat was important because Meta openly described a serious RLHF pipeline; StableVicuna and XwinLM were earlier open signs that PPO could work.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — reward-model preference loss</span>
+  <p>$$
+  \mathcal{L}_{RM}=-\log\sigma\big(r(x,y_w)-r(x,y_l)\big)
+  $$</p>
+  <p>\(y_w\) is the preferred response, \(y_l\) is the rejected response, \(r(x,y)\) is the reward score, and \(\sigma\) maps the reward gap to the model’s probability that \(y_w\) should win.</p>
+</div>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — RLHF objective with a KL anchor</span>
+  <p>$$
+  \max_{\pi_\theta}\;\mathbb{E}_{x,y\sim\pi_\theta}\left[r_\phi(x,y)\right]
+  -\beta\,D_{\mathrm{KL}}\!\left(\pi_\theta(\cdot\mid x)\,\|\,\pi_{\mathrm{ref}}(\cdot\mid x)\right)
+  $$</p>
+  <p>The reward term says “please the tasting panel.” The KL term says “do not become a bizarre chef who wins the panel by exploiting the scoring rubric.” \(\beta\) controls how strong that anchor is.</p>
+</div>
+
+<h3 id="s3b">3.2 DPO: the open simplifier</h3>
+<p><strong>Direct Preference Optimization</strong> reframes the same preference signal so the policy can be trained directly from \((x,y_w,y_l)\) pairs. No separate reward model has to be trained and no PPO loop has to be stabilized. Lambert emphasizes why this mattered socially: DPO was simple, scaled through normal language-model training libraries, and made progress feel reachable.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — DPO uses the policy as an implicit reward</span>
+  <p>$$
+  \mathcal{L}_{\text{DPO}}=-\log\sigma\left(\beta\left[\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right]\right)
+  $$</p>
+  <p>The bracket is a <strong>relative log-probability advantage</strong>: raise the preferred response \(y_w\), lower the rejected response \(y_l\), but measure both relative to the reference model. In this sense, DPO reparameterizes the reward implicitly via policy log probabilities.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Base LM<br/>next-token predictor"] --> B["SFT / instruction tuning<br/>chat format"]
+    B --> C{"Preference stage"}
+    C --> D["RLHF<br/>train RM, then PPO"]
+    C --> E["DPO<br/>train policy from pairs"]
+    D --> F["Chat model<br/>released and evaluated"]
+    E --> F
+    G["Best-of-n / rejection sampling<br/>sample, score, keep best"] --> F
+</div>
+<figcaption>The open alignment pipeline: SFT gives the model a chat interface; RLHF, DPO, and rejection sampling shape which answers it prefers.</figcaption>
+</figure>
+
+<p>The DPO era became visible through <strong>Zephyr</strong>, which used Mistral plus UltraFeedback and very low learning rates, and <strong>Tülu</strong>, which showed a DPO-style recipe could scale to 70B. The lecture’s nuance is important: DPO simplified the recipe, but PPO and other RL methods did not disappear. Starling, SteerLM, and later Llama 3-style multi-stage recipes kept reward models, rejection sampling, DPO, and PPO in the same conversation.</p>
+
+<details class="check"><summary>✓ Check yourself — why did DPO spread so quickly in open labs?</summary>
+<p>Because it converts preference tuning into a normal supervised-looking loss over log probabilities. Open teams could reuse SFT infrastructure instead of building a stable reward-model-plus-PPO pipeline.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Evaluation and open culture</h2>
+<p>Once new models appeared weekly, “I tried it and it feels good” was not enough. Open alignment needed shared tasting tables: fast evaluations for builders and slower public leaderboards for the ecosystem.</p>
+
+<h3 id="s4a">4.1 Leaderboards: signal, not truth</h3>
+<p>Lambert names the evaluation wave: <strong>Chatbot Arena</strong> for human pairwise votes and Elo-like rankings, <strong>AlpacaEval</strong> for LLM-as-a-judge pairwise comparisons, <strong>MT-Bench</strong> for GPT-4-style scoring of multi-turn prompts, and the <strong>Open LLM Leaderboard</strong> for broad discovery. They were valuable because they gave signal in minutes or days; they were limited because they could saturate, hide biases, reward length, and invite contamination or gaming.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Train candidate model"] --> B["Fast local eval<br/>MT-Bench / AlpacaEval"]
+    B --> C["Inspect failures<br/>refusals, verbosity, unsafe answers"]
+    C --> D["Data or method change"]
+    D --> A
+    B --> E["Public signal<br/>Arena / leaderboards"]
+    E --> F["Community adoption<br/>papers, releases, demos"]
+</div>
+<figcaption>Open evaluation is a feedback loop, not a single scoreboard. The faster the loop, the more recipes the community can test.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“A higher leaderboard score means the model is aligned.”</strong> A score can be useful and still incomplete. It may reward verbosity, overlap with training data, judge-model quirks, or benchmark-specific style. Alignment also includes licensing, data provenance, safety boundaries, multilingual coverage, and whether users can reproduce the result.</p>
+</div>
+
+<h3 id="s4b">4.2 Reproducibility, licensing, and safety are part of the recipe</h3>
+<p>Open alignment is cultural as much as algorithmic. The strongest open releases document data mixtures, training stages, compute, licenses, and evaluation scripts. The hardest open problems remain data quality and consent, compute access, evaluation gaming, the lag behind frontier closed systems, and safety: open weights are not inherently unsafe, but capability discovery and misuse risk make release strategy a real research and policy question.</p>
+
+<div class="box intuition">
+  <span class="lbl">What Lambert thinks still bottlenecks open alignment</span>
+  <p>Data. The lecture repeatedly returns to the same point: open builders have a small set of widely used preference datasets—Anthropic HH, OpenAssistant, UltraFeedback, Nectar—and need more diverse, human, licensed data. Synthetic and distilled data help, but can be repetitive and brittle.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one evaluation benefit and one evaluation risk.</summary>
+<p>Benefit: quick feedback lets builders compare recipes without running expensive human studies. Risk: models can overfit to judge preferences, contaminated prompts, or benchmark style, giving a score increase that does not transfer to real users.</p></details>
+
+<h2 id="worked"><span class="num">5.</span>Worked example — DPO vs reward-model preference</h2>
+<p>Take one prompt \(x\), one preferred answer \(y_w\), and one rejected answer \(y_l\). Suppose a reward model assigns implied rewards \(r_w=1.5\) and \(r_l=0.4\). How confident is the preference model that \(y_w\) should beat \(y_l\)?</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>First compute the reward gap:</p>
+  <p>$$
+  \Delta r = r_w-r_l = 1.5-0.4=1.1.
+  $$</p>
+  <p>Convert the gap into a preference probability with the logistic function:</p>
+  <p>$$
+  \sigma(1.1)=\frac{1}{1+e^{-1.1}}\approx\frac{1}{1+0.333}\approx0.75.
+  $$</p>
+  <p>Now compute the reward-model loss:</p>
+  <p>$$
+  \mathcal{L}_{RM}=-\log(0.75)\approx0.288\approx0.29.
+  $$</p>
+  <p>Interpretation: the reward model already gives the preferred answer a decent advantage, so the loss is moderate. DPO uses the same comparison shape, but instead of first learning explicit rewards \(r_w,r_l\), it pushes \(\log\pi_\theta(y_w\mid x)\) up relative to \(\log\pi_\theta(y_l\mid x)\), while comparing both to a reference model.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if the reward gap were 0, what probability and loss would you get?</summary>
+<p>\(\sigma(0)=0.5\), so the model is indifferent. The loss is \(-\log 0.5\approx0.693\), larger than 0.29 because the preference is not yet well explained.</p></details>
+
+<details class="check"><summary>✓ Check yourself — what does the reference model prevent in DPO?</summary>
+<p>It prevents unconstrained drift. Without the reference ratio, the policy could raise the preferred response in strange ways, collapse style, or exploit the comparison data. The reference model acts like a KL-style anchor to the SFT model’s fluency and broad behavior.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one open model from base to chat</h2>
+<p>Follow one hypothetical open 7B base model through the modern recipe. The exact datasets vary by project, but this is the skeleton Lambert keeps returning to.</p>
+
+<table>
+  <tr><th>Stage</th><th>Input</th><th>Output/Data</th></tr>
+  <tr><td>0 · base LM</td><td>Pretrained open weights; web-scale next-token training</td><td class="tt">base LM</td></tr>
+  <tr><td>1 · SFT on instruction data</td><td>Human, synthetic, or distilled prompt–answer examples; chat template</td><td class="tt">instruction-following SFT model</td></tr>
+  <tr><td>2 · collect / curate preference pairs</td><td>Prompts plus multiple candidate answers, ranked by humans, GPT-4-style judges, reward models, or community data</td><td class="tt">(x, y_w, y_l) preference dataset</td></tr>
+  <tr><td>3 · DPO or RM+PPO</td><td>DPO trains directly on pair log-probs; RLHF trains a reward model, then updates with PPO; rejection sampling can keep best-of-n answers</td><td class="tt">preference-tuned chat policy</td></tr>
+  <tr><td>4 · eval on Arena / MT-Bench</td><td>Human battles, LLM-as-judge scores, refusal tests, safety probes, contamination checks</td><td class="tt">scorecards plus failure cases</td></tr>
+  <tr><td>5 · released chat model</td><td>Weights, model card, data notes, license, evaluation report, demo endpoint</td><td class="tt">released chat model</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Why DPO simplified the open recipe</span>
+  <p>DPO removed two fragile engineering loops: training a separate reward model and stabilizing RL updates. In the restaurant analogy, it let the kitchen train directly from “dish A beat dish B” tasting cards, instead of first building a separate critic and then running a reinforcement-learning service around that critic.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where can synthetic data enter this trace?</summary>
+<p>At SFT, by generating prompt–answer examples from a stronger model; at preference collection, by generating candidate answers or judge labels; and at rejection sampling, by sampling many completions and keeping the best scored ones.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Try to answer from memory; then jump back to the linked section if a step is fuzzy.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is “open ChatGPT” an imprecise goal? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What did Alpaca and Vicuna prove about instruction tuning with distilled or scraped conversational data? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Write the reward-model loss and explain what \(y_w\), \(y_l\), and \(\sigma\) mean. <a class="ref" href="#s3a">(§3.1)</a></li>
+    <li>In one sentence, why did DPO matter for open alignment? <a class="ref" href="#s3b">(§3.2)</a></li>
+    <li>Why are leaderboards useful but insufficient? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Redo the arithmetic for a reward gap of 1.1 and explain the result. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain open alignment as a community recipe-building process in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Alignment</td><td>Post-training a model so its responses better match user and developer preferences: helpfulness, style, safety, honesty, and task behavior.</td></tr>
+  <tr><td>Instruction tuning / SFT</td><td>Training on prompt–answer demonstrations so a base model learns to respond in an assistant format.</td></tr>
+  <tr><td>Self-Instruct</td><td>A bootstrapping method: start with a few tasks, ask a stronger model for more tasks and answers, then fine-tune on the expanded set.</td></tr>
+  <tr><td>Distillation</td><td>Using outputs from a stronger teacher model as training data for a smaller or more open student model.</td></tr>
+  <tr><td>Preference pair</td><td>A prompt with two candidate answers, one marked preferred and one rejected: \(x,y_w,y_l\).</td></tr>
+  <tr><td>Reward model</td><td>A model that maps a prompt and answer to a scalar score used as feedback for RLHF.</td></tr>
+  <tr><td>PPO</td><td>Proximal Policy Optimization, an RL algorithm often used to optimize a language model against a learned reward while limiting update size.</td></tr>
+  <tr><td>DPO</td><td>Direct Preference Optimization, a loss that trains the policy directly from preference pairs using a reference model.</td></tr>
+  <tr><td>Rejection sampling / best-of-n</td><td>Generate several answers, score or rank them, and keep the best; useful for data generation and sometimes inference.</td></tr>
+  <tr><td>Chatbot Arena / Elo</td><td>A public human-vote arena where models are compared pairwise and assigned Elo-like rankings.</td></tr>
+  <tr><td>Contamination</td><td>When evaluation prompts or answers leak into training data, making scores look better than true generalization.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Nathan Lambert. <strong>Interconnects.</strong> <a class="ref" href="https://www.interconnects.ai/" target="_blank">link</a> — Lambert’s writing hub on RLHF and open models.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155" target="_blank">link</a> — the InstructGPT recipe.</li>
+  <li>Stanford CRFM (2023). <strong>Alpaca.</strong> <a class="ref" href="https://crfm.stanford.edu/2023/03/13/alpaca.html" target="_blank">link</a> — the 52k self-instruct open fine-tune.</li>
+  <li>LMSYS (2023). <strong>Vicuna.</strong> <a class="ref" href="https://lmsys.org/blog/2023-03-30-vicuna/" target="_blank">link</a> — ShareGPT-style chat fine-tuning and LLM-as-judge evaluation.</li>
+  <li>Databricks (2023). <strong>Dolly 2.0.</strong> <a class="ref" href="https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm" target="_blank">link</a> — human-written open instruction data.</li>
+  <li>Köpf et al. (2023). <strong>OpenAssistant Conversations.</strong> <a class="ref" href="https://arxiv.org/abs/2304.07327" target="_blank">link</a> — community-generated multilingual assistant data and preferences.</li>
+  <li>Dettmers et al. (2023). <strong>QLoRA.</strong> <a class="ref" href="https://arxiv.org/abs/2305.14314" target="_blank">link</a> — memory-efficient fine-tuning that broadened participation.</li>
+  <li>Touvron et al. (2023). <strong>Llama 2.</strong> <a class="ref" href="https://arxiv.org/abs/2307.09288" target="_blank">link</a> — open-weight base and chat models with a detailed RLHF report.</li>
+  <li>Rafailov et al. (2023). <strong>Direct Preference Optimization.</strong> <a class="ref" href="https://arxiv.org/abs/2305.18290" target="_blank">link</a> — the DPO objective.</li>
+  <li>Tunstall et al. (2023). <strong>Zephyr.</strong> <a class="ref" href="https://arxiv.org/abs/2310.16944" target="_blank">link</a> — a DPO-based open chat model recipe.</li>
+  <li>Ivison et al. (2023). <strong>Tülu 2.</strong> <a class="ref" href="https://arxiv.org/abs/2311.10702" target="_blank">link</a> — open post-training recipes at scale.</li>
+  <li>Cui et al. (2023). <strong>UltraFeedback.</strong> <a class="ref" href="https://arxiv.org/abs/2310.01377" target="_blank">link</a> — widely used AI-feedback preference data.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>LMSYS (2023). <strong>Chatbot Arena.</strong> <a class="ref" href="https://lmsys.org/blog/2023-05-03-arena/" target="_blank">link</a> — human pairwise voting and Elo-style public model comparison.</li>
+  <li>Zheng et al. (2023). <strong>Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.</strong> <a class="ref" href="https://arxiv.org/abs/2306.05685" target="_blank">link</a> — MT-Bench and judge-model caveats.</li>
+  <li>Li et al. (2023). <strong>AlpacaEval.</strong> <a class="ref" href="https://tatsu-lab.github.io/alpaca_eval/" target="_blank">link</a> — fast automatic evaluation for instruction-following models.</li>
+  <li>CS25 study sequence: <a class="ref" href="12-language-human-alignment.html">Note 12</a> for alignment foundations and <a class="ref" href="22-helpful-chatbots.html">Note 22</a> for the helpful-chatbot training recipe.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="27-wei-chung-openai.html">◀ Previous · Wei-Chung / OpenAI</a>
+  <a class="r" href="29-mixtral-moe.html">Next · Mixtral MoE ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 28 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

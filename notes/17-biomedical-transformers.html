@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 17 — Biomedical Transformers</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Biomedical data is language-like</a>
+  <a href="#s1a" class="sub">1.1 The systems in this lecture</a>
+  <a href="#s2">2 · Clinical language models</a>
+  <a href="#s2a" class="sub">2.1 Benchmarks and evaluation</a>
+  <a href="#s2b" class="sub">2.2 Aligning Med-PaLM</a>
+  <a href="#s3">3 · Protein language models</a>
+  <a href="#s3a" class="sub">3.1 ESM and masked residues</a>
+  <a href="#s3b" class="sub">3.2 Structure and annotation</a>
+  <a href="#s4">4 · Genomics transformers</a>
+  <a href="#s4a" class="sub">4.1 DeepConsensus</a>
+  <a href="#s4b" class="sub">4.2 Enformer</a>
+  <a href="#s5">5 · Single-cell and safety limits</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 4 · Note 2 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Transformers in Biology &amp; Medicine</h1>
+  <p class="lead">Vivek Natarajan's lecture shows why biomedical AI is becoming a sequence-modeling field: clinical notes, patient histories, proteins, and genomes all contain long-range patterns that transformers can learn.</p>
+  <div class="meta">
+    <span class="pill">🎓 Vivek Natarajan</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=nz7_wg5iOlA" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A doctor's note is a sequence of clinical concepts. A patient's record is a sequence of encounters. A protein is a sentence in the language of life, written with amino-acid letters. A genome is a book-scale string of A/C/G/T symbols. If transformers are the architecture that made machines good at learning from sequences, then biology and medicine are not side quests — they are one of the most natural homes for the idea.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of biomedicine as a giant library with three shelves: <strong>clinical stories</strong>, <strong>protein sentences</strong>, and <strong>genomic books</strong>. Transformers are not magic doctors or biologists; they are powerful librarians that learn which words, residues, or bases tend to appear together, even when the relevant pages are far apart.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before entering the biomedical library.</p>
+  <ul>
+    <li><strong>Amino acid / protein</strong> — amino acids are the alphabet; a protein is a folded chain of amino acids whose shape and function depend on the sequence.</li>
+    <li><strong>DNA / RNA</strong> — DNA stores genetic instructions in A/C/G/T bases; RNA is a related molecule used in transcription and gene expression.</li>
+    <li><strong>Masked language modeling</strong> — hide one token and train the model to predict it from context; this powers BERT-like text models and protein models such as ESM.</li>
+    <li><strong>Tokenization</strong> — choose the units the model sees: words/subwords for clinical text, residues for proteins, bases or k-mers for DNA.</li>
+    <li><strong>Embeddings</strong> — learned vectors representing tokens; nearby vectors often capture related biological or semantic roles.</li>
+    <li><strong>Softmax</strong> — turns logits into probabilities: if logits are \(z_i\), then \(p_i=\exp(z_i)/\sum_j\exp(z_j)\).</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>Biomedical data is language-like</h2>
+<p>Natarajan opens with a shelf-sized printout of the human genome: more than three billion base pairs, printed across well over a hundred volumes. That image makes the first principle hard to miss: biomedicine is full of long sequences whose meaning depends on context.</p>
+
+<h3 id="s1a">1.1 The lecture's actual systems</h3>
+<p>The talk starts with <strong>clinical LLMs</strong>, then moves deeper down the biological stack. The core systems it covers are <strong>MultiMedQA</strong> and <strong>Med-PaLM</strong> for medical question answering; <strong>Performer</strong>-style long-context protein modeling and <strong>ProtNLM</strong> for protein annotation; <strong>DeepConsensus</strong> for sequence correction; and <strong>Enformer</strong> for gene-expression prediction from long DNA context. This note also places those systems beside nearby landmark models: ESM, AlphaFold2's Evoformer, BioBERT/PubMedBERT/ClinicalBERT, DNABERT, Nucleotide Transformer, scBERT, and Geneformer.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — one abstraction for many biomedical sequences</span>
+  <p>$$x=(x_1,x_2,\ldots,x_L), \qquad h_{1:L}=\operatorname{Transformer}_\theta(e(x_1),\ldots,e(x_L)).$$</p>
+  <p>Here, \(x_i\) may be a word, diagnosis code, amino acid, DNA base, or gene token; \(e(x_i)\) is its embedding; \(L\) is sequence length; and \(h_i\) is the contextual representation the model learns for position \(i\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Clinical notes<br/>words and concepts"] --> D["Transformer<br/>context learner"]
+    B["Protein sequence<br/>amino acids"] --> D
+    C["Genome sequence<br/>A/C/G/T bases"] --> D
+    D --> E["Question answering<br/>coding and summaries"]
+    D --> F["Structure/function<br/>contacts and stability"]
+    D --> G["Regulation<br/>expression and variants"]
+</div>
+<figcaption>One architecture can be reused because the inputs are different languages with long-range dependencies.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Calling proteins or genomes languages is only a cute metaphor.” The metaphor has limits — molecules are not English — but it is operationally useful: token context, co-occurrence statistics, long-range constraints, and masked-token objectives all transfer surprisingly well.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why are long-range interactions unusually important here?</summary>
+<p>A residue far away in the linear protein sequence may touch another residue after folding. A DNA enhancer far from a gene in the linear genome may influence transcription through 3D looping. A patient note from months ago may change how today's symptom should be interpreted.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Clinical language models: from benchmarks to bedside caution</h2>
+<p>A patient asks, “Can I take this medicine while pregnant?” A useful answer must understand the question, retrieve medical knowledge, reason about risk, communicate uncertainty, and avoid harmful overconfidence. That is why the lecture begins with clinical question answering instead of a toy text benchmark.</p>
+<h3 id="s2a">2.1 MultiMedQA: the benchmark is part of the model story</h3>
+<p>The Google Health team built <strong>MultiMedQA</strong> by unifying several medical QA datasets: professional medical exam questions, research questions based on PubMed abstracts, and consumer health questions. Natarajan emphasizes that ordinary metrics such as accuracy, BLEU, or CIDEr miss the clinical stakes, especially for long-form answers.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — selective prediction with self-consistency</span>
+  <p>$$\operatorname{defer}(q)=\mathbb{1}\left[\max_a \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}(\hat a_k=a) &lt; \tau\right].$$</p>
+  <p>For question \(q\), sample \(K\) chain-of-thought answers. If the most common answer receives less than threshold \(\tau\) of the votes, the system should defer rather than answer confidently.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Medical question<br/>consumer, exam, or research"] --> B["General LLM<br/>PaLM or FLAN-PaLM"]
+    B --> C["Prompting<br/>few-shot, chain-of-thought, self-consistency"]
+    C --> D["Med-PaLM<br/>instruction prompt-tuned"]
+    D --> E["Clinician evaluation<br/>factuality, reasoning, harm, bias"]
+    D --> F["Lay evaluation<br/>helpfulness and actionability"]
+</div>
+<figcaption>In medicine, evaluation is not an afterthought; it is part of the system design.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Med-PaLM: align a knowledgeable model to a safety-critical domain</h3>
+<p>The lecture's key clinical result is not “LLMs are already doctors.” The result is narrower and more useful: general-purpose LLMs encode some clinical knowledge, performance improves with scale, and <strong>instruction prompt tuning</strong> can make long-form answers more aligned with medical norms using only hundreds of expert-written examples.</p>
+
+<p>Nearby biomedical NLP systems use a related but smaller-scale recipe. <strong>BioBERT</strong> continues BERT pretraining on PubMed and PMC text; <strong>PubMedBERT</strong> trains from scratch on PubMed; <strong>ClinicalBERT</strong> adapts BERT to clinical notes. Large medical LLMs such as <strong>Med-PaLM</strong> aim at broader QA, summarization, coding, triage support, and patient-facing explanation — but only under careful evaluation and deployment constraints.</p>
+
+<div class="box intuition">
+  <span class="lbl">Why prompt tuning helped</span>
+  <p>If the base model already stores partial medical knowledge, the alignment problem becomes: “speak and reason like a cautious clinician in this task.” Soft prompt vectors are a compact learned instruction prefix; they are not human-readable, but they steer the frozen LLM toward safer response patterns.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“A high USMLE score means the model is ready for diagnosis.” Exam accuracy is useful but incomplete. Real clinical use needs calibration, source citation, privacy protection, workflow integration, clinician oversight, and evaluation for harm and bias.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did the team ask both clinicians and lay users to evaluate answers?</summary>
+<p>Clinicians can judge factuality, reasoning, missing content, harm, and bias. Lay users are often the end readers, so they can judge whether an answer is understandable, helpful, and actionable.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Protein language models: sentences that fold</h2>
+<p>Take the short sequence <code>MKTAY</code>. A biologist does not care only whether the letters look likely; she cares what the chain folds into, what it binds, whether a mutation breaks stability, and what function it may perform. Protein language models exploit the fact that evolution has already written a massive training corpus.</p>
+
+<h3 id="s3a">3.1 ESM and masked residues</h3>
+<p><strong>ESM</strong> models from Meta AI, including work by Rives, Lin, and collaborators, train masked language models on millions of protein sequences. The training target is simple — recover hidden amino acids — but the representations learn signals useful for contact prediction, structure, stability, and function. In the library analogy, the model learns grammar from protein sentences before anyone labels every sentence with a 3D shape.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — masked-residue objective</span>
+  <p>$$\mathcal{L}_{\text{MLM}}(\theta)=-\sum_{i\in M}\log p_\theta(x_i\mid x_{\setminus M}).$$</p>
+  <p>\(M\) is the set of masked positions, \(x_i\) is the true amino acid at position \(i\), and \(x_{\setminus M}\) is the visible context. Minimizing this loss forces the model to learn which residues fit a biological context.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Amino-acid sequence<br/>M K T A Y ..."] --> B["Protein transformer<br/>ESM / long-context LM"]
+    B --> C["Per-residue embeddings<br/>L by d"]
+    C --> D["Contact or structure head"]
+    C --> E["Pooled function head"]
+    D --> F["3D constraints<br/>contacts, folds"]
+    E --> G["Function, stability,<br/>annotation"]
+</div>
+<figcaption>A protein LM turns a residue string into contextual embeddings that downstream heads can read.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 Structure and annotation: Performer, AlphaFold2, ProtNLM</h3>
+<p>The transcript highlights two protein papers. First, a <strong>Performer</strong>-style architecture approximates softmax attention with random features, reducing long-sequence attention cost while avoiding hard sparsity assumptions that may be wrong for proteins. Second, <strong>ProtNLM</strong> maps amino-acid sequences to natural-language protein descriptions, helping annotate millions of previously uncharacterized UniProt entries.</p>
+
+<p><strong>AlphaFold2</strong> is the major neighboring system: its <strong>Evoformer</strong> uses attention over a multiple sequence alignment (MSA) plus a pairwise representation to help predict 3D structure. We should not overclaim that it is “just a language model”; it combines evolutionary alignments, pair features, geometry, and structure modules. But it shares the same deep idea: sequence context contains structural information.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — efficient attention sketch</span>
+  <p>$$\operatorname{Attn}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V \quad \leadsto \quad \phi(Q)\bigl(\phi(K)^\top V\bigr).$$</p>
+  <p>Standard attention compares all pairs of \(L\) positions, costing roughly \(O(L^2)\). Performer replaces the softmax kernel with feature maps \(\phi(\cdot)\), aiming for approximately linear scaling in \(L\).</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can masked-residue prediction teach structure without seeing structures?</summary>
+<p>Evolution preserves residues that work together. If two positions co-vary because they contact or jointly determine function, predicting one from the rest rewards the model for representing that constraint.</p></details>
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>Genomics transformers: reading the book-scale genome</h2>
+<p>Now the library shelf gets much bigger. Human DNA is billions of bases long, and many regulatory elements act far from the gene they affect. A CNN can expand its receptive field with layers, but a transformer can directly model long-range interactions when the architecture and positional encoding are built for the scale.</p>
+
+<h3 id="s4a">4.1 DeepConsensus: sequence correction as careful editing</h3>
+<p><strong>DeepConsensus</strong> fits early in the sequencing pipeline. A PacBio machine reads a DNA molecule multiple times, producing noisy subreads and a circular consensus sequence (CCS). The transformer takes subreads, the CCS read, and instrument/context features, then predicts a polished sequence with higher accuracy. The lecture highlights that ordinary cross-entropy is brittle for insertions and deletions, so the paper uses an alignment-aware loss.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — why alignment matters</span>
+  <p>$$\mathcal{L}_{\text{edit}}(\hat y,y)\approx \operatorname{EditDistance}(\hat y,y),$$</p>
+  <p>where \(\hat y\) is the predicted polished read and \(y\) is the high-quality assembly label. A single inserted base shifts every later position, so position-wise cross-entropy can punish many bases for one local error.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Physical specimen<br/>DNA molecule"] --> B["Sequencer<br/>raw subreads"]
+    B --> C["CCS read<br/>initial consensus"]
+    B --> D["DeepConsensus<br/>gap-aware transformer"]
+    C --> D
+    D --> E["Polished read<br/>base calls and quality"]
+    E --> F["Downstream analysis<br/>variant calling or diagnosis"]
+</div>
+<figcaption>DeepConsensus is a transformer used as a molecular proofreader before downstream genomics.</figcaption>
+</figure>
+
+<h3 id="s4b">4.2 Enformer, DNABERT, and Nucleotide Transformer</h3>
+<p><strong>Enformer</strong> predicts gene expression and other genomic tracks from roughly 200 kb of DNA sequence. It mixes convolutional layers with transformer blocks and relative positional encodings to model enhancer–promoter interactions over long genomic distances. The lecture's biological point is crucial: an enhancer can be far away in the linear genome but close in 3D folded chromatin.</p>
+
+<p>Other DNA language models make the tokenization choice explicit. <strong>DNABERT</strong> uses k-mers such as <code>ACGTA</code> as tokens. <strong>Nucleotide Transformer</strong> scales masked modeling over nucleotide sequences from many genomes. These models can support regulatory-element prediction, variant effect prediction, and annotation — but the genome's length makes context windows, compression, and evaluation central design problems.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — gene-expression prediction as supervised sequence modeling</span>
+  <p>$$\hat y_{t,c}=f_\theta(\text{DNA}_{1:200{,}000})_{t,c}, \qquad \mathcal{L}=\sum_{t,c}\ell(\hat y_{t,c},y_{t,c}).$$</p>
+  <p>The model reads a long DNA window and predicts genomic signal \(\hat y_{t,c}\) at genomic bin \(t\) and assay/cell type \(c\). The loss compares predictions with experimental measurements such as expression or chromatin accessibility.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did Enformer need long context?</summary>
+<p>Most disease-associated variants are non-coding. They may change regulatory elements such as enhancers, and those enhancers can influence genes from far away along the DNA sequence. Long context helps the model connect distant regulatory sequence to expression.</p></details>
+
+<!-- ================= SECTION 5 ================= -->
+<h2 id="s5"><span class="num">5.</span>Single-cell models and the high-stakes limits</h2>
+<p>The transcript does not dwell on single-cell systems, but they fit the same library pattern. A cell can be represented by which genes are expressed and at what levels; models such as <strong>scBERT</strong> and <strong>Geneformer</strong> treat genes or expression ranks as tokens to learn cell states, perturbation effects, and disease-relevant patterns.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Cell expression profile<br/>genes as tokens"] --> B["Single-cell transformer<br/>scBERT / Geneformer"]
+    B --> C["Cell type or state"]
+    B --> D["Perturbation response"]
+    B --> E["Disease program<br/>candidate mechanisms"]
+</div>
+<figcaption>Single-cell transformers extend the sequence idea beyond text, proteins, and DNA bases.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“More biomedical tokens automatically means safer biomedical AI.” Scale helps representation learning, but labels can be scarce, biased, private, and distribution-shifted. In high-stakes domains, the evaluation and governance problem can be as hard as the modeling problem.</p>
+</div>
+
+<ul>
+  <li><strong>Tokenization choices:</strong> amino-acid residues, DNA bases, k-mers, diagnosis codes, gene tokens, or subwords each change what “context” means.</li>
+  <li><strong>Long sequences:</strong> genomes and long proteins exceed ordinary attention windows; efficient attention, hierarchy, recurrence, retrieval, and compression matter.</li>
+  <li><strong>Scarce or at-risk labels:</strong> medical labels are expensive, noisy, and tied to real people; open benchmarks remain small because data lives in privacy-protected silos.</li>
+  <li><strong>Privacy and PHI:</strong> clinical models must not memorize or leak protected health information.</li>
+  <li><strong>Distribution shift:</strong> hospitals, instruments, populations, and protocols differ; a model can fail outside its training environment.</li>
+  <li><strong>Evaluation and safety:</strong> clinical systems need harm, bias, uncertainty, source citation, and human-in-the-loop evaluation, not only leaderboard accuracy.</li>
+</ul>
+
+<details class="check"><summary>✓ Check yourself — name two failures that are not captured by ordinary accuracy</summary>
+<p>A model can give a correct multiple-choice answer but omit a dangerous caveat in long-form advice; it can also perform well on one hospital's data but fail on another population or sequencing instrument.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">6.</span>Worked example — masked-residue prediction by hand</h2>
+<p>Numbers make the protein-LM mechanic click. Suppose the sequence is <code>M K T [MASK] Y</code>. The full amino-acid vocabulary has about 20 residues, but we will inspect a toy subset of four candidate residues for the masked position: A, G, L, and V.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>The model outputs logits:</p>
+  <p>$$z=[3.0,1.5,0.5,1.0] \quad \text{for } [A,G,L,V].$$</p>
+  <p>Softmax first exponentiates each logit:</p>
+  <p>$$e^{3.0}=20.0855,\quad e^{1.5}=4.4817,\quad e^{0.5}=1.6487,\quad e^{1.0}=2.7183.$$</p>
+  <p>Add them:</p>
+  <p>$$Z=20.0855+4.4817+1.6487+2.7183=28.9342.$$</p>
+  <p>Now divide each exponentiated logit by \(Z\):</p>
+  <p>$$p(A)=20.0855/28.9342=0.694,\quad p(G)=4.4817/28.9342=0.155,$$</p>
+  <p>$$p(L)=1.6487/28.9342=0.057,\quad p(V)=2.7183/28.9342=0.094.$$</p>
+  <p>The model's most likely residue in this toy subset is <strong>A</strong>, with probability about \(69.4\%\).</p>
+</div>
+<details class="check"><summary>✓ Check yourself — how does masked-LM training use this prediction?</summary>
+<p>During training, the true hidden residue is known. If the true residue were A, the loss for this position would be \(-\log 0.694\approx0.365\). If the true residue were L, the loss would be \(-\log 0.057\approx2.87\), strongly pushing the model to raise L's logit in similar contexts.</p></details>
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one protein through a protein LM</h2>
+<p>Now follow one concrete protein fragment all the way through a protein language model. Let \(L=128\) residues and hidden width \(d=768\).</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · sequence</td><td>Start with a protein represented as residue letters, such as a 128-residue enzyme fragment.</td><td class="tt">sequence of L=128 residues</td></tr>
+  <tr><td>1 · tokenize</td><td>Map each residue to an integer token; the vocabulary is the 20 standard amino acids plus special tokens such as mask/pad/start.</td><td class="tt">128 tokens, vocab≈20-25</td></tr>
+  <tr><td>2 · embed</td><td>Look up each token's vector and add positional information.</td><td class="tt">128×768</td></tr>
+  <tr><td>3 · transformer ×N</td><td>Self-attention and MLP blocks repeatedly contextualize each residue using the whole sequence.</td><td class="tt">128×768</td></tr>
+  <tr><td>4a · per-residue / pair head</td><td>A structure-oriented head reads residue embeddings, or residue-pair features, to estimate contacts or structural constraints.</td><td class="tt">contacts: 128×128 or per-residue labels</td></tr>
+  <tr><td>4b · pooled head</td><td>For function prediction, pool sequence information into one vector and classify the protein.</td><td class="tt">768 → function logits</td></tr>
+  <tr><td>5 · output</td><td>The system returns a property: likely masked residue, contact map, stability proxy, or function label.</td><td class="tt">task-specific prediction</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why unsupervised sequence modeling learns biology</span>
+  <p>Evolution is the hidden teacher. Residues that interact physically or functionally tend to co-evolve: change one, and another may need to change too. A masked language model trained on millions of natural sequences is rewarded for internalizing those statistical constraints, so its embeddings become useful for structure and function even before explicit labels are added.</p>
+</div>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why did Natarajan argue that transformers are a natural fit for biomedical data? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What did MultiMedQA add beyond ordinary medical QA accuracy? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Why is Med-PaLM better described as “aligned for a task” than “ready to be a doctor”? <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>How can a protein masked-LM learn structure/function signals without explicit structure labels? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why do DeepConsensus and Enformer both need more than a vanilla short-context text transformer? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Compute the masked-residue softmax if the top logit changes from 3.0 to 2.0. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain the clinical-story / protein-sentence / genomic-book analogy to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Protein language model</td><td>A transformer trained on amino-acid sequences to learn representations useful for residue prediction, structure, function, or annotation.</td></tr>
+  <tr><td>ESM</td><td>Meta AI's family of evolutionary-scale protein language models trained mostly with masked-token objectives.</td></tr>
+  <tr><td>Evoformer</td><td>AlphaFold2's core block that updates MSA and pair representations with attention-like operations for structure prediction.</td></tr>
+  <tr><td>MSA</td><td>Multiple sequence alignment: related protein sequences arranged so evolutionary conservation and co-variation become visible.</td></tr>
+  <tr><td>Med-PaLM</td><td>A medically aligned version of PaLM/FLAN-PaLM, prompt-tuned and evaluated for medical question answering.</td></tr>
+  <tr><td>MultiMedQA</td><td>A benchmark suite unifying medical exam, research, and consumer health question-answering datasets.</td></tr>
+  <tr><td>BioBERT / PubMedBERT / ClinicalBERT</td><td>BERT-style language models pretrained or adapted on biomedical papers and/or clinical notes.</td></tr>
+  <tr><td>DeepConsensus</td><td>A gap-aware transformer for correcting noisy sequencing reads into more accurate polished DNA sequences.</td></tr>
+  <tr><td>Enformer</td><td>A DeepMind model using convolutions and transformers to predict gene expression and regulatory tracks from long DNA sequences.</td></tr>
+  <tr><td>k-mer</td><td>A length-\(k\) DNA substring used as a token, such as a 6-mer in DNABERT.</td></tr>
+  <tr><td>PHI</td><td>Protected health information; private patient data that clinical AI systems must not leak or misuse.</td></tr>
+  <tr><td>Distribution shift</td><td>A mismatch between training and deployment data, such as a different hospital, population, instrument, or protocol.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly used in the lecture</h4>
+<ol class="refs">
+  <li>Vivek Natarajan. <strong>CS25 lecture: Transformers in Biomedicine.</strong> <a class="ref" href="https://www.youtube.com/watch?v=nz7_wg5iOlA">YouTube</a> — source lecture for these notes.</li>
+  <li>Singhal et al. (2023). <strong>Large language models encode clinical knowledge.</strong> <a class="ref" href="https://www.nature.com/articles/s41586-023-06291-2">Nature</a> — MultiMedQA and Med-PaLM.</li>
+  <li>Choromanski et al. (2021). <strong>Rethinking Attention with Performers.</strong> <a class="ref" href="https://arxiv.org/abs/2009.14794">arXiv</a> — efficient attention method discussed for long-context biological sequences.</li>
+  <li>Madani et al. (2023). <strong>Large language models generate functional protein sequences across diverse families.</strong> <a class="ref" href="https://www.nature.com/articles/s41587-022-01618-2">Nature Biotechnology</a> — protein language modeling as a generative biological tool.</li>
+  <li>Baid et al. (2022). <strong>DeepConsensus improves the accuracy of sequences with a gap-aware sequence transformer.</strong> <a class="ref" href="https://www.nature.com/articles/s41587-022-01435-7">Nature Biotechnology</a> — transformer sequence correction in genomics.</li>
+  <li>Avsec et al. (2021). <strong>Effective gene expression prediction from sequence by integrating long-range interactions.</strong> <a class="ref" href="https://www.nature.com/articles/s41592-021-01252-x">Nature Methods</a> — Enformer.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Rives et al. (2021). <strong>Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences.</strong> <a class="ref" href="https://www.pnas.org/doi/10.1073/pnas.2016239118">PNAS</a> — ESM-style protein language modeling.</li>
+  <li>Lin et al. (2023). <strong>Evolutionary-scale prediction of atomic-level protein structure with a language model.</strong> <a class="ref" href="https://www.science.org/doi/10.1126/science.ade2574">Science</a> — ESMFold.</li>
+  <li>Jumper et al. (2021). <strong>Highly accurate protein structure prediction with AlphaFold.</strong> <a class="ref" href="https://www.nature.com/articles/s41586-021-03819-2">Nature</a> — AlphaFold2 and Evoformer.</li>
+  <li>Lee et al. (2020). <strong>BioBERT: a pre-trained biomedical language representation model.</strong> <a class="ref" href="https://academic.oup.com/bioinformatics/article/36/4/1234/5566506">Bioinformatics</a> — domain-pretrained biomedical NLP.</li>
+  <li>Gu et al. (2022). <strong>Domain-specific language model pretraining for biomedical NLP.</strong> <a class="ref" href="https://dl.acm.org/doi/10.1145/3458754">ACM TKDD</a> — PubMedBERT.</li>
+  <li>Huang et al. (2019). <strong>ClinicalBERT: Modeling Clinical Notes and Predicting Hospital Readmission.</strong> <a class="ref" href="https://arxiv.org/abs/1904.05342">arXiv</a> — clinical-note pretraining.</li>
+  <li>Ji et al. (2021). <strong>DNABERT: pre-trained Bidirectional Encoder Representations from Transformers model for DNA-language in genome.</strong> <a class="ref" href="https://academic.oup.com/bioinformatics/article/37/15/2112/6128680">Bioinformatics</a> — k-mer tokenization for DNA.</li>
+  <li>Dalla-Torre et al. (2023). <strong>The Nucleotide Transformer: Building and evaluating robust foundation models for human genomics.</strong> <a class="ref" href="https://www.biorxiv.org/content/10.1101/2023.01.11.523679v2">bioRxiv</a> — scaled nucleotide masked modeling.</li>
+  <li>Yang et al. (2022). <strong>scBERT as a large-scale pretrained deep language model for cell type annotation of single-cell RNA-seq data.</strong> <a class="ref" href="https://www.nature.com/articles/s42256-022-00534-z">Nature Machine Intelligence</a> — single-cell transformer modeling.</li>
+  <li>Theodoris et al. (2023). <strong>Transfer learning enables predictions in network biology.</strong> <a class="ref" href="https://www.nature.com/articles/s41586-023-06139-9">Nature</a> — Geneformer.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="16-common-sense-reasoning.html">◀ Notes 16: Common Sense Reasoning</a>
+  <a class="r" href="18-neuroscience-inspired-ai.html">Notes 18: Neuroscience-Inspired AI ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 17 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

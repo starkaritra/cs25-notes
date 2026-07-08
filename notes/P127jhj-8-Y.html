@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 · Notes 01 — Transformers United: Overview (NLP/CV/RL)</title>
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  /* ---- sidebar TOC ---- */
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  /* ---- article ---- */
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:22px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  /* ---- callouts ---- */
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  /* ---- figures = light "paper" sketch cards on the dark page ---- */
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  /* ---- refs / footer / nav ---- */
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  /* ---- print / PDF: force a clean light layout so ink + math stay readable ---- */
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this lecture matters</a>
+  <a href="#prereq">Prerequisites refresher</a>
+  <a href="#timeline">1 · The attention timeline</a>
+  <a href="#rnn" class="sub">1.1 Before: RNNs & seq2seq</a>
+  <a href="#bottleneck" class="sub">1.2 The encoder bottleneck</a>
+  <a href="#attn">2 · The birth of attention</a>
+  <a href="#bahdanau" class="sub">2.1 Bahdanau soft-search</a>
+  <a href="#origin" class="sub">2.2 Origin story</a>
+  <a href="#aiayn">3 · Attention Is All You Need</a>
+  <a href="#converge">4 · The convergence thesis</a>
+  <a href="#apps">5 · One architecture, every field</a>
+  <a href="#open">6 · Open problems</a>
+  <a href="#worked">7 · Worked attention example</a>
+  <a href="#trace">8 · End-to-end trace</a>
+  <a href="#recap">9 · Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 1 · Note 1 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">Stanford CS25 · Transformers United · V1 — Lecture 1</div>
+  <h1>Transformers United: The Deep-Learning Models that Revolutionized NLP, CV & RL</h1>
+  <p class="lead">An overview lecture: <em>where transformers came from, why they took over every field of AI, and what's still unsolved.</em></p>
+  <div class="meta">
+    <span class="pill">🎓 Instructors: Div Garg, Steven Feng, Rylan Schaeffer (+ Andrej Karpathy guest)</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=P127jhj-8-Y" target="_blank">▶ Watch on YouTube</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this lecture matters</span>
+  <p>In ~2011, an AI researcher in vision, language, and speech each spoke a <strong>different technical language</strong> and used <strong>different models</strong>. A decade later they all use <strong>one architecture</strong> — the Transformer — copy-pasted across images, text, protein folding, and game-playing. This lecture is the map of <em>how that convergence happened</em>. Everything else in CS25 is a branch off this trunk.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy for the whole course</span>
+  <p>Think of a transformer as a <strong>room full of experts passing sticky-notes</strong>. Every token (word, image patch, game state) is a person in the room. On each round, everyone <em>looks at everyone else</em>, decides <em>whom to listen to</em>, and updates their own notes. "Attention" is just the rule for <em>how much each person listens to each other person</em>. Hold onto this image — every equation below is a formalization of it.</p>
+</div>
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these; dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Dot product</strong> — sums the products of two vectors' entries; a scalar measure of how aligned they are. Attention uses it to score relevance.</li>
+    <li><strong>Softmax</strong> — turns a vector of scores into positive weights that sum to 1 (a probability distribution).</li>
+    <li><strong>RNN hidden state \(h_t\)</strong> — a recurrent net's running memory vector after reading \(t\) tokens.</li>
+    <li><strong>Token</strong> — one unit the model processes (a word-piece here).</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================= 1. TIMELINE ================= -->
+<h2 id="timeline"><span class="num">1.</span>The attention timeline</h2>
+<p>The lecture opens with a history, because the design of the Transformer only makes sense as a <em>reaction</em> to what came before. Here is the arc, from "prehistoric" recurrent nets to the generative era.</p>
+
+<figure>
+<div class="mermaid">
+timeline
+    title From RNNs to the Generative Era
+    Prehistory (pre-2017) : RNNs, LSTMs, GRUs : good at short history, bad at long context
+    2017 The spark : "Attention Is All You Need" : Transformer replaces recurrence
+    2018-2020 Explosion : BERT, GPT-2, ViT : transformers spread to vision, biology
+    2021 Generative era : GPT-3, Codex, DALL·E, AlphaFold : scaling + zero/few-shot
+    2022-23 Present : ChatGPT, Whisper : RLHF, multimodal, mass adoption
+    Future : long context, agents, domain experts : the open frontier
+</div>
+<figcaption>The lecture's "attention timeline." Each era is defined by a limitation the next era removed.</figcaption>
+</figure>
+
+<h3 id="rnn">1.1 Before transformers: RNNs and seq2seq</h3>
+<p>To process a <em>sequence</em> (a sentence, a time series), the pre-2017 tool was the <strong>Recurrent Neural Network (RNN)</strong> and its gated variants, the <strong>LSTM</strong> and <strong>GRU</strong>. An RNN reads one token at a time, carrying a <em>hidden state</em> \(h_t\) — a compressed memory of everything seen so far:</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — the recurrence</span>
+  <p>$$h_t = f(W_h\,h_{t-1} + W_x\,x_t)$$</p>
+  <p>The state at step \(t\) depends on the <em>previous</em> state \(h_{t-1}\). That single arrow — "step \(t\) waits for step \(t\!-\!1\)" — is the source of every problem below.</p>
+</div>
+
+<p><strong>What worked:</strong> RNNs encode <em>recent</em> history well. <br><strong>What broke:</strong> two things.</p>
+<ul>
+  <li><strong>Long-range context loss.</strong> Take the lecture's example: <em>"I grew up in France … I speak fluent ___."</em> To fill the blank with <em>French</em>, the model must connect a word 15+ steps back. In an RNN that signal has to survive being repeatedly overwritten in \(h_t\) — it usually doesn't.</li>
+  <li><strong>No parallelism.</strong> Because \(h_t\) needs \(h_{t-1}\), you must process the sequence strictly left-to-right. You cannot use a GPU's thousands of cores to read all words at once.</li>
+</ul>
+
+<h3 id="bottleneck">1.2 The encoder bottleneck</h3>
+<p>For translation, the 2014 <strong>sequence-to-sequence</strong> design used <em>two</em> RNNs: an <strong>encoder</strong> reads the English sentence into a single fixed vector, and a <strong>decoder</strong> generates French from that vector.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    subgraph ENC[Encoder RNN]
+      e1[I] --> e2[grew] --> e3[up] --> e4[in] --> e5[France]
+    end
+    e5 -->|"one fixed vector c"| D{{"context c"}}
+    D --> d1[Je]
+    subgraph DEC[Decoder RNN]
+      d1 --> d2[grandi] --> d3[en] --> d4[France]
+    end
+    style D fill:#fdeeee,stroke:#d64545,stroke-width:2px
+</div>
+</figure>
+<figcaption>seq2seq: the <span style="color:#d64545">entire</span> source sentence is squeezed through one vector <code>c</code> — the "encoder bottleneck."</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">The core failure</span>
+  <p>Compressing a 40-word sentence into <em>one</em> vector loses information — like summarizing a book in a single sentence and then trying to translate the book from only that sentence. Performance collapsed on long inputs. The fix to this bottleneck is the entire origin of attention.</p>
+</div>
+
+<!-- ================= 2. BIRTH OF ATTENTION ================= -->
+<h2 id="attn"><span class="num">2.</span>The birth of attention</h2>
+<p>The idea (Bahdanau, Cho & Bengio, 2015): instead of forcing the decoder to rely on one summary vector, <strong>let it look back at every encoder state and choose what to focus on</strong> as it generates each word.</p>
+
+<h3 id="bahdanau">2.1 Bahdanau's "soft search"</h3>
+<p>When the decoder is about to emit a word, it forms its context vector \(c_i\) as a <strong>weighted average</strong> of all encoder hidden states \(h_j\). The weights \(\alpha_{ij}\) say <em>how relevant</em> source word \(j\) is to target word \(i\):</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — soft attention (the ancestor of everything)</span>
+  <p>$$c_i = \sum_{j} \alpha_{ij}\,h_j, \qquad \alpha_{ij} = \frac{\exp(e_{ij})}{\sum_k \exp(e_{ik})}, \qquad e_{ij} = \text{score}(s_{i-1}, h_j)$$</p>
+  <p>Read it as: score every source word against my current decoding state \(\to\) <strong>softmax</strong> into a probability distribution (the "how much I listen" weights) \(\to\) take the weighted blend. This is the sticky-note rule from the analogy, written down.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>Attention turns "remember everything in one vector" into "keep everything, and <em>dynamically retrieve</em> the relevant bits on demand." The softmax makes it a <em>soft</em> (differentiable) lookup — so it can be learned by gradient descent, unlike a hard "pick word #7" choice.</p>
+</div>
+
+<h3 id="origin">2.2 The origin story (from the lecture)</h3>
+<p>Karpathy shares an email from Dzmitry Bahdanau on where the mechanism came from. He was looking to kill the encoder bottleneck, and drew on <em>learning English in middle school</em>: your gaze shifts back and forth between the source and target sentence as you translate. He encoded that "where do I look now?" as a softmax-weighted average — and it <em>worked on the first try</em>. The name "attention" was suggested by Yoshua Bengio on a final pass; the working title had been "RNN Search."</p>
+
+<div class="box analogy">
+  <span class="lbl">Historical note worth remembering</span>
+  <p>"Attention Is All You Need" was almost "RNN Search Is All You Need." The <em>mechanism</em> predates the famous 2017 paper by two years — 2017's contribution was to throw the RNN away and keep <em>only</em> attention.</p>
+</div>
+
+<!-- ================= 3. AIAYN ================= -->
+<h2 id="aiayn"><span class="num">3.</span>2017: "Attention Is All You Need"</h2>
+<p>In Bahdanau's work, attention was a small helper bolted onto a bidirectional RNN. The 2017 Transformer paper made a radical cut: <strong>delete the recurrence entirely.</strong> If attention lets any position talk to any other position directly, you don't need to pass information step-by-step through a hidden state at all.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph OLD["Before: attention as a helper"]
+      r1[RNN] --> r2[RNN] --> r3[RNN] -.small attention.-> r2
+    end
+    subgraph NEW["Transformer: attention IS the model"]
+      t1[token] & t2[token] & t3[token] --> SA[[Self-Attention:<br/>every token attends to every token,<br/>in parallel]]
+    end
+    OLD --> NEW
+    style SA fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+</figure>
+<figcaption>The leap of 2017: recurrence (sequential, bottlenecked) is replaced by self-attention (parallel, all-to-all).</figcaption>
+</figure>
+
+<p>This bought two things RNNs could never have:</p>
+<ul>
+  <li><strong>Direct long-range links.</strong> "France … French" is now <em>one</em> attention edge, not 15 hops through a decaying state.</li>
+  <li><strong>Full parallelism.</strong> All tokens are processed simultaneously — perfect for GPUs, which is <em>why</em> transformers could be scaled to billions of parameters.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">The price (foreshadowing §6)</span>
+  <p>"Every token attends to every token" means \(n\) tokens produce \(n^2\) attention scores. This <strong>quadratic cost</strong> in sequence length is the single biggest limitation the rest of the field keeps trying to fix (long context, efficient attention).</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can't an RNN be parallelized across time but a transformer can?</summary>
+<p>An RNN's state \(h_t=f(h_{t-1},x_t)\) <em>needs</em> \(h_{t-1}\) before it can compute \(h_t\), forcing strict left-to-right order. Self-attention computes all token interactions from the full input at once — no token's computation waits on another's — so all positions run in parallel on a GPU.</p></details>
+
+<!-- ================= 4. CONVERGENCE ================= -->
+<h2 id="converge"><span class="num">4.</span>The convergence thesis</h2>
+<p>Karpathy's central historical point: AI didn't just adopt a useful tool — <strong>every subfield's architecture collapsed onto the same one</strong>.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["~2011<br/>hand-crafted features<br/>(SIFT, HOG, parse trees…)<br/>every field different"]
+    B["2012 AlexNet<br/>neural nets scale<br/>same *toolkit* everywhere"]
+    C["2017 Transformer<br/>same *architecture*<br/>copy-pasted everywhere"]
+    A --> B --> C
+    C --> V[Vision / ViT]
+    C --> L[Language / GPT]
+    C --> R[RL / Decision Transformer]
+    C --> S[Biology / AlphaFold]
+    style C fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+</figure>
+<figcaption>Two convergences: 2012 unified the <em>toolkit</em> (neural nets); 2017 unified the <em>architecture</em> (transformer).</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The provocative hint</span>
+  <p>Karpathy notes the cortex looks remarkably <em>uniform</em> — visual, auditory, and other regions share the same basic circuitry, differing mostly in "hyperparameters." That one homogeneous architecture handles vision, sound, and language in the brain is at least suggestive that a single general learning algorithm (maybe transformer-like) could do the same. He flags this as <em>speculation</em>, not fact — good epistemic hygiene to copy.</p>
+</div>
+
+<!-- ================= 5. APPS ================= -->
+<h2 id="apps"><span class="num">5.</span>One architecture, every field</h2>
+<p>The rest of CS25 is a tour of this table. Each row is a later lecture in the batch.</p>
+<table>
+  <tr><th>Field</th><th>What a "token" becomes</th><th>Flagship model</th><th>Covered in</th></tr>
+  <tr><td>Language (NLP)</td><td>word / sub-word piece</td><td>BERT, GPT-3</td><td>Note 3</td></tr>
+  <tr><td>Vision (CV)</td><td>16×16 image patch</td><td>ViT</td><td>Note 4</td></tr>
+  <tr><td>Reinforcement learning</td><td>(state, action, reward) step</td><td>Decision Transformer</td><td>Note 5</td></tr>
+  <tr><td>Biology</td><td>amino-acid residue</td><td>AlphaFold</td><td>later CS25</td></tr>
+  <tr><td>Multimodal / generative</td><td>text + pixels jointly</td><td>DALL·E, ChatGPT</td><td>later CS25</td></tr>
+</table>
+<div class="box analogy">
+  <span class="lbl">The unifying trick</span>
+  <p>To apply a transformer to a new domain you only change <strong>how you chop the input into tokens</strong> and <strong>how you feed them in</strong>. The core "room of experts passing sticky-notes" is identical. That is the whole reason one architecture spread everywhere.</p>
+</div>
+
+<!-- ================= 6. OPEN PROBLEMS ================= -->
+<h2 id="open"><span class="num">6.</span>What's still unsolved</h2>
+<p>The lecture closes with the frontier — the same problems that motivate most current research:</p>
+<ul>
+  <li><strong>Quadratic attention cost.</strong> \(O(n^2)\) in sequence length makes very long inputs expensive. → efficient/linear attention, state-space models (later CS25).</li>
+  <li><strong>Limited context / no long-term memory.</strong> Early models capped near ~4k tokens; conversations are "short-lived." → retrieval-augmented models, longer contexts.</li>
+  <li><strong>Controllability.</strong> Outputs are stochastic — re-run ChatGPT, get a different answer. → steering, decoding controls, alignment.</li>
+  <li><strong>Alignment with human values (and brains).</strong> → RLHF (how ChatGPT is trained), interpretability.</li>
+  <li><strong>Domain specialists & mixtures of experts.</strong> Instead of one model that knows everything, specialized "DoctorGPT / LawyerGPT" experts routed via a mixture-of-experts. → MoE lecture.</li>
+</ul>
+
+<!-- ================= 7. WORKED EXAMPLE ================= -->
+<h2 id="worked"><span class="num">7.</span>Worked numeric micro-example</h2>
+<p>Here is the soft-attention mechanism from §2 with only two source states, so the arithmetic is visible.</p>
+
+<div class="box eqn">
+  <span class="lbl">Tiny soft-attention calculation</span>
+  <p>Suppose the decoder scores two encoder hidden states with raw scores:</p>
+  <p>$$e = [2.0,\;0.5]$$</p>
+  <p>Softmax exponentiates and normalizes:</p>
+  <p>$$\exp(e) = [e^{2.0},\;e^{0.5}] \approx [7.39,\;1.65]$$</p>
+  <p>$$\sum_k \exp(e_k) \approx 7.39 + 1.65 = 9.04$$</p>
+  <p>$$\alpha = \left[\frac{7.39}{9.04},\;\frac{1.65}{9.04}\right] \approx [0.82,\;0.18]$$</p>
+  <p>With tiny 2-D encoder states \(h_1=[1,0]\) and \(h_2=[0,1]\), the context is:</p>
+  <p>$$c = 0.82\,h_1 + 0.18\,h_2 = 0.82[1,0] + 0.18[0,1] \approx [0.82,\;0.18]$$</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what happens to \(\alpha\) if the second score rises to 2.0?</summary>
+<p>The scores become \(e=[2.0,2.0]\). Equal scores produce equal softmax weights, so \(\alpha=[0.5,0.5]\): the decoder listens to both source states equally.</p></details>
+
+<!-- ================= 8. TRACE ================= -->
+<h2 id="trace"><span class="num">8.</span>End-to-end trace: France → French</h2>
+<p>Now trace the lecture's long-range example through the attention lens.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State</th></tr>
+  <tr><td>Input tokens</td><td>The sentence is split into word-piece tokens.</td><td><span class="tt">I</span>, <span class="tt">grew</span>, <span class="tt">up</span>, <span class="tt">in</span>, <span class="tt">France</span>, …, <span class="tt">I</span>, <span class="tt">speak</span>, <span class="tt">fluent</span>, <span class="tt">___</span></td></tr>
+  <tr><td>Encoder states \(h_j\)</td><td>Each input position gets a hidden state that stores what that token means in context.</td><td>\(h_{\text{France}}\) carries the important country clue.</td></tr>
+  <tr><td>Decoder scores each \(h_j\)</td><td>At the blank, the decoder asks which earlier states help predict the next word.</td><td>\(e_{\text{France}}\) becomes much larger than scores for filler words.</td></tr>
+  <tr><td>Softmax weights</td><td>The scores become attention weights.</td><td>Most \(\alpha_j\) lands on <span class="tt">France</span>.</td></tr>
+  <tr><td>Context vector</td><td>The decoder forms a weighted blend of encoder states.</td><td>\(c \approx\) mostly \(h_{\text{France}}\), with small contributions from other tokens.</td></tr>
+  <tr><td>Prediction</td><td>The output layer uses that context to choose the blank.</td><td><span class="tt">French</span></td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>One attention edge beats 15 RNN hops because the "France" signal does not have to survive repeated overwrites in a running state. The decoder can point straight back to the relevant token, pull its state into the context vector, and predict "French" from that direct evidence.</p>
+</div>
+
+<!-- ================= 9. RECAP ================= -->
+<h2 id="recap"><span class="num">9.</span>Recap — rebuild it yourself</h2>
+<p>Don't re-read. Try to answer these from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What <em>two</em> failures of RNN/seq2seq models does the "encoder bottleneck" name? <a class="ref" href="#bottleneck">(§1.2)</a></li>
+    <li>Write the soft-attention equation and say what the softmax is doing in it. <a class="ref" href="#bahdanau">(§2.1)</a></li>
+    <li>What exactly did the 2017 paper <em>remove</em>, and what two capabilities did that unlock? <a class="ref" href="#aiayn">(§3)</a></li>
+    <li>What is the price of "every token attends to every token"? <a class="ref" href="#open">(§6)</a></li>
+    <li>Explain the "convergence thesis" to a friend in two sentences. <a class="ref" href="#converge">(§4)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Token</td><td>One unit of input the model processes (word-piece, image patch, RL step).</td></tr>
+  <tr><td>Hidden state \(h_t\)</td><td>An RNN's running memory vector after reading \(t\) tokens.</td></tr>
+  <tr><td>Encoder / decoder</td><td>Reads the input into a representation / generates the output from it.</td></tr>
+  <tr><td>Attention weight \(\alpha_{ij}\)</td><td>How much output position \(i\) "listens to" input position \(j\); sums to 1 via softmax.</td></tr>
+  <tr><td>Self-attention</td><td>Attention where tokens attend to <em>other tokens in the same sequence</em>.</td></tr>
+  <tr><td>seq2seq</td><td>Encoder-decoder setup for mapping one sequence to another (e.g. translation).</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement Learning from Human Feedback — how ChatGPT is aligned to preferences.</td></tr>
+  <tr><td>MoE</td><td>Mixture of Experts — route each token to a few specialized sub-networks.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Primary sources (the papers named in the lecture)</h4>
+<ol class="refs">
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — the Transformer.</li>
+  <li>Bahdanau, Cho, Bengio (2015). <strong>Neural Machine Translation by Jointly Learning to Align and Translate.</strong> <a class="ref" href="https://arxiv.org/abs/1409.0473" target="_blank">arXiv:1409.0473</a> — first "soft attention."</li>
+  <li>Sutskever, Vinyals, Le (2014). <strong>Sequence to Sequence Learning with Neural Networks.</strong> <a class="ref" href="https://arxiv.org/abs/1409.3215" target="_blank">arXiv:1409.3215</a> — the encoder bottleneck.</li>
+  <li>Bengio et al. (2003). <strong>A Neural Probabilistic Language Model.</strong> <a class="ref" href="https://www.jmlr.org/papers/v3/bengio03a.html" target="_blank">JMLR</a> — early neural LM.</li>
+  <li>Krizhevsky, Sutskever, Hinton (2012). <strong>ImageNet Classification with Deep CNNs (AlexNet).</strong> <a class="ref" href="https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks" target="_blank">NeurIPS</a> — the 2012 scaling moment.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Jay Alammar — <strong>The Illustrated Transformer.</strong> <a class="ref" href="https://jalammar.github.io/illustrated-transformer/" target="_blank">jalammar.github.io</a> — the canonical visual explainer.</li>
+  <li>3Blue1Brown — <strong>But what is a GPT? / Attention in transformers</strong> (YouTube) — best visual intuition.</li>
+  <li>This series: <a class="ref" href="XfpMkf4rD6E.html">Note 2 — Introduction to Transformers (Karpathy)</a> goes into the mechanics this lecture only sketches.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="XfpMkf4rD6E.html">Note 2 · Introduction to Transformers (Karpathy) ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 01 · Built for learning (WHY→HOW, check-yourself, references).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

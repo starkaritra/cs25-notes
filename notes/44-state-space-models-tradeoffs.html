@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 44 — State-Space Models vs Transformers</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The computational bargain</a>
+  <a href="#s1a" class="sub">1.1 Database vs brain</a>
+  <a href="#s2">2 · What an SSM is</a>
+  <a href="#s2a" class="sub">2.1 Recurrence and convolution</a>
+  <a href="#s3">3 · From S4 to Mamba</a>
+  <a href="#s3a" class="sub">3.1 Selectivity</a>
+  <a href="#s4">4 · The tradeoff</a>
+  <a href="#s4a" class="sub">4.1 Recall vs efficiency</a>
+  <a href="#s5">5 · Hybrids and raw data</a>
+  <a href="#s5a" class="sub">5.1 Attention as a scratchpad</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 9 · Note 4 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V6</div>
+  <h1>On the Tradeoffs of State-Space Models and Transformers</h1>
+  <p class="lead">Albert Gu’s core claim: attention and modern state-space models are not merely “slow vs fast”; their different autoregressive memories create different modeling strengths.</p>
+  <div class="meta">
+    <span class="pill">🎓 Albert Gu</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=OyimE74UMF8" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Transformers changed sequence modeling because every token can look back at every earlier token. That power is expensive: training attention forms roughly all pairwise token scores, and inference keeps a growing KV-cache. As contexts stretch to books, codebases, genomes, audio streams, and agent histories, the question becomes: do we need to store every past token, or can a model carry a compact state?</p>
+  <p>State-space models (SSMs), including Mamba-like models, promise linear scaling and constant-size recurrent memory. The price is that the fixed state is a compression of the past. This note is about that exact bargain.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — database vs brain</span>
+  <p>A transformer is like a database: it writes down a record for every previous token, then queries those records precisely. An SSM is like a brain-like working memory: it continuously updates a fixed internal state, keeping the gist and task-relevant signals while inevitably losing some exact details. Hybrids are the practical compromise: a brain with a scratchpad.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You’ll follow this note smoothly if these are fresh. Each is one line; skim, and jump back if one feels shaky.</p>
+  <ul>
+    <li><strong>Attention cost</strong> — vanilla self-attention compares every token with every other token, giving the O(N²) train-time score matrix discussed in <a class="ref" href="01-transformers.html">Note 1</a>; this is the baseline SSMs are trying to avoid.</li>
+    <li><strong>KV-cache</strong> — at autoregressive inference, a transformer stores past keys and values so the next token can attend to them; cache memory grows with context length.</li>
+    <li><strong>Recurrence / RNN</strong> — a model updates a hidden state one token at a time, so the next output depends on the state rather than rereading all past tokens.</li>
+    <li><strong>Convolution</strong> — the same linear recurrence can be unrolled into a filter over the whole input sequence, which makes parallel training possible.</li>
+    <li><strong>Hidden state</strong> — the compact vector or matrix that carries information forward; in SSMs it is the bottleneck through which the past must pass.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The computational bargain</h2>
+<p>Imagine continuing a 100,000-token document. A transformer can ask: “which exact previous token matters now?” That is wonderful for copying an ID number or retrieving a named fact. But it must keep a growing database of past representations. An SSM instead updates a fixed state at each token. That is wonderful for streaming and long sequences, but it cannot preserve every exact past token unless the fixed state has somehow encoded it.</p>
+
+<h3 id="s1a">1.1 Database vs brain</h3>
+<p>Gu frames the tradeoff through the <strong>autoregressive state</strong>: what the model stores between generation steps. For attention, that state is the KV-cache. For an SSM, it is the hidden state. The state definition predicts the model’s strengths.</p>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 320" role="img" aria-label="Transformer cache versus SSM state" width="100%">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#2f6df6" /></marker>
+  </defs>
+  <rect x="20" y="25" width="360" height="255" rx="18" fill="#fff8e8" stroke="#1b1f24" stroke-width="2"/>
+  <text x="42" y="58" font-size="24" font-weight="700" fill="#1b1f24">Transformer = database</text>
+  <g fill="#e9f0ff" stroke="#2f6df6" stroke-width="2">
+    <rect x="50" y="95" width="64" height="48" rx="8"/><rect x="125" y="95" width="64" height="48" rx="8"/><rect x="200" y="95" width="64" height="48" rx="8"/><rect x="275" y="95" width="64" height="48" rx="8"/>
+    <rect x="50" y="158" width="64" height="48" rx="8"/><rect x="125" y="158" width="64" height="48" rx="8"/><rect x="200" y="158" width="64" height="48" rx="8"/><rect x="275" y="158" width="64" height="48" rx="8"/>
+  </g>
+  <text x="62" y="125" font-size="16" fill="#1b1f24">KV₁</text><text x="137" y="125" font-size="16" fill="#1b1f24">KV₂</text><text x="212" y="125" font-size="16" fill="#1b1f24">KV₃</text><text x="287" y="125" font-size="16" fill="#1b1f24">KV₄</text>
+  <text x="45" y="238" font-size="17" fill="#1b1f24">Precise lookup, but cache grows with N.</text>
+  <rect x="440" y="25" width="360" height="255" rx="18" fill="#fff8e8" stroke="#1b1f24" stroke-width="2"/>
+  <text x="462" y="58" font-size="24" font-weight="700" fill="#1b1f24">SSM = compressed state</text>
+  <g fill="#edf8ef" stroke="#1b7f3a" stroke-width="2">
+    <circle cx="535" cy="145" r="48"/><circle cx="620" cy="145" r="48"/><circle cx="705" cy="145" r="48"/>
+  </g>
+  <path d="M472 145 H486" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/><path d="M583 145 H572" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/><path d="M668 145 H657" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="506" y="151" font-size="16" fill="#1b1f24">hₜ</text><text x="591" y="151" font-size="16" fill="#1b1f24">hₜ₊₁</text><text x="676" y="151" font-size="16" fill="#1b1f24">hₜ₊₂</text>
+  <text x="465" y="238" font-size="17" fill="#1b1f24">Constant memory, but history is lossy.</text>
+</svg>
+</div>
+<figcaption>The “money” picture: attention stores a growing table; SSMs keep updating a fixed state.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Complexity snapshot</span>
+  <table>
+    <tr><th>Model family</th><th>Training compute over length N</th><th>Inference per new token</th><th>Memory during generation</th><th>Recall profile</th></tr>
+    <tr><td>Transformer attention</td><td>O(N²) attention scores</td><td>O(N) read over cache</td><td>O(N) KV-cache</td><td>Strong exact recall and copying</td></tr>
+    <tr><td>SSM / linear recurrent model</td><td>O(N) with scan/convolution-style algorithms</td><td>O(1) state update</td><td>O(1) fixed state per layer</td><td>Compressed, often weaker at exact retrieval</td></tr>
+    <tr><td>Hybrid</td><td>Between the two, depending on attention ratio</td><td>Some cache, many recurrent steps</td><td>Smaller cache than all-attention</td><td>Attempts to buy recall only where needed</td></tr>
+  </table>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if context length doubles, which row suffers most?</summary>
+<p>The all-attention transformer: its training attention matrix grows from N² to (2N)² = 4N² scores, and its KV-cache doubles. The SSM still processes twice as many tokens overall, but the per-step state size stays fixed.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>What an SSM is</h2>
+<p>Before naming S4 or Mamba, build the smallest picture. A state-space model maps an input sequence to an output sequence by repeatedly updating a hidden state. The hidden state is the model’s compressed memory.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — continuous and discrete state space</span>
+  <p>Continuous form:</p>
+  <p>$$h'(t)=Ah(t)+Bx(t),\qquad y(t)=Ch(t).$$</p>
+  <p>Discretized sequence form:</p>
+  <p>$$h_t=\bar A h_{t-1}+\bar B x_t,\qquad y_t=C h_t.$$</p>
+  <p>Here, \(x_t\) is the input token representation at step \(t\), \(h_t\) is the hidden state after seeing it, \(\bar A\) controls what past state is retained, \(\bar B\) controls how the new input enters memory, \(C\) reads the state into an output, and \(y_t\) is the emitted representation.</p>
+</div>
+
+<h3 id="s2a">2.1 The same SSM has two views</h3>
+<p>At inference time, the recurrent view is natural: update \(h_t\) online and never store the whole past. At training time, the linearity lets the recurrence be unrolled into a convolutional kernel, so many positions can be processed in parallel. This dual identity is why modern SSMs can be both streaming-friendly and trainable on GPUs.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    X["input sequence x1..xN"] --> R["recurrent view<br/>h_t = Abar h_{t-1} + Bbar x_t"]
+    X --> K["convolutional view<br/>precompute a long filter"]
+    R --> I["fast inference<br/>O(1) state per step"]
+    K --> T["parallel training<br/>scan or convolution"]
+</div><figcaption>One linear recurrence, two computational faces: online state updates for generation; convolution/scan for training.</figcaption></figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“SSM” does not mean “old RNN with a new name.” The defining recurrence is linear inside the sequence mixer, the state is often much wider than the scalar/channel input, and the implementation uses structure, scans, or matrix multiplications to train efficiently.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does linearity matter for training?</summary>
+<p>Because linear updates compose associatively. That makes it possible to rewrite or parallelize the recurrence with convolution/scan-like algorithms instead of executing every time step serially during training.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>From S4 to Mamba</h2>
+<p>The talk’s architecture arc starts with structured state spaces and ends with selective ones. S4 made long-range state-space layers practical by using structured matrices and HiPPO-style initialization to preserve long-range memory. Mamba’s upgrade was to let the recurrence become content-dependent.</p>
+
+<h3 id="s3a">3.1 Selectivity: content decides what to remember</h3>
+<p>In a plain linear time-invariant SSM, \(\bar A,\bar B,C\) are fixed across the sequence. Mamba makes them functions of the current input: the model can decide, token by token, whether to keep the previous state, write new information, or flush stale information. This is the attention-like ingredient: not pairwise lookup, but input-dependent control.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — selective SSM</span>
+  <p>$$h_t=\bar A(x_t)h_{t-1}+\bar B(x_t)x_t,\qquad y_t=C(x_t)h_t.$$</p>
+  <p>The parentheses mean the parameters are produced from the token representation \(x_t\). If a token is unimportant, the model can reduce the write; if it is a boundary or a key fact, it can change how the state is updated.</p>
+</div>
+
+<figure><div class="mermaid">
+flowchart TD
+    A["S4<br/>structured state space"] --> B["long-range memory<br/>HiPPO-inspired initialization"]
+    B --> C["Mamba<br/>selective SSM"]
+    C --> D["A/B/C depend on input"]
+    C --> E["hardware-aware parallel scan"]
+    D --> F["content-based writing<br/>rivals attention on language perplexity"]
+    E --> F
+</div><figcaption>S4 supplied structured long memory; Mamba added selectivity plus a hardware-aware implementation.</figcaption></figure>
+
+<details class="check"><summary>✓ Check yourself — what can selectivity do that a fixed SSM cannot?</summary>
+<p>It can change the update rule based on content. For example, it can preserve state through filler tokens, write strongly on a rare keyword, or reset on a boundary. A fixed SSM applies the same dynamics everywhere.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>The tradeoff: recall vs efficiency</h2>
+<p>This is the crux of the lecture. The SSM’s fixed state is not merely an implementation trick; it is an inductive bias. It encourages compression. That can help on streams, raw modalities, and abstraction-building, but it hurts tasks that demand exact recall.</p>
+
+<h3 id="s4a">4.1 The same coin has two sides</h3>
+<div class="box intuition">
+  <span class="lbl">Core intuition — the bottleneck is the memory</span>
+  <p><strong>Transformers:</strong> store all past token representations in the KV-cache. This gives near-database-like recall, but costs O(N) cache memory and O(N²) training attention.</p>
+  <p><strong>SSMs:</strong> compress history into a fixed-size state. This gives O(1) recurrent memory and O(N) sequence processing, but the compression is lossy. Exact copying, associative recall, and “needle in a haystack” retrieval are naturally harder.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Pitfall — “linear” does not mean “strictly better”</span>
+  <p>If the task genuinely requires keeping a precise record of many past details, attention’s apparent inefficiency may be useful work. The point is not to declare attention wasteful everywhere; it is to ask whether each flop and each cached token is buying the capability the task needs.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which model would you prefer for copying a random 20-digit code from 30k tokens ago?</summary>
+<p>All else equal, attention or a hybrid with enough attention. The task asks for exact retrieval of an arbitrary string, which is exactly where a growing cache is valuable and a fixed lossy state is strained.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Hybrids and raw data</h2>
+<p>Gu emphasizes that modern large models are increasingly hybrid: Jamba, Zamba, Samba, Hunyuan, Nemotron, Qwen variants, Kimi-Linear, and OLMo-style releases mix linear layers with attention. The recurring empirical pattern: many linear/SSM layers plus a smaller number of attention layers often works better than either extreme.</p>
+
+<h3 id="s5a">5.1 Attention as a scratchpad, SSM as the main processor</h3>
+<p>Early hybrid ablations often found around a 10:1 ratio of linear layers to attention layers from a perplexity standpoint; newer models still commonly use several linear layers per attention layer, such as 3:1 or 4:1. The analogy predicts this: the brain-like state does most streaming processing, while attention is the external scratchpad for precise lookup.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    A["raw or long sequence"] --> B["SSM layer<br/>compress and track state"]
+    B --> C["SSM layer<br/>build abstractions"]
+    C --> D["attention layer<br/>precise scratchpad lookup"]
+    D --> E["SSM layer<br/>continue streaming"]
+    E --> F["output"]
+</div><figcaption>Hybrid recipe: use mostly linear layers for efficient compression, with occasional attention layers for exact recall.</figcaption></figure>
+
+<div class="box intuition">
+  <span class="lbl">Beyond efficiency — raw data and tokenization</span>
+  <p>The talk’s later examples sharpen the point. Transformers work best when the input tokens already sit at the right semantic level: BPE tokens in language, patches in vision. On bytes, characters, DNA bases, or data where tokenization is unclear, SSM-like compressive models can be stronger because not every raw symbol deserves its own database row.</p>
+  <p>H-Net extends this idea: learn dynamic chunking end-to-end, compress raw data into higher-level units, and use SSMs especially in the outer layers that touch fine-grained data.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why might attention struggle on byte-level language?</summary>
+<p>A single byte or character is often not a meaningful object to query. Attention spends memory and compute caching every tiny symbol, while a compressive model can gradually build word- or phrase-like abstractions.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked micro-example — one tiny SSM by hand</h2>
+<p>Now compute the smallest honest SSM recurrence. Let \(\bar A=0.9\), \(\bar B=0.5\), \(C=1\), initial state \(h_0=0\), and inputs \(x=[1,0,0]\). The recurrence is \(h_t=0.9h_{t-1}+0.5x_t\), \(y_t=h_t\).</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>At \(t=1\):</p>
+  <p>$$h_1=0.9\cdot 0+0.5\cdot 1=0.5,\qquad y_1=1\cdot h_1=0.5.$$</p>
+  <p>At \(t=2\):</p>
+  <p>$$h_2=0.9\cdot 0.5+0.5\cdot 0=0.45,\qquad y_2=0.45.$$</p>
+  <p>At \(t=3\):</p>
+  <p>$$h_3=0.9\cdot 0.45+0.5\cdot 0=0.405,\qquad y_3=0.405.$$</p>
+  <p>The input pulse is still present, but it decays. That is fixed-state compression in miniature: old information survives only through the dynamics of the state.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what would a larger \(\bar A\), closer to 1, do to long-range memory?</summary>
+<p>It would decay more slowly. For example, with \(\bar A=0.99\), the state after the pulse would be \(0.5, 0.495, 0.49005,\ldots\). Longer memory improves retention, but it can also make it harder to forget irrelevant information.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — length-N generation</h2>
+<p>Follow one length-\(N\) prefix as a transformer and an SSM prepare to predict the next token. Track what each model stores and what computation it performs.</p>
+<table>
+  <tr><th>Step</th><th>Transformer</th><th>SSM</th><th>Note</th></tr>
+  <tr><td>0 · input prefix</td><td>Tokens \(x_1,\ldots,x_N\) become queries, keys, and values.</td><td>Tokens are streamed through a recurrence.</td><td class="tt">same input, different memory plan</td></tr>
+  <tr><td>1 · process history</td><td>Attention forms all visible pairwise scores; all \(N\) tokens can be compared.</td><td>Updates \(h_t=\bar A h_{t-1}+\bar Bx_t\) for \(t=1\ldots N\).</td><td class="tt">attention: O(N²) scores; SSM: O(N) updates</td></tr>
+  <tr><td>2 · store state</td><td>KV-cache stores a representation for every past token.</td><td>Only the final fixed-size state, or one state per layer, is needed for continuation.</td><td class="tt">KV-cache O(N); SSM state O(1)</td></tr>
+  <tr><td>3 · next token</td><td>The new query reads across all cached keys/values.</td><td>The new token updates the state once and reads \(y_t=C h_t\).</td><td class="tt">lookup vs update</td></tr>
+  <tr><td>4 · failure mode</td><td>Expensive at long context, but strong at exact in-context retrieval.</td><td>Efficient for streams, but may blur exact old details.</td><td class="tt">recall-efficiency tradeoff</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">When to pick which</span>
+  <p>Choose SSM-heavy designs for long-context processing, streaming, raw modalities, and settings where compression or abstraction is the point. Choose attention-heavy designs when exact recall, copying, tool traces, or sparse lookup over many facts is central. In many frontier systems, use hybrids: SSMs for the main flow, attention for the scratchpad.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don’t re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What is the autoregressive state of a transformer, and why does it grow with context? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Write the discrete SSM recurrence and explain \(\bar A\), \(\bar B\), \(C\), and \(h_t\). <a class="ref" href="#s2">(§2)</a></li>
+    <li>What did Mamba add to older structured SSMs? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why is the SSM state both the source of efficiency and the source of recall weakness? <a class="ref" href="#s4">(§4)</a></li>
+    <li>In the worked example, why did the output become \(0.5,0.45,0.405\)? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain the database-vs-brain analogy to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Autoregressive state</td><td>Whatever a model keeps between one generated token and the next: KV-cache for attention, hidden state for an SSM.</td></tr>
+  <tr><td>KV-cache</td><td>The stored keys and values from previous tokens that let a transformer avoid recomputing the full prefix at inference.</td></tr>
+  <tr><td>State-space model (SSM)</td><td>A sequence model that updates a hidden state through equations such as \(h_t=\bar A h_{t-1}+\bar Bx_t\).</td></tr>
+  <tr><td>S4</td><td>A structured state-space architecture that made long-range SSM layers practical, including HiPPO-inspired memory structure.</td></tr>
+  <tr><td>Mamba</td><td>A selective SSM architecture where update parameters depend on the input, implemented with hardware-aware scan algorithms.</td></tr>
+  <tr><td>Selectivity</td><td>Input-dependent control over what to remember, write, or forget in the recurrent state.</td></tr>
+  <tr><td>Hybrid model</td><td>A model that interleaves attention layers with SSM/linear recurrent layers to balance recall and efficiency.</td></tr>
+  <tr><td>Dynamic chunking</td><td>Learning how to group raw low-level data into larger meaningful units instead of relying only on a fixed tokenizer.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Albert Gu and Tri Dao (2023). <strong>Mamba: Linear-Time Sequence Modeling with Selective State Spaces.</strong> <a class="ref" href="https://arxiv.org/abs/2312.00752">arXiv</a> — the selective SSM paper that popularized the current wave.</li>
+  <li>Albert Gu, Karan Goel, and Christopher Ré (2021). <strong>Efficiently Modeling Long Sequences with Structured State Spaces.</strong> <a class="ref" href="https://arxiv.org/abs/2111.00396">arXiv</a> — S4 and the structured-state-space foundation.</li>
+  <li>Tri Dao and Albert Gu (2024). <strong>Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality.</strong> <a class="ref" href="https://arxiv.org/abs/2405.21060">arXiv</a> — Mamba-2 and the bridge between attention-like and SSM-like views.</li>
+  <li>AI21 Labs (2024). <strong>Jamba: A Hybrid Transformer-Mamba Language Model.</strong> <a class="ref" href="https://arxiv.org/abs/2403.19887">arXiv</a> — a concrete hybrid model combining attention and Mamba-style layers.</li>
+  <li>Anton Poli et al. (2024). <strong>MambaByte: Token-free Selective State Space Model.</strong> <a class="ref" href="https://arxiv.org/abs/2401.13660">arXiv</a> — byte-level modeling evidence discussed in the talk.</li>
+  <li>Albert Gu’s blog. <strong>On the Tradeoffs of State Space Models and Transformers.</strong> <a class="ref" href="https://goombalab.github.io/blog/2024/ssm-tradeoffs/">blog post</a> — companion essay to versions of this lecture.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Stanford CS25 playlist. <a class="ref" href="https://web.stanford.edu/class/cs25/">Course site</a> — neighboring lectures put this architecture debate into the wider transformer ecosystem.</li>
+  <li>John Hewitt and Christopher Manning. <a class="ref" href="https://web.stanford.edu/class/cs224n/">CS224N materials</a> — useful background on attention, tokenization, and language-model evaluation.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="43-representation-to-world-modeling.html">◀ Previous · Representation to world modeling</a>
+  <a class="r" href="45-ultra-scale-training.html">Next · Ultra-scale training ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 44 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

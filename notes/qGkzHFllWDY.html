@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 · Notes 03 — Transformers in Language (GPT)</title>
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  /* ---- sidebar TOC ---- */
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  /* ---- article ---- */
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:22px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  /* ---- callouts ---- */
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  /* ---- figures = light "paper" sketch cards on the dark page ---- */
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  /* ---- refs / footer / nav ---- */
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  /* ---- print / PDF: force a clean light layout so ink + math stay readable ---- */
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why language modeling matters</a>
+  <a href="#prereq">Prerequisites refresher</a>
+  <a href="#objective">1 · The self-supervised objective</a>
+  <a href="#tokenization" class="sub">1.1 Tokenization: why sub-words</a>
+  <a href="#families">2 · Two transformer families</a>
+  <a href="#bert" class="sub">2.1 BERT: encoder-only MLM</a>
+  <a href="#gpt" class="sub">2.2 GPT: decoder-only generation</a>
+  <a href="#compare" class="sub">2.3 BERT vs GPT vs T5</a>
+  <a href="#paradigm">3 · Pretrain → adapt</a>
+  <a href="#scaling-story">4 · The GPT scaling story</a>
+  <a href="#icl" class="sub">4.1 In-context learning</a>
+  <a href="#laws">5 · Scaling laws</a>
+  <a href="#emergence">6 · Emergent abilities & prompting</a>
+  <a href="#limits">7 · Limitations</a>
+  <a href="#worked">9 · Worked numeric micro-example</a>
+  <a href="#trace">10 · End-to-end decoding trace</a>
+  <a href="#recap">8 · Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 1 · Note 3 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">Stanford CS25 · Transformers United · CS25 V1 — Lecture 2</div>
+  <h1>Transformers in Language: The Development of GPT Models</h1>
+  <p class="lead">How the tiny instruction “predict the next token” became the engine behind BERT, GPT, few-shot prompting, scaling laws, and modern language-model capability.</p>
+  <div class="meta">
+    <span class="pill">🎓 CS25 V1 · Lecture 2</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=qGkzHFllWDY" target="_blank">▶ Watch on YouTube</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this lecture matters</span>
+  <p>At first, language modeling sounds narrow: “given some text, continue it.” The lecture’s big idea is that this is a <strong>self-supervised compression test for understanding</strong>. To predict the next word in a mystery novel, a model may need characters, motives, chronology, style, and the reveal. Scale that objective across the internet, and “autocomplete” becomes a training signal for translation, summarization, sentiment, arithmetic, coding, and instruction following.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of the model as an <strong>apprentice novelist</strong>. Every day it reads a page with the last word covered, guesses the missing word, checks the answer, and updates its instincts. Nobody labels “this is sentiment” or “this is translation”; the apprentice learns those skills because they help it keep the story coherent.</p>
+</div>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these; dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Softmax</strong> — turns logits into a probability distribution over the vocabulary.</li>
+    <li><strong>Language-model objective</strong> — predict the next token given the previous ones.</li>
+    <li><strong>Sub-word token</strong> — text is chopped into word-pieces (BPE), not whole words.</li>
+    <li><strong>Cross-entropy loss</strong> — \(-\log\) of the probability the model assigned to the correct token.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================= 1. OBJECTIVE ================= -->
+<h2 id="objective"><span class="num">1.</span>WHY language modeling: the self-supervised objective</h2>
+<p>Concrete example first. If the text is:</p>
+<pre><code>The capital of France is ___</code></pre>
+<p>the useful answer is probably <code>Paris</code>. If the text is a whole news article followed by <code>TL;DR:</code>, the useful continuation is a summary. If it is <code>French: bonjour\nEnglish:</code>, the continuation is a translation. The same next-token interface can <em>look like</em> many tasks.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — autoregressive language modeling</span>
+  <p>For tokens \(x_1,\ldots,x_T\), train the model to assign high probability to the true next token:</p>
+  <p>$$\mathcal{L}=-\sum_t \log P(x_t\mid x_{<t})$$</p>
+  <p>The left context \(x_{<t}\) is everything before position \(t\). Minimizing this loss is maximum-likelihood training for text.</p>
+</div>
+
+<p>The lecture traces a capability ladder: n-grams produced locally related but incoherent text; RNNs and LSTMs improved flow; transformer language models made long-range dependencies much easier; GPT-2 could maintain fictional entities across paragraphs; GPT-3 made the <em>first</em> sample feel like a selected best-of-GPT-2 sample.</p>
+
+<div class="box intuition">
+  <span class="lbl">WHY before HOW</span>
+  <p>Language is a unusually good domain for self-supervision because labels are built in. Every sentence supplies its own targets: token 2 predicts token 3, token 3 predicts token 4, and so on. The internet is therefore not just data — it is a giant worksheet with answer keys hidden one position to the right.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can “just predict the next word” learn sentiment?</summary>
+<p>Because sentiment helps predict future text. In a review, knowing that the hidden tone has turned negative changes the likely next words (“boring,” “waste,” “returned”) versus positive ones (“excellent,” “loved,” “recommend”). The lecture highlights OpenAI’s 2017 sentiment neuron: a next-character LSTM learned a feature strongly aligned with review polarity without sentiment labels.</p></details>
+
+<h3 id="tokenization">1.1 Tokenization: why sub-word / BPE tokens</h3>
+<p>Before a transformer sees text, the text is chopped into <strong>tokens</strong>. The extremes are both unattractive:</p>
+<ul>
+  <li><strong>Characters:</strong> tiny vocabulary and no unknown words, but sequences become very long; “internationalization” is 20 positions.</li>
+  <li><strong>Words:</strong> shorter sequences, but huge vocabulary; rare names, typos, and new words become brittle out-of-vocabulary cases.</li>
+</ul>
+<p><strong>Byte Pair Encoding (BPE)</strong> and related sub-word tokenizers split the difference: frequent chunks become single tokens, rare words decompose into reusable pieces. For example, <code>unbelievable</code> might become <code>un</code> + <code>believ</code> + <code>able</code>. GPT models usually operate on sub-word tokens, not clean English words.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Pitfall</span>
+  <p>When a paper says “predict the next word,” read it as “predict the next token.” Tokens may be word pieces, bytes, punctuation, or whitespace-sensitive chunks. This matters for counting context length and for surprising failures on spelling, arithmetic, and rare names.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why not use whole words only?</summary>
+<p>A whole-word vocabulary explodes in size and still cannot gracefully handle new strings such as product names, URLs, misspellings, or morphology-rich languages. Sub-words keep sequences shorter than characters while still allowing any word to be represented.</p></details>
+
+<!-- ================= 2. FAMILIES ================= -->
+<h2 id="families"><span class="num">2.</span>Two families: BERT understands, GPT generates</h2>
+<p>Transformers are sequence models, but the <em>masking pattern</em> and <em>training objective</em> determine their personality. The two language families from this era are encoder-only BERT-style models and decoder-only GPT-style models.</p>
+
+<h3 id="bert">2.1 BERT: encoder-only masked language modeling</h3>
+<p><strong>BERT</strong> uses a transformer <strong>encoder</strong>. During pretraining, some input tokens are replaced by <code>[MASK]</code>, and the model predicts the missing token using <strong>both left and right context</strong>. That bidirectionality makes it excellent for understanding tasks such as classification, entailment, and question answering after fine-tuning.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Original sentence:<br/>The movie was surprisingly great"] --> B["Mask one token:<br/>The movie was [MASK] great"]
+    B --> C["BERT encoder<br/>(bidirectional self-attention)"]
+    C --> D["Predict masked token:<br/>surprisingly"]
+    style C fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>BERT’s MLM objective: hide a token, then infer it from both sides of the sentence.</figcaption>
+</figure>
+
+<p>The original BERT also used a <strong>next-sentence prediction (NSP)</strong> pretraining task: given two segments, predict whether the second follows the first in the corpus. Later models debated or removed NSP, but for BERT’s historical recipe it was part of the package.</p>
+
+<div class="box why">
+  <span class="lbl">Why BERT is not a generator</span>
+  <p>BERT is trained to fill holes with full context, not to emit text left-to-right. It is like a proofreader with the whole paragraph visible. Great for “what does this sentence mean?” Less natural for “write the next paragraph.”</p>
+</div>
+
+<h3 id="gpt">2.2 GPT: decoder-only causal language modeling</h3>
+<p><strong>GPT</strong> uses a transformer <strong>decoder</strong> with a <strong>causal mask</strong>: position \(t\) can attend only to positions \(\le t\), never future tokens. This matches generation. The model predicts one token, appends it to the prompt, then predicts the next.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    P["Prompt:<br/>The capital of France is"] --> G["GPT decoder<br/>(causal mask: no future tokens)"]
+    G --> N["Next-token distribution:<br/>Paris, Lyon, ..."]
+    N --> A["Sample/choose token:<br/>Paris"]
+    A --> R["Append token and repeat"]
+    R --> G
+    style G fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>GPT generation: the same next-token objective is used repeatedly to extend a prompt.</figcaption>
+</figure>
+
+<div class="box analogy">
+  <span class="lbl">Analogy</span>
+  <p>BERT is a crossword solver: blanks inside a finished grid, clues on both sides. GPT is an improv actor: it hears everything said so far, cannot see the script ahead, and must say the next line in character.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what changes between BERT and GPT attention?</summary>
+<p>BERT tokens may attend bidirectionally to left and right context because the goal is to reconstruct masked tokens. GPT tokens use a triangular causal mask so token \(t\) cannot inspect \(x_{>t}\), matching the generation setting.</p></details>
+
+<h3 id="compare">2.3 Comparison: BERT vs GPT vs encoder-decoder</h3>
+<table>
+  <tr><th>Family</th><th>Architecture</th><th>Objective</th><th>Directionality</th><th>Best for</th></tr>
+  <tr><td>BERT</td><td>Encoder-only</td><td>Masked language modeling; historically also NSP</td><td>Bidirectional context</td><td>Understanding: classification, retrieval, entailment, extractive QA</td></tr>
+  <tr><td>GPT</td><td>Decoder-only</td><td>Autoregressive next-token prediction</td><td>Left-to-right / causal</td><td>Generation, completion, dialogue, in-context task solving</td></tr>
+  <tr><td>T5 / encoder-decoder</td><td>Encoder + decoder</td><td>Text-to-text denoising or seq2seq objectives</td><td>Bidirectional input encoder; causal output decoder</td><td>Input-to-output tasks: translation, summarization, structured transformations</td></tr>
+</table>
+
+<!-- ================= 3. PARADIGM ================= -->
+<h2 id="paradigm"><span class="num">3.</span>The pretrain → adapt paradigm</h2>
+<p>The lecture frames GPT not as “text continuation for its own sake,” but as a route to <strong>unsupervised representation learning</strong>. First learn from huge unlabeled text. Then adapt that model to the small labeled task you actually care about — or, for larger GPTs, describe the task in the prompt.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    U["Huge unlabeled corpus<br/>(web, books, code)"] --> P["Pretrain transformer<br/>(LM or MLM loss)"]
+    P --> R["Reusable language representations<br/>and world/statistical knowledge"]
+    R --> F["Fine-tune on labeled task<br/>(GPT-1, BERT)"]
+    R --> Z["Prompt / zero-shot / few-shot<br/>(GPT-2, GPT-3)"]
+    F --> D["Downstream behavior"]
+    Z --> D
+    style P fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+    style Z fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>The dominant NLP recipe: spend most compute once on unlabeled pretraining, then adapt cheaply.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Concrete before general</span>
+  <p>For sentiment analysis, you could label millions of reviews. Or you can pretrain on raw reviews and the web, then learn a tiny classifier or prompt format. The model already knows that “battery died after one hour” and “absolutely loved it” point in different directions.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is being transferred?</summary>
+<p>Not a list of labels, but parameters that encode reusable features: syntax, entities, sentiment, discourse patterns, factual associations, and task formats. Fine-tuning or prompting reuses those features for a downstream objective.</p></details>
+
+<!-- ================= 4. SCALING STORY ================= -->
+<h2 id="scaling-story"><span class="num">4.</span>The GPT scaling story</h2>
+<p>The OpenAI GPT line is a clean historical progression: first prove pretraining helps fine-tuning, then ask whether tasks can be expressed as prompts, then scale until prompts themselves become training examples.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    G1["GPT-1 (2018)<br/>pretrain + fine-tune<br/>new task head"] --> G2["GPT-2 (2019)<br/>zero-shot prompting<br/>unsupervised multitask learners"]
+    G2 --> G3["GPT-3 (2020)<br/>175B parameters<br/>in-context few-shot learning"]
+    G3 --> C["Modern prompting<br/>instructions, examples, reasoning traces"]
+    style G3 fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>GPT-1 → GPT-2 → GPT-3: less task-specific training, more work done inside the prompt.</figcaption>
+</figure>
+
+<h3>4.1 GPT-1: pretrain then fine-tune</h3>
+<p><strong>GPT-1</strong> pretrained a decoder-only transformer on internet text, then fine-tuned it on supervised tasks such as natural language inference, question answering, semantic similarity, and classification. The architectural change for tasks was deliberately small — often a task head on top — showing that one pretrained language model could adapt broadly.</p>
+
+<h3>4.2 GPT-2: zero-shot tasks as text completion</h3>
+<p><strong>GPT-2</strong> pushed the “task as prompt” idea. Reading comprehension becomes <code>passage + question + Answer:</code>. Summarization becomes <code>article + TL;DR:</code>. Translation becomes <code>French sentence translated into English means:</code>. The model is still only completing text, but the prompt makes the completion behave like a task solution.</p>
+
+<h3 id="icl">4.3 GPT-3: in-context / few-shot learning</h3>
+<p><strong>GPT-3</strong> scaled to 175B parameters and made <strong>in-context learning</strong> vivid: put examples in the prompt, and the model infers the pattern with <strong>no weight updates</strong>. The “learning” happens in the activations over the current context, not by gradient descent.</p>
+
+<pre><code>Translate English to French.
+
+English: The book is on the table.
+French: Le livre est sur la table.
+
+English: I like black coffee.
+French: J'aime le café noir.
+
+English: Where is the train station?
+French:</code></pre>
+
+<p>A GPT-3-style model can infer that it should output a French translation, even though no parameters are changed during this interaction. The transcript emphasizes this as an inner loop: at inference time, the model rapidly picks up the task from the prompt and predicts the next token accordingly.</p>
+
+<div class="box check">
+  <span class="lbl">Important distinction</span>
+  <p><strong>Fine-tuning</strong> changes weights. <strong>Few-shot prompting</strong> changes only the input context. If the browser tab is the classroom, in-context learning is scratch-work on the whiteboard; fine-tuning is rewiring the student’s brain after class.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is few-shot prompting surprising?</summary>
+<p>Because classic ML usually needs gradient updates on labeled examples. GPT-3 can see a handful of examples inside the prompt and immediately continue in the same format, suggesting that scale turns next-token pretraining into a meta-learning-like ability.</p></details>
+
+<!-- ================= 5. SCALING LAWS ================= -->
+<h2 id="laws"><span class="num">5.</span>Scaling laws: why bigger predictably helps</h2>
+<p>The transcript includes the natural skeptical question: is a tiny perplexity gain worth a huge model? Kaplan et al. gave a useful answer: over wide ranges, language-model loss falls approximately as a <strong>power law</strong> in model size, data size, and compute. On a log-log plot, a power law looks like a line.</p>
+
+<div class="box eqn">
+  <span class="lbl">Power-law intuition</span>
+  <p>A simplified scaling-law shape is \(L(N) \approx A N^{-\alpha} + L_\infty\), where \(N\) is parameter count and \(L_\infty\) is the irreducible entropy floor. The exponent \(\alpha\) is small, so returns are predictable but expensive.</p>
+</div>
+
+<figure>
+  <div class="svgcard">
+    <svg viewBox="0 0 640 300" role="img" aria-label="Log-log sketch of loss decreasing linearly as model scale increases" width="100%" height="280">
+      <line x1="70" y1="245" x2="585" y2="245" stroke="#5b6572" stroke-width="2" />
+      <line x1="70" y1="245" x2="70" y2="40" stroke="#5b6572" stroke-width="2" />
+      <text x="300" y="286" text-anchor="middle" fill="#5b6572" font-size="14">log model / data / compute scale</text>
+      <text x="18" y="150" transform="rotate(-90 18 150)" text-anchor="middle" fill="#5b6572" font-size="14">log loss</text>
+      <line x1="105" y1="80" x2="545" y2="205" stroke="#2f6df6" stroke-width="4" />
+      <circle cx="140" cy="90" r="5" fill="#7b3fe4" />
+      <circle cx="250" cy="122" r="5" fill="#7b3fe4" />
+      <circle cx="370" cy="155" r="5" fill="#7b3fe4" />
+      <circle cx="500" cy="192" r="5" fill="#7b3fe4" />
+      <text x="115" y="62" fill="#1b1f24" font-size="14">small models</text>
+      <text x="450" y="224" fill="#1b1f24" font-size="14">large models</text>
+      <text x="332" y="104" fill="#2f6df6" font-size="15">power law ≈ straight line</text>
+    </svg>
+  </div>
+  <figcaption>Power-law sketch: each multiplicative increase in scale buys a roughly predictable decrease in loss.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Pitfall</span>
+  <p>A small average loss improvement can still change qualitative behavior. Near the entropy floor, “one more bit” may be the difference between generic prose and tracking a character, variable, or task format for many paragraphs.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does “straight line on a log-log plot” mean?</summary>
+<p>It means the relationship is multiplicative: multiplying scale by a fixed factor tends to reduce loss by a predictable factor. That predictability made it rational to train GPT-3 after fitting trends on smaller models.</p></details>
+
+<!-- ================= 6. EMERGENCE ================= -->
+<h2 id="emergence"><span class="num">6.</span>Emergent abilities & prompting</h2>
+<p>As models scale, some capabilities appear to turn on only past a threshold. GPT-3 showed sharper gains on tasks like arithmetic and word unscrambling when examples were placed in context. Later work called these <strong>emergent abilities</strong>: abilities not present in small models but visible in sufficiently large ones.</p>
+
+<div class="box intuition">
+  <span class="lbl">How to think about emergence</span>
+  <p>Imagine a student learning many weak clues: digit patterns, equation formatting, answer styles, examples in textbooks. Below a certain skill level, none of this is enough for reliable addition. Above it, the same prompt suddenly lets the student infer “this is an addition worksheet” and follow the pattern.</p>
+</div>
+
+<p>This also sets up <strong>prompting</strong> as an interface. We do not only ask for an answer; we shape the computation by giving instructions, examples, rubrics, or intermediate reasoning formats. A later teaser is <strong>chain-of-thought prompting</strong>: ask the model to produce reasoning steps before the final answer, which can improve multi-step reasoning in large models.</p>
+
+<details class="check"><summary>✓ Check yourself — is in-context learning the same as memorizing the examples?</summary>
+<p>No. Memorization can help with seen strings, but in-context learning is about inferring a task pattern from examples and applying it to a new query in the same prompt. The weights stay fixed; the context supplies temporary task specification.</p></details>
+
+<!-- ================= 7. LIMITATIONS ================= -->
+<h2 id="limits"><span class="num">7.</span>Limitations: what the objective does not solve</h2>
+<p>The lecture’s story is powerful but not magic. A next-token model learns to produce likely text, not guaranteed truth, safety, or cheap computation.</p>
+<ul>
+  <li><strong>Hallucination.</strong> The model can generate plausible but false continuations because likelihood is not truth.</li>
+  <li><strong>Context length.</strong> A decoder only conditions on tokens inside its context window; important information outside the window is invisible unless retrieved or summarized.</li>
+  <li><strong>Cost.</strong> Scaling improves loss but requires more parameters, data, energy, memory, and inference latency.</li>
+  <li><strong>Alignment.</strong> Pretraining imitates internet text; it does not by itself optimize helpfulness, harmlessness, or honesty. This leads to instruction tuning and RLHF in later lectures.</li>
+</ul>
+
+<div class="box why">
+  <span class="lbl">Why RLHF enters the story</span>
+  <p>The pretraining question is “what token comes next?” The user-facing assistant question is “what response should a helpful, safe assistant give?” Those are related but not identical objectives, so later systems add human preference data and reinforcement learning from human feedback.</p>
+</div>
+
+<!-- ================= 9. WORKED EXAMPLE ================= -->
+<h2 id="worked"><span class="num">9.</span>Worked numeric micro-example: one next-token step</h2>
+<p>Suppose the vocabulary has only four possible next tokens, and the model emits logits \(z=[2.0,1.0,0.1,0.5]\). Softmax exponentiates each logit, then normalizes by the sum:</p>
+
+<div class="box eqn">
+  <span class="lbl">Softmax by hand</span>
+  <p>$$\exp(z)\approx[7.39,2.72,1.11,1.65],\qquad \sum_i \exp(z_i)\approx12.87$$</p>
+  <p>$$\operatorname{softmax}(z)=\frac{\exp(z_i)}{\sum_j \exp(z_j)}\approx[0.60,0.22,0.09,0.13]$$</p>
+  <p>If the target is token 1, the cross-entropy loss is the negative log-probability assigned to that correct token:</p>
+  <p>$$\mathcal{L}=-\log(0.60)\approx0.51$$</p>
+</div>
+
+<p>Temperature changes how sharp this distribution is. With \(T=2\), divide logits by 2 before softmax:</p>
+
+<div class="box eqn">
+  <span class="lbl">Higher temperature flattens</span>
+  <p>$$z/T=[1.0,0.5,0.05,0.25]$$</p>
+  <p>$$\operatorname{softmax}(z/T)\approx[0.41,0.25,0.16,0.19]$$</p>
+  <p>The largest token is still most likely, but the lower-scoring tokens get more probability mass, so sampling becomes more diverse.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what does temperature \(T \to 0\) do?</summary>
+<p>It makes the distribution collapse toward the highest-logit token. In the limit, sampling behaves like greedy argmax: almost all probability goes to the single most likely next token.</p></details>
+
+<!-- ================= 10. TRACE ================= -->
+<h2 id="trace"><span class="num">10.</span>End-to-end trace: one GPT-style decoding loop</h2>
+<p>Here is the concrete path from a prompt to the next generated word, using \(d=768\) hidden dimensions and a vocabulary size \(V\approx50{,}000\).</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>Prompt</td><td><code>"The capital of France is"</code></td><td>raw text</td></tr>
+  <tr><td>Tokenize</td><td>Split into 5 sub-word tokens, e.g. <code>The</code>, <code> capital</code>, <code> of</code>, <code> France</code>, <code> is</code>.</td><td>\(5\)</td></tr>
+  <tr><td>Token + position embeddings</td><td>Look up token embeddings and add position embeddings.</td><td>\(5\times768\)</td></tr>
+  <tr><td>Causal transformer stack</td><td>Apply masked self-attention and MLP blocks so each position summarizes only the prefix up to itself.</td><td>\(5\times768\)</td></tr>
+  <tr><td>Take last position</td><td>Use the hidden state for the final prompt token, because it is the state that has seen the whole prompt prefix.</td><td>\(768\)</td></tr>
+  <tr><td>Unembed to logits</td><td>Project the last hidden state to one score per vocabulary token.</td><td>\(V\approx50\text{k}\)</td></tr>
+  <tr><td>Softmax</td><td>Convert logits into next-token probabilities.</td><td>\(V\approx50\text{k}\)</td></tr>
+  <tr><td>Argmax / sample</td><td>Choose a token from the distribution.</td><td>one token id</td></tr>
+  <tr><td>Decode, append, repeat</td><td>Decode the token as <code>"Paris"</code>, append it to the context, then run the loop again for the following token.</td><td>\(6\) tokens next</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Why only the last position matters during generation</span>
+  <p>At a decoding step, the question is “what token comes after the entire prompt?” The earlier positions’ logits would answer easier questions such as “what token came after <code>The</code>?”—tokens we already know. The causal mask makes every position a valid prefix predictor, so the model can process the prompt in parallel, then use only the final position’s logits for the next token. When <code>Paris</code> is appended, cached attention keys and values let the next step reuse the old prefix instead of recomputing everything from scratch.</p>
+</div>
+
+<!-- ================= 8. RECAP ================= -->
+<h2 id="recap"><span class="num">8.</span>Recap — rebuild it yourself</h2>
+<p>Try answering these without looking. If you can reconstruct the chain, you understand the lecture.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the argument</span>
+  <ol>
+    <li>Why is language modeling self-supervised, and what is the loss \(\mathcal{L}\)? <a class="ref" href="#objective">(§1)</a></li>
+    <li>Why do GPT-style models use sub-word tokens instead of only words or characters? <a class="ref" href="#tokenization">(§1.1)</a></li>
+    <li>Explain BERT’s MLM objective and why it is bidirectional. <a class="ref" href="#bert">(§2.1)</a></li>
+    <li>Explain GPT’s causal mask and why it fits generation. <a class="ref" href="#gpt">(§2.2)</a></li>
+    <li>What changed from GPT-1 to GPT-2 to GPT-3? <a class="ref" href="#scaling-story">(§4)</a></li>
+    <li>What does in-context learning do that fine-tuning does not? <a class="ref" href="#icl">(§4.3)</a></li>
+    <li>Why can a small loss drop create a big perceived capability jump? <a class="ref" href="#laws">(§5)</a></li>
+    <li>Name two limitations that pretraining alone does not solve. <a class="ref" href="#limits">(§7)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Language model</td><td>A model that assigns probabilities to text, usually by predicting the next token from prior tokens.</td></tr>
+  <tr><td>Token</td><td>The discrete unit fed to the model: a word piece, byte chunk, punctuation mark, or similar text fragment.</td></tr>
+  <tr><td>BPE</td><td>Byte Pair Encoding; a sub-word tokenization method that merges frequent character sequences into reusable pieces.</td></tr>
+  <tr><td>MLM</td><td>Masked Language Modeling; hide tokens and predict them from surrounding context.</td></tr>
+  <tr><td>Causal mask</td><td>A triangular attention mask preventing a token from attending to future positions.</td></tr>
+  <tr><td>Autoregressive</td><td>Generates each token conditioned on previously generated tokens.</td></tr>
+  <tr><td>Fine-tuning</td><td>Updating pretrained model weights on a downstream dataset.</td></tr>
+  <tr><td>Zero-shot</td><td>Solving a task from instructions or prompt format without examples for that task.</td></tr>
+  <tr><td>Few-shot / in-context learning</td><td>Solving a task after seeing a few examples inside the prompt, with no weight updates.</td></tr>
+  <tr><td>Scaling law</td><td>An empirical power-law relationship between loss and model/data/compute scale.</td></tr>
+  <tr><td>Emergent ability</td><td>A capability that is weak or absent in small models but appears clearly past some scale.</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement Learning from Human Feedback; training with human preference signals to align behavior.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Primary sources</h4>
+<ol class="refs">
+  <li>Radford et al. (2018). <strong>Improving Language Understanding by Generative Pre-Training.</strong> <a class="ref" href="https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf" target="_blank">OpenAI PDF</a> — GPT-1.</li>
+  <li>Devlin et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805" target="_blank">arXiv:1810.04805</a>.</li>
+  <li>Radford et al. (2019). <strong>Language Models are Unsupervised Multitask Learners.</strong> <a class="ref" href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf" target="_blank">OpenAI PDF</a> — GPT-2.</li>
+  <li>Brown et al. (2020). <strong>Language Models are Few-Shot Learners.</strong> <a class="ref" href="https://arxiv.org/abs/2005.14165" target="_blank">arXiv:2005.14165</a> — GPT-3.</li>
+  <li>Raffel et al. (2020). <strong>Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1910.10683" target="_blank">arXiv:1910.10683</a> — T5.</li>
+  <li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361" target="_blank">arXiv:2001.08361</a>.</li>
+  <li>Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682" target="_blank">arXiv:2206.07682</a>.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903" target="_blank">arXiv:2201.11903</a>.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155" target="_blank">arXiv:2203.02155</a> — RLHF/instruction tuning.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>This series: <a class="ref" href="XfpMkf4rD6E.html">Note 2 — Introduction to Transformers (Karpathy)</a> for the transformer mechanics behind GPT.</li>
+  <li>Jay Alammar — <strong>The Illustrated GPT-2.</strong> <a class="ref" href="https://jalammar.github.io/illustrated-gpt2/" target="_blank">jalammar.github.io</a> — visualizes decoder-only generation.</li>
+  <li>Lilian Weng — <strong>The Transformer Family.</strong> <a class="ref" href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/" target="_blank">lilianweng.github.io</a> — broader architecture map.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="XfpMkf4rD6E.html">◀ Note 2 · Karpathy</a>
+  <a href="index.html">Index</a>
+  <a class="r" href="BP5CM0YxbP8.html">Note 4 · Vision ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 03 · Built for learning (WHY→HOW, check-yourself, references).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

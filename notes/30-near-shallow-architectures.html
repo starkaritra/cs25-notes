@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 30 — Near-Shallow Architectures</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The real question: not fewer layers alone</a>
+  <a href="#s1a" class="sub">1.1 Standard attention spends depth on learned bases</a>
+  <a href="#s1b" class="sub">1.2 The near-shallow move</a>
+  <a href="#s2">2 · Deterministic vectors before learned layers</a>
+  <a href="#s2a" class="sub">2.1 Discernibility and bit-cipher</a>
+  <a href="#s2b" class="sub">2.2 Co-occurrence embeddings add similarity</a>
+  <a href="#s3">3 · Warm-start softmax layers</a>
+  <a href="#s3a" class="sub">3.1 From counts to logits</a>
+  <a href="#s3b" class="sub">3.2 Hidden targets for attention</a>
+  <a href="#s4">4 · Context models and cached attention</a>
+  <a href="#s4a" class="sub">4.1 Block, radial, document context</a>
+  <a href="#s4b" class="sub">4.2 Why static vectors change cost</a>
+  <a href="#s5">5 · What the experiments suggest</a>
+  <a href="#s5a" class="sub">5.1 Training recipe and speed</a>
+  <a href="#s5b" class="sub">5.2 Edge use case: a trainable lamp</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 6 · Note 5 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Transformers that Transform Well Enough to Support Near-Shallow Architectures</h1>
+  <p class="lead">Jake Williams argues that the path to shallower language models is not merely deleting transformer blocks: first make token vectors meaningful, then analytically warm-start softmax attention/feedforward layers so a few transformations already do useful work.</p>
+  <div class="meta">
+    <span class="pill">🎓 Professor Jake Williams / Drexel University</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=zL9B3eXq0gY" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Deep transformers are powerful, but every extra layer is sequential work: attention comparisons, feedforward passes, memory traffic, and gradient bookkeeping. Williams' lecture asks a sharper question than "can we prune depth?" It asks: <strong>if each layer starts from a statistically meaningful transformation instead of random parameters, how much depth do we still need?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a deep transformer as a committee that revises a draft through many rounds. A near-shallow architecture is a tiny expert team that begins with a good index card system: the words are already filed sensibly, the first attention pass already knows useful pairwise scores, and the remaining layers polish rather than discover the whole filing system from scratch.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow the talk smoothly if these are fresh.</p>
+  <ul>
+    <li><strong>Transformer depth</strong> — a transformer block repeats attention plus feedforward transformations; fewer blocks reduce sequential latency but usually reduce modeling power.</li>
+    <li><strong>Residual stream / iterative refinement</strong> — deep transformers repeatedly update token representations; Williams' near-shallow pattern tries to make early representations and layers already informative.</li>
+    <li><strong>Self-attention</strong> — tokens compare vectors, softmax turns scores into weights, and weighted values become context features.</li>
+    <li><strong>Softmax logits</strong> — if logits are log-probabilities plus a constant, softmax recovers the intended probability distribution.</li>
+    <li><strong>Expressivity vs depth</strong> — a shallow network can be useful if its few transformations are well chosen, but it may fail where many rounds of abstraction are genuinely needed.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The real question: not fewer layers alone</h2>
+<p>Imagine replacing a 12-layer transformer with a 2-layer model initialized randomly. That is usually not a principled architecture; it is a handicap. Williams' thesis is different: <strong>near-shallow models become plausible only when embeddings, attention weights, and output layers are initialized from language statistics rather than lottery-ticket randomness.</strong></p>
+
+<h3 id="s1a">1.1 Standard attention spends depth on learned bases</h3>
+<p>In a standard transformer, key and query matrices learn a comparison space. The model starts with low-dimensional token vectors, projects them into query/key bases, computes similarities, and lets training discover which basis makes useful attention weights.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — standard self-attention</span>
+  <p>$$A=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right),\qquad Q=XW_Q,\quad K=XW_K$$</p>
+  <p>
+    Here \(X\) is the block of token vectors, \(W_Q\) and \(W_K\) are learned query/key projections, \(d_k\) is the comparison dimension, and \(A\) is the attention-weight matrix. Williams emphasizes that this projection is another embedding-like factorization: useful, but hard to initialize deterministically.
+  </p>
+</div>
+
+<h3 id="s1b">1.2 The near-shallow move</h3>
+<p>The talk studies a stripped alternative: keep the vectors in a known basis, compute their similarities, then use a learned matrix as a feedforward transform from similarity patterns to attention weights. That isolates one question: <em>can an analytically initialized self-attention mechanism work well enough without deep stacks of learned basis changes?</em></p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["deterministic token vectors X"] --> S["pairwise similarities<br/>s_i = X x_i"]
+    S --> W["warm-started attention matrix W"]
+    W --> A["softmax attention weights"]
+    A --> U["warm-started value/feedforward U"]
+    U --> O["output layer O"]
+    O --> Y["next-token / label distribution"]
+</div>
+<figcaption>Near-shallow does not mean "no attention"; it means fewer transformations, each made more purposeful before gradient descent begins.</figcaption>
+</figure>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"This is just a tiny transformer."</strong> Not quite. The lecture's architecture changes the role of attention: instead of relying on random query/key projections to discover a comparison basis, it asks whether fixed, meaningful vectors plus warm-started softmax layers can carry much of the work.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what is being traded for depth?</summary>
+<p>Depth is traded for stronger per-layer prior structure: deterministic low-dimensional vectors, co-occurrence-based warm starts, cached similarity comparisons, and multiple explicit context models.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Deterministic vectors before learned layers</h2>
+<p>Williams repeatedly returns to one constraint: if attention is going to compare vectors directly, <strong>the vectors had better be good</strong>. A random or poorly organized basis makes direct similarity meaningless.</p>
+
+<h3 id="s2a">2.1 Discernibility and bit-cipher</h3>
+<p>The low bar is not semantic elegance; it is discernibility. The most frequent tokens are the ones most likely to confuse the model repeatedly, so the <strong>bit-cipher</strong> assigns them the most distinguishable low-dimensional binary patterns first. In a 5-bit example, the first five tokens get one-hot-like vectors; later tokens receive two-hot and higher-order combinations, normalized to controlled norms.</p>
+<div class="box intuition">
+  <span class="lbl">Intuition</span>
+  <p>The filing-cabinet analogy: give the most-used folders the clearest labels. The bit-cipher does not know that "Lamp" and "lamp" are semantically similar; it only makes common items easy to tell apart in a small vector space.</p>
+</div>
+
+<h3 id="s2b">2.2 Co-occurrence embeddings add similarity</h3>
+<p>The naive bit-cipher deliberately ignores usage similarity. To recover that, Williams backs off to classic distributional statistics: use co-occurrences of bit-cipher vectors to prescribe token vectors that place similarly used tokens nearer to each other. This is the bridge from "distinct folders" to "folders used in similar situations sit on nearby shelves."</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — co-occurrence as outer products</span>
+  <p>$$F=\sum_{n=1}^{N} y_n x_n^\top$$</p>
+  <p>
+    \(x_n\) is the input/context vector for example \(n\), \(y_n\) is the target or neighboring vector, and \(F\) accumulates how often input features and output features appear together. The same outer-product idea later warms up softmax layers.
+  </p>
+</div>
+<details class="check"><summary>✓ Check yourself — why does bit-cipher alone not know that uppercase and lowercase variants are related?</summary>
+<p>Because the naive assignment is based on frequency and distinguishability, not on shared contexts. Similarity appears only after co-occurrence statistics are used to reshape or prescribe vectors.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Warm-start softmax layers</h2>
+<p>The central technical lever is an analytic initialization for softmax-activated layers. Instead of sampling weights randomly and waiting for backpropagation, estimate the probabilities the layer should initially express, then set logits that softmax will decode into those probabilities.</p>
+
+<h3 id="s3a">3.1 From counts to logits</h3>
+<p>For a feedforward softmax layer, co-occurrence counts act like a conditional-probability table. The exact derivation in Williams' work includes normalization factors such as the effective context size \(k\), but the heart of the move is simple: <strong>normalized co-occurrences become probabilities; logarithms turn probabilities into logits.</strong></p>
+<div class="box eqn">
+  <span class="lbl">Key equation — schematic warm start</span>
+  <p>$$\widehat{p}_{ij}=\frac{F_{ij}+\epsilon}{\sum_{j'}F_{ij'}+m\epsilon},\qquad W^{(0)}_{ij}\approx \log \widehat{p}_{ij}+c_i$$</p>
+  <p>
+    \(F_{ij}\) is a co-occurrence count from input feature \(i\) to target feature \(j\), \(m\) is the number of targets, \(\epsilon\) prevents zero logs, and \(c_i\) is any row-wise constant because softmax ignores adding the same constant to all logits in a row.
+  </p>
+</div>
+
+<h3 id="s3b">3.2 Hidden targets for attention</h3>
+<p>For the output layer, the target is visible: the next token or label. For attention, the target is hidden: which position should receive high weight? Williams' analysis derives a criterion for these hidden attention targets: attention should massage the current vectors into something unsurprising for the layer above. Once those hidden targets are estimated, the same softmax warm-start principle can initialize the attention matrix \(W\), the feedforward/value matrix \(U\), and the output matrix \(O\).</p>
+<figure>
+<div class="mermaid">
+flowchart TB
+    BC["bit-cipher / prescribed embeddings"] --> W0["warm start W<br/>attention targets"]
+    W0 --> U0["warm start U<br/>hidden label embeddings"]
+    U0 --> O0["warm start O<br/>observed next-token targets"]
+    O0 --> GD["short gradient-based refinement"]
+    GD --> LM["near-shallow language model"]
+</div>
+<figcaption>The talk's pipeline: deterministic vectors first, then analytic softmax initializations layer by layer, then conventional optimization only after the model is already sensible.</figcaption>
+</figure>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Warm start means pretraining on another giant model."</strong> In this lecture, warm start means computing an initialization from the target data's own co-occurrence statistics. It is not RLHF, distillation, or downloading a pretrained transformer.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is non-negativity important in the current derivation?</summary>
+<p>The initialization uses logarithms of probability-like normalized counts. Negative inputs do not behave like counts or probabilities, and a logarithm of a negative value is not a real-valued logit. Williams notes that other activations or signed features would require new derivations.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Context models and cached attention</h2>
+<p>A standard transformer block context is not the only language context. Williams argues that different contexts carry different information, and a near-shallow model can keep them separate instead of forcing everything through one giant block.</p>
+
+<h3 id="s4a">4.1 Block, radial, document context</h3>
+<p>The lecture distinguishes three useful views: a <strong>block</strong> context like ordinary transformer chunks, a <strong>radial</strong> context over the last \(r\) tokens, and a <strong>document</strong> context like a TF-IDF/Naive Bayes bag of accumulated content. Concatenating them lets the output layer learn which evidence stream matters for a prediction.</p>
+<table>
+  <tr><th>Context model</th><th>What it sees</th><th>Why keep it</th></tr>
+  <tr><td>Block</td><td>Fixed chunk positions, e.g. tokens 1-10, 11-20</td><td>Matches transformer-style local structured context.</td></tr>
+  <tr><td>Radial</td><td>The last \(r\) tokens before the prediction</td><td>Captures immediate recency, often crucial for next-token prediction.</td></tr>
+  <tr><td>Document</td><td>The accumulated document or dialogue so far</td><td>Provides a changing global state even when the current block repeats.</td></tr>
+</table>
+
+<h3 id="s4b">4.2 Why static vectors change cost</h3>
+<p>If embeddings are static during a training phase or at inference time, the similarity between token types is fixed. Williams' key systems observation is then straightforward: precompute those vector comparisons once, retrieve them later, and avoid recomputing the same dot products inside attention.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — expensive comparisons become cached lookups</span>
+  <p>$$\text{standard score}_{ij}=x_i^\top x_j\quad\leadsto\quad \text{cached score}_{ij}=C[\mathrm{tok}_i,\mathrm{tok}_j]$$</p>
+  <p>
+    \(x_i\) and \(x_j\) are token vectors. If they are fixed, their dot product can be stored in a table \(C\). The block may still contain many pairs, but the expensive vector arithmetic is replaced by memory reads; for pivot-style prediction, comparisons over a context become linear in the number of tokens scanned.
+  </p>
+</div>
+<details class="check"><summary>✓ Check yourself — when does this cache stop being valid?</summary>
+<p>When the embedding vectors are updated. If backpropagation changes \(x_i\) or \(x_j\), the stored comparison no longer equals the current dot product, so the model must recompute comparisons until vectors are frozen again.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>What the experiments suggest</h2>
+<p>The talk is careful about scope. Williams does not claim that these models already beat frontier LLMs. The evidence says something narrower and interesting: <strong>non-random near-shallow models can train quickly, fit small data surprisingly well, and open edge-training regimes that deep pretrained systems do not target.</strong></p>
+
+<h3 id="s5a">5.1 Training recipe and speed</h3>
+<p>The recipe described in the lecture has three phases. First, warm-start the bit-cipher embeddings and matrices on a subset of data. Second, freeze vectors and train middle/upper parameters quickly while cached comparisons avoid the normal attention cost. Third, optionally unfreeze embeddings; this slows training and becomes less stable, echoing the usual difficulty of learning embedding layers far from the loss.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    D["target data"] --> B["bit-cipher vectors"]
+    B --> W["warm-start W / U / O"]
+    W --> F["frozen-vector training<br/>cached comparisons"]
+    F --> E["optional embedding updates"]
+    E --> R["re-freeze and re-cache"]
+    R --> F
+</div>
+<figcaption>The high-level training loop Williams describes: most speed comes when vectors are fixed and comparisons can be cached.</figcaption>
+</figure>
+<p>On a 100M-token BabyLM-style setup, the warm start saturates quickly on a subset of data, the frozen-vector phase can make several passes quickly, and unfreezing embeddings slows the process back down because comparisons must be recomputed and embedding learning is delicate.</p>
+
+<h3 id="s5b">5.2 Edge use case: a trainable lamp</h3>
+<p>The concrete application is deliberately small: a lamp with a microphone and a switch. Speech is transcribed, the local language model predicts whether the user wants the lamp lit or dark, and switch corrections become new training data. Williams reports that a small model, trained locally from scratch with roughly 20 minutes of interaction data, could begin predicting the lamp action; larger hyperparameters improve performance, but the research goal is feasibility and local adaptation, not a cloud chatbot.</p>
+<div class="box intuition">
+  <span class="lbl">Practical implication</span>
+  <p>The exciting regime is not "replace GPT-4 tomorrow." It is <strong>private, on-device, target-data training</strong>: a model that starts with no personal corpus, learns only from your interaction stream, and can keep improving without shipping raw data to a server.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is the lamp example a good stress test for near-shallow models?</summary>
+<p>It demands local training, tiny compute, low latency, continual correction, and useful behavior from little data. Those are exactly the conditions where analytic initialization and shallow computation might matter most.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — one warm-started softmax by hand</h2>
+<p>Numbers make the core idea click. We compute the smallest honest version of Williams' warm-start claim: co-occurrence counts can initialize a softmax layer closer to the right prediction than random logits.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Suppose a tiny lamp dataset has one context feature, <em>"please"</em>, followed by two possible labels: <em>lit</em> or <em>dark</em>. Counts are:</p>
+  <p>$$F_{\text{please, lit}}=8,\qquad F_{\text{please, dark}}=2$$</p>
+  <p>Normalize the row into empirical probabilities:</p>
+  <p>$$\widehat p(\text{lit}\mid\text{please})=\frac{8}{8+2}=0.8,\qquad \widehat p(\text{dark}\mid\text{please})=\frac{2}{10}=0.2$$</p>
+  <p>Turn probabilities into logits with a logarithm:</p>
+  <p>$$\ell_{\text{lit}}=\log(0.8)=-0.223,\\ \ell_{\text{dark}}=\log(0.2)=-1.609$$</p>
+  <p>Now softmax decodes those logits:</p>
+  <p>$$\operatorname{softmax}(\ell)_{\text{lit}}=\frac{e^{-0.223}}{e^{-0.223}+e^{-1.609}}=\frac{0.8}{0.8+0.2}=0.8$$</p>
+  <p>A cold zero-logit start would predict \((0.5,0.5)\). For a true <em>lit</em> example, the one-token perplexity drops from \(1/0.5=2.0\) to \(1/0.8=1.25\) before any gradient step.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — redo the last step if counts changed to lit=9, dark=1</summary>
+<p>The empirical probabilities become \((0.9,0.1)\), logits can be \((\log 0.9,\log 0.1)=(-0.105,-2.303)\), softmax returns \((0.9,0.1)\), and true-lit perplexity becomes \(1/0.9\approx1.11\).</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one input through deep vs near-shallow</h2>
+<p>Follow one command, <em>"please turn on the lamp"</em>, through the comparison Williams is making. The state column tracks the kind of object each system carries.</p>
+<table>
+  <tr><th>Step</th><th>Deep transformer path</th><th>Near-shallow path</th><th>State / shape</th></tr>
+  <tr><td>0 · input</td><td>Tokenize the command and place it in a block.</td><td>Tokenize the same command; optionally include radial and document contexts.</td><td class="tt">5 tokens</td></tr>
+  <tr><td>1 · embeddings</td><td>Learned embeddings begin random or pretrained; updates are entangled with all later layers.</td><td>Bit-cipher or co-occurrence-prescribed vectors start non-random and non-negative.</td><td class="tt">X ∈ R^{5×d}</td></tr>
+  <tr><td>2 · attention scores</td><td>Each layer computes query/key projections and pairwise scores for the current hidden states.</td><td>Static token-vector comparisons are looked up from cache while vectors are frozen.</td><td class="tt">scores over context</td></tr>
+  <tr><td>3 · attention weights</td><td>Softmax weights are learned through many random-initialized transformations.</td><td>Warm-started matrix W maps similarity patterns to useful initial attention weights.</td><td class="tt">a ∈ R^{5}</td></tr>
+  <tr><td>4 · feature state</td><td>Many transformer blocks iteratively refine representations.</td><td>One attention transform plus U and O feedforward softmax layers produce the prediction.</td><td class="tt">h ∈ R^{d_h}</td></tr>
+  <tr><td>5 · training</td><td>Backprop updates embeddings, attention, MLPs, and outputs through the full depth.</td><td>Warm start → freeze/cache/refine → optionally unfreeze embeddings later.</td><td class="tt">few layers, staged updates</td></tr>
+  <tr><td>6 · output</td><td>Predict the next token or action after deep sequential compute.</td><td>Predict a local action such as &lt;lamp_lit&gt;, &lt;lamp_dark&gt;, or &lt;nothing&gt;.</td><td class="tt">softmax labels</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The near-shallow design saves depth by moving work earlier: deterministic vectors make comparisons meaningful, analytic warm starts make softmax layers initially competent, and freezing vectors lets attention reuse precomputed comparisons.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is Williams' claim not simply "use fewer transformer layers"? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What does bit-cipher guarantee, and what does it deliberately not guarantee? <a class="ref" href="#s2">(§2)</a></li>
+    <li>How do co-occurrence counts become softmax logits? <a class="ref" href="#s3">(§3)</a></li>
+    <li>When are cached attention comparisons valid, and when do they break? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Why is the lamp use case scientifically interesting even if it is not a frontier chatbot? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain near-shallow architecture to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Near-shallow architecture</td><td>A neural architecture with only a few effective layers, made viable by strong initialization and carefully chosen transformations.</td></tr>
+  <tr><td>Bit-cipher</td><td>Williams' deterministic scheme for assigning low-dimensional binary-like token vectors so frequent tokens are highly distinguishable.</td></tr>
+  <tr><td>Discernibility hypothesis</td><td>The idea that low-dimensional token vectors mainly need to make important, frequent features easy to tell apart.</td></tr>
+  <tr><td>Warm start</td><td>An initialization computed from data statistics, here co-occurrence counts and softmax structure, rather than random weights.</td></tr>
+  <tr><td>Cold start</td><td>A random or uninformed initialization; for a vocabulary-sized softmax, initial perplexity is often near the vocabulary size.</td></tr>
+  <tr><td>Hidden attention targets</td><td>Implicit target attention distributions estimated so the layer above receives unsurprising, useful features.</td></tr>
+  <tr><td>Block context</td><td>A fixed-position transformer-style context window.</td></tr>
+  <tr><td>Radial context</td><td>A context formed from the last \(r\) tokens before a prediction.</td></tr>
+  <tr><td>Document context</td><td>An accumulated bag-like representation of the document or dialogue so far.</td></tr>
+  <tr><td>Vector comparison cache</td><td>A table of precomputed similarities between static token vectors, used to avoid repeated dot-product arithmetic.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv</a> — the transformer self-attention baseline Williams modifies.</li>
+  <li>Mikolov et al. (2013). <strong>Efficient Estimation of Word Representations in Vector Space.</strong> <a class="ref" href="https://arxiv.org/abs/1301.3781">arXiv</a> — word2vec-style distributional embeddings motivate co-occurrence-based initialization.</li>
+  <li>Frankle &amp; Carbin (2018). <strong>The Lottery Ticket Hypothesis.</strong> <a class="ref" href="https://arxiv.org/abs/1803.03635">arXiv</a> — referenced in the talk as a lens on random subnetworks and wasted initialization.</li>
+  <li>Warstadt et al. / BabyLM organizers. <strong>BabyLM Challenge.</strong> <a class="ref" href="https://babylm.github.io/">website</a> — the human-scale 100M-token training regime Williams discusses.</li>
+  <li>Baevski et al. (2020). <strong>wav2vec 2.0.</strong> <a class="ref" href="https://arxiv.org/abs/2006.11477">arXiv</a> — the speech transcription component in the lamp prototype.</li>
+  <li>LeCun, Cortes &amp; Burges. <strong>MNIST handwritten digit database.</strong> <a class="ref" href="http://yann.lecun.com/exdb/mnist/">dataset</a> — used in the talk to explain warm starts beyond language and the role of input norms.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Jake Williams. <strong>Faculty profile, Drexel CCI.</strong> <a class="ref" href="https://drexel.edu/cci/about/directory/W/Williams-Jake/">profile</a> — background on the presenter and his quantitative-linguistics perspective.</li>
+  <li>Radford et al. (2019). <strong>Language Models are Unsupervised Multitask Learners.</strong> <a class="ref" href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">PDF</a> — GPT-2-scale context for the model-size comparisons mentioned in the lecture.</li>
+  <li>CS25 video. <strong>Transformers that Transform Well Enough to Support Near-Shallow Architectures.</strong> <a class="ref" href="https://www.youtube.com/watch?v=zL9B3eXq0gY">YouTube</a> — primary lecture source for this note.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="29-mixtral-moe.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  STANFORD CS25 — study notes · Note 30 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>
+

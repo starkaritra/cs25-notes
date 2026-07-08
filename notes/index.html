@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 Transformers United — Study Notes</title>
+<style>
+  :root{--ink:#e9e6dc;--muted:#9aa6b8;--line:#333a46;--soft:#1f232d;--bg:#14161b;--accent:#6ea8fe;--accent2:#c8a2ff;
+    --hand:'Atkinson Hyperlegible',system-ui,-apple-system,sans-serif;--head:'Caveat','Atkinson Hyperlegible',cursive}
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px);background-size:100% 32px;
+    line-height:1.65;font-size:18px;font-family:var(--hand)}
+  .wrap{max-width:920px;margin:0 auto;padding:44px 24px 100px}
+  .hero{border:1px solid var(--line);border-radius:18px;padding:34px 34px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:28px;box-shadow:0 12px 34px rgba(0,0,0,.4)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:52px;line-height:1;margin:8px 0 10px;font-weight:700}
+  .sub{color:#cfcabf;font-size:21px;margin:0}
+  h2{font-family:var(--head);font-size:34px;margin:38px 0 10px;font-weight:700}
+  p{margin:10px 0}
+  .path{display:grid;gap:14px;margin-top:8px}
+  a.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:14px;
+    padding:18px 22px;background:var(--soft);transition:.15s}
+  a.card:hover{border-color:var(--accent);box-shadow:0 8px 26px rgba(0,0,0,.4);transform:translateY(-1px)}
+  .card .n{display:inline-block;min-width:34px;height:34px;line-height:34px;text-align:center;border-radius:9px;
+    background:var(--accent);color:#0c0f16;font-family:var(--head);font-weight:700;font-size:20px;margin-right:12px}
+  .card h3{display:inline;font-family:var(--head);font-size:25px;font-weight:700}
+  .card .tag{float:right;color:var(--muted);font-size:14px;margin-top:6px}
+  .card p{color:var(--muted);font-size:16px;margin:10px 0 0}
+  .note{background:var(--soft);border-left:4px solid var(--accent);border-radius:0 12px 12px 0;padding:15px 20px;font-size:16.5px}
+  .foot{margin-top:50px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:15px;color:#e7d8b8}
+  ul{padding-left:22px} li{margin:6px 0} strong{color:#fff}
+  @media print{body{background:#fff;color:#111;background-image:none} .hero{background:none;box-shadow:none} a.card{background:#f5f5f5}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="series">Stanford CS25 · Transformers United</div>
+    <h1>Study Notes — Transformers United</h1>
+    <p class="sub">Self-contained, visual, learn-by-understanding notes for the CS25 lectures. Read top to bottom: foundations first, then the architecture & interpretability deep-dives.</p>
+  </div>
+
+  <div class="note">
+    <strong>How to use these:</strong> read <em>in order</em> — each builds on the last. Don't just re-read: at each "✓ Check yourself" box, answer <em>before</em> expanding. End every note with the "Recap — rebuild it yourself" questions. Every note is <strong>print-to-PDF ready</strong> (Ctrl/Cmd-P → Save as PDF).
+  </div>
+
+  <h2>Batch 1 — Foundations</h2>
+  <div class="path">
+    <a class="card" href="P127jhj-8-Y.html">
+      <span class="n">1</span><h3>Transformers United — Overview (NLP · CV · RL)</h3><span class="tag">~50 min · V1 L1</span>
+      <p>The map. Why RNNs failed (encoder bottleneck), how attention was born, the 2017 leap, and the "one architecture everywhere" convergence thesis.</p>
+    </a>
+    <a class="card" href="XfpMkf4rD6E.html">
+      <span class="n">2</span><h3>Introduction to Transformers — Andrej Karpathy</h3><span class="tag">~1h15m · V2</span>
+      <p>The mechanics. Attention as message-passing, scaled dot-product attention, multi-head, positional encodings, the full block (residual + LayerNorm), causal masking.</p>
+    </a>
+    <a class="card" href="qGkzHFllWDY.html">
+      <span class="n">3</span><h3>Transformers in Language — GPT</h3><span class="tag">~50 min · V1 L2</span>
+      <p>Language modeling objective, BERT vs GPT, pretrain→adapt, the GPT scaling story, in-context / few-shot learning, scaling laws, emergent abilities.</p>
+    </a>
+    <a class="card" href="BP5CM0YxbP8.html">
+      <span class="n">4</span><h3>Transformers in Vision — ViT</h3><span class="tag">~50 min · V1 L3</span>
+      <p>CNN inductive biases vs transformers, image→16×16 patches→tokens, [CLS] token, data-hungriness, attention maps, DETR & beyond.</p>
+    </a>
+    <a class="card" href="w4Bw8WYL8Ps.html">
+      <span class="n">5</span><h3>Decision Transformer — Reinforcement Learning</h3><span class="tag">~50 min · V1 L4</span>
+      <p>RL as sequence modeling. Return-to-go conditioning ("upside-down RL"), offline RL, credit assignment via attention, benchmarks & limits.</p>
+    </a>
+  </div>
+
+  <h2>Batch 2 — Architecture & Interpretability</h2>
+  <div class="path">
+    <a class="card" href="05-mixture-of-experts.html">
+      <span class="n">6</span><h3>Mixture of Experts & the Switch Transformer</h3><span class="tag">~50 min · V1 L5</span>
+      <p>Scale params without scaling compute: sparse routing, top-1/top-k gating, load-balancing loss, expert parallelism, and the all-to-all comms bottleneck.</p>
+    </a>
+    <a class="card" href="06-perceiver.html">
+      <span class="n">7</span><h3>Perceiver & Perceiver IO</h3><span class="tag">~50 min · V1 L6</span>
+      <p>Break the O(N²) barrier: cross-attend a huge input onto a small latent array, then a cheap latent transformer. One backbone for any modality.</p>
+    </a>
+    <a class="card" href="07-non-parametric-transformers.html">
+      <span class="n">8</span><h3>Non-Parametric Transformers (NPTs)</h3><span class="tag">~50 min · V1 L7</span>
+      <p>Attention *between datapoints*: take the whole dataset as input so predictions can depend on other points — learned, end-to-end, kNN-like reasoning.</p>
+    </a>
+    <a class="card" href="08-transformer-circuits.html">
+      <span class="n">9</span><h3>Transformer Circuits & Induction Heads</h3><span class="tag">~50 min · V1 L8</span>
+      <p>Mechanistic interpretability: the residual stream, QK/OV circuits, head composition, and induction heads as the engine of in-context learning.</p>
+    </a>
+    <a class="card" href="09-audio-transformers.html">
+      <span class="n">10</span><h3>Transformers for Audio, Speech & Music</h3><span class="tag">~50 min · V1 L9</span>
+      <p>Taming very long signals: spectrogram patches, learned/discrete audio tokens, Wav2Vec/AST/Whisper, and relative attention for musical structure.</p>
+    </a>
+  </div>
+
+  <h2>Batch 3 — Ideas, Alignment & Agents <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V2)</span></h2>
+  <p style="color:var(--muted);font-size:15px;margin-top:-2px">V2's "Introduction to Transformers" (Karpathy) is already covered as <a href="XfpMkf4rD6E.html" style="color:var(--accent)">Note 2</a>.</p>
+  <div class="path">
+    <a class="card" href="10-part-whole-hierarchies.html">
+      <span class="n">11</span><h3>Part-Whole Hierarchies — GLOM (Hinton)</h3><span class="tag">~50 min · V2</span>
+      <p>Hinton's idea system: represent a per-image parse tree via "islands of agreement" across columns × levels, unifying transformers, neural fields, contrastive learning & capsules.</p>
+    </a>
+    <a class="card" href="12-language-human-alignment.html">
+      <span class="n">12</span><h3>Language & Human Alignment</h3><span class="tag">~50 min · V2</span>
+      <p>The alignment gap and the RLHF recipe: SFT → reward model from preferences → PPO with a KL leash. Reward hacking, sycophancy, and the alignment tax.</p>
+    </a>
+    <a class="card" href="13-emergent-abilities-scaling.html">
+      <span class="n">13</span><h3>Emergent Abilities & Scaling</h3><span class="tag">~50 min · V2</span>
+      <p>Smooth power-law scaling laws (Chinchilla) vs sharp "emergent" jumps — and the mirage argument that emergence can be an artifact of harsh metrics. Chain-of-thought.</p>
+    </a>
+    <a class="card" href="14-strategic-games.html">
+      <span class="n">14</span><h3>Strategic Games</h3><span class="tag">~50 min · V2</span>
+      <p>Strategic reasoning under uncertainty: Nash equilibria, self-play + search (AlphaZero/MuZero), regret minimization for poker, and language+strategy (Diplomacy/CICERO).</p>
+    </a>
+    <a class="card" href="15-robotics-imitation-learning.html">
+      <span class="n">15</span><h3>Robotics & Imitation Learning</h3><span class="tag">~50 min · V2</span>
+      <p>Learning policies from demonstrations: behavior cloning, the compounding-error problem & DAgger, and transformer policies (RT-1/2, Gato) for language-conditioned control.</p>
+    </a>
+  </div>
+
+  <h2>Batch 4 — Reasoning, Science & Embodied Agents <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V2→V3)</span></h2>
+  <div class="path">
+    <a class="card" href="16-common-sense-reasoning.html">
+      <span class="n">16</span><h3>Common-Sense Reasoning</h3><span class="tag">~50 min · V2</span>
+      <p>The "dark matter" of intelligence: reporting bias, ATOMIC/COMET commonsense knowledge graphs, symbolic knowledge distillation, and where LLMs still break.</p>
+    </a>
+    <a class="card" href="17-biomedical-transformers.html">
+      <span class="n">17</span><h3>Biomedical Transformers</h3><span class="tag">~50 min · V2</span>
+      <p>Biology as language: protein LMs (ESM), AlphaFold's Evoformer, genomics (DNA LMs), and clinical/medical LLMs (BioBERT, Med-PaLM) — plus the data & privacy challenges.</p>
+    </a>
+    <a class="card" href="18-neuroscience-inspired-ai.html">
+      <span class="n">18</span><h3>Neuroscience-Inspired AI</h3><span class="tag">~50 min · V2</span>
+      <p>Brain ↔ AI: modern Hopfield networks as attention, predictive coding, hippocampus/grid cells and transformers — and where the "attention" analogy breaks.</p>
+    </a>
+    <a class="card" href="19-embodied-intelligence-foundation-models.html">
+      <span class="n">19</span><h3>Low-level Embodied Intelligence</h3><span class="tag">~50 min · V3</span>
+      <p>Bridging semantic knowledge to motor control: SayCan affordances, Code-as-Policies, and Vision-Language-Action models (PaLM-E, RT-1/2) that emit action tokens.</p>
+    </a>
+    <a class="card" href="20-generalist-agents-open-worlds.html">
+      <span class="n">20</span><h3>Generalist Agents in Open Worlds</h3><span class="tag">~50 min · V3</span>
+      <p>Open-ended learning in Minecraft: MineDojo + MineCLIP's learned reward, Voyager's LLM-written skill library & self-curriculum, and VPT's "GPT for actions".</p>
+    </a>
+  </div>
+
+  <h2>Batch 5 — Assistants, Translation & Retrieval <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V3)</span></h2>
+  <div class="path">
+    <a class="card" href="21-love-the-transformer.html">
+      <span class="n">21</span><h3>How I Learned to Love the Transformer</h3><span class="tag">~50 min · V3</span>
+      <p>A deep intuition/mental-model talk on why transformers work — the core lens for reasoning about attention, scale, and the architecture's generality.</p>
+    </a>
+    <a class="card" href="22-helpful-chatbots.html">
+      <span class="n">22</span><h3>Recipe for Training Helpful Chatbots</h3><span class="tag">~50 min · V3</span>
+      <p>The hands-on assistant recipe: pretrain → instruction/SFT → preference data → reward model → RLHF (PPO) / DPO, plus data, evaluation (Arena/Elo) and failure modes.</p>
+    </a>
+    <a class="card" href="23-no-language-left-behind.html">
+      <span class="n">23</span><h3>No Language Left Behind</h3><span class="tag">~50 min · V3</span>
+      <p>Meta's 200-language translation: bitext mining via sentence embeddings, a Mixture-of-Experts multilingual model, FLORES-200 eval, and the low-resource challenge.</p>
+    </a>
+    <a class="card" href="24-beyond-llms-agents-reasoning.html">
+      <span class="n">24</span><h3>Beyond LLMs: Agents & Guided Reasoning</h3><span class="tag">~50 min · V3</span>
+      <p>Four frontiers: LLM agents (ReAct/tool use), emergent abilities, intermediate-guided reasoning (CoT, self-consistency, tree-of-thoughts), and the BabyLM sample-efficiency push.</p>
+    </a>
+    <a class="card" href="25-retrieval-augmented-lms.html">
+      <span class="n">25</span><h3>Retrieval-Augmented Language Models</h3><span class="tag">~50 min · V3</span>
+      <p>Give the model an open book: dense retrieval (DPR), RAG/Fusion-in-Decoder/RETRO/Atlas, parametric vs non-parametric knowledge, and why retrieval curbs hallucination.</p>
+    </a>
+  </div>
+
+  <h2>Batch 6 — The 2024 Frontier <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V4)</span></h2>
+  <div class="path">
+    <a class="card" href="26-v4-overview.html">
+      <span class="n">26</span><h3>Overview of Transformers (V4, 2024)</h3><span class="tag">~1 hr · V4</span>
+      <p>A refreshed intro: tight mechanics recap plus the 2024 landscape — decoder-only dominance, scaling & emergence, multimodality, long context, and efficiency (FlashAttention, MoE).</p>
+    </a>
+    <a class="card" href="27-wei-chung-openai.html">
+      <span class="n">27</span><h3>Jason Wei & Hyung Won Chung (OpenAI)</h3><span class="tag">~1 hr · V4</span>
+      <p>Intuitions, not architecture: next-token prediction as multi-task learning, emergence & chain-of-thought, the bitter lesson, encoder-decoder→decoder-only, "don't teach, incentivize".</p>
+    </a>
+    <a class="card" href="28-aligning-open-llms.html">
+      <span class="n">28</span><h3>Aligning Open Language Models</h3><span class="tag">~1 hr · V4</span>
+      <p>The open-alignment timeline & recipe: Alpaca/Vicuna/Zephyr/Tülu, RLHF vs DPO, preference & synthetic data, and evaluation culture (Arena/Elo, MT-Bench).</p>
+    </a>
+    <a class="card" href="29-mixtral-moe.html">
+      <span class="n">29</span><h3>Demystifying Mixtral of Experts</h3><span class="tag">~50 min · V4</span>
+      <p>A leading open sparse MoE: 8 experts, top-2 routing, ~47B params but ~13B active per token; routing behavior, the memory-vs-compute tradeoff. (Builds on Note 6.)</p>
+    </a>
+    <a class="card" href="30-near-shallow-architectures.html">
+      <span class="n">30</span><h3>Near-Shallow Architectures</h3><span class="tag">~50 min · V4</span>
+      <p>How shallow can a transformer go? Trading depth for better per-layer transforms — expressivity vs depth, iterative refinement, and the efficiency payoff.</p>
+    </a>
+  </div>
+
+  <h2>Batch 7 — Multimodal, Data & the Scaling Mind <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V4→V5)</span></h2>
+  <div class="path">
+    <a class="card" href="31-llms-to-multimodal.html">
+      <span class="n">31</span><h3>From LLMs to Large Multimodal Models</h3><span class="tag">~50 min · V4</span>
+      <p>Bolting sight onto an LLM: CLIP vision encoders, connectors (linear/Q-Former/cross-attention), LLaVA/BLIP-2/Flamingo/GPT-4V, and turning images into tokens the LLM reads.</p>
+    </a>
+    <a class="card" href="32-starcoder-pretraining.html">
+      <span class="n">32</span><h3>Behind the Scenes of LLM Pre-training (StarCoder)</h3><span class="tag">~50 min · V4</span>
+      <p>The real work is the data: The Stack, license filtering, dedup & PII scrubbing, a code tokenizer, Multi-Query Attention, Fill-in-the-Middle, and open governance.</p>
+    </a>
+    <a class="card" href="33-hyung-won-chung.html">
+      <span class="n">33</span><h3>Hyung Won Chung (OpenAI): Scaling & the Future</h3><span class="tag">~50 min · V4</span>
+      <p>Research in the age of the compute exponential: the bitter lesson, assumptions with a shelf life, removing structure over time, and "don't teach, incentivize".</p>
+    </a>
+    <a class="card" href="34-v5-overview.html">
+      <span class="n">34</span><h3>Overview of Transformers (V5, 2025)</h3><span class="tag">~1 hr · V5</span>
+      <p>The 2025 frontier: reasoning models & test-time compute (o1/R1), RL for reasoning with verifiable rewards, agents, native multimodality, and attention alternatives.</p>
+    </a>
+    <a class="card" href="35-rl-codesign-product.html">
+      <span class="n">35</span><h3>RL as a Co-Design of Product & Research</h3><span class="tag">~50 min · V5</span>
+      <p>Karina Nguyen on the loop where post-training, product, and research feed each other: RL shapes model behavior/character, and product feedback drives the data flywheel.</p>
+    </a>
+  </div>
+
+  <h2>Batch 8 — Reasoning, Interpretability & Generation <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V5)</span></h2>
+  <div class="path">
+    <a class="card" href="36-advent-of-agi.html">
+      <span class="n">36</span><h3>The Advent of AGI</h3><span class="tag">~50 min · V5</span>
+      <p>Div Garg on the path from chatbots to autonomous agents: the perceive→plan→act loop, computer/web agents, long-horizon reliability, and the compounding-error problem.</p>
+    </a>
+    <a class="card" href="37-llm-reasoning.html">
+      <span class="n">37</span><h3>Large Language Model Reasoning</h3><span class="tag">~50 min · V5</span>
+      <p>Denny Zhou (DeepMind): LLMs can reason if you elicit intermediate steps — chain-of-thought, CoT-decoding, self-consistency, and least-to-most as serial test-time compute.</p>
+    </a>
+    <a class="card" href="38-biology-of-an-llm.html">
+      <span class="n">38</span><h3>On the Biology of a Large Language Model</h3><span class="tag">~50 min · V5</span>
+      <p>Josh Batson (Anthropic): reverse-engineering models like organisms — superposition, sparse-autoencoder features, and attribution graphs for planning, arithmetic & refusals.</p>
+    </a>
+    <a class="card" href="39-world-models-drug-discovery.html">
+      <span class="n">39</span><h3>Multimodal World Models for Drug Discovery</h3><span class="tag">~50 min · V5</span>
+      <p>Eshed Margalit (Noetik.ai): fusing spatial omics, histology & perturbation screens into a world model that simulates cell responses for in-silico drug discovery.</p>
+    </a>
+    <a class="card" href="40-diffusion-transformers.html">
+      <span class="n">40</span><h3>Transformers in Diffusion Models</h3><span class="tag">~50 min · V5</span>
+      <p>Diffusion in a nutshell, then the Diffusion Transformer (DiT): patchify the noisy latent, denoise with a transformer + adaLN conditioning — the engine behind SD3 & Sora.</p>
+    </a>
+  </div>
+
+  <h2>Batch 9 — Video, World Models & Efficient Scale <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V5→V6)</span></h2>
+  <div class="path">
+    <a class="card" href="41-video-generation.html">
+      <span class="n">41</span><h3>Transformers for Video Generation</h3><span class="tag">~50 min · V5</span>
+      <p>Andrew Brown (Meta): spacetime patches, latent video diffusion transformers, factorized spatial/temporal attention, and the temporal-coherence challenge (Sora, Movie Gen).</p>
+    </a>
+    <a class="card" href="42-v6-overview.html">
+      <span class="n">42</span><h3>Overview of Transformers (V6)</h3><span class="tag">~1 hr · V6</span>
+      <p>The latest frontier: reasoning & test-time compute, RL for reasoning, agents, native multimodality, long context, and architecture alternatives (SSMs/Mamba, hybrids).</p>
+    </a>
+    <a class="card" href="43-representation-to-world-modeling.html">
+      <span class="n">43</span><h3>From Representation Learning to World Modeling</h3><span class="tag">~50 min · V6</span>
+      <p>From static features to predictive world models: self-supervised learning, latent prediction (JEPA), avoiding collapse, and world models for planning.</p>
+    </a>
+    <a class="card" href="44-state-space-models-tradeoffs.html">
+      <span class="n">44</span><h3>State-Space Models vs Transformers</h3><span class="tag">~50 min · V6</span>
+      <p>The linear-scaling alternative: SSMs as recurrence + convolution, S4→Mamba selectivity, and the core recall-vs-efficiency tradeoff (fixed state vs KV-cache) plus hybrids.</p>
+    </a>
+    <a class="card" href="45-ultra-scale-training.html">
+      <span class="n">45</span><h3>The Ultra-Scale Playbook (1000s of GPUs)</h3><span class="tag">~1 hr · V6</span>
+      <p>Distributed training as engineering: the memory problem, data/tensor/pipeline (3D) parallelism, ZeRO/FSDP, activation checkpointing, and why communication caps scaling.</p>
+    </a>
+  </div>
+
+  <h2>Batch 10 — Frontier, Agents & Systems <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(CS25 V6 · finale)</span></h2>
+  <div class="path">
+    <a class="card" href="46-next-token-to-next-gen.html">
+      <span class="n">46</span><h3>Next-Token Prediction → Next-Generation Intelligence</h3><span class="tag">~50 min · V6</span>
+      <p>Why scaling next-token prediction isn't the whole story: its limits, and what next-gen adds — reasoning/test-time compute, search & planning, agents, memory and world models.</p>
+    </a>
+    <a class="card" href="47-collaborative-ai-agents.html">
+      <span class="n">47</span><h3>Collaborative AI Agents for Science & Medicine</h3><span class="tag">~50 min · V6</span>
+      <p>Multi-agent systems for expert workflows: specialized roles, critique/verify loops, tool & retrieval use, and why collaboration + verifiers beat a single monolithic agent.</p>
+    </a>
+    <a class="card" href="48-generalization-parameters-context.html">
+      <span class="n">48</span><h3>Generalization from Parameters vs Context</h3><span class="tag">~50 min · V6</span>
+      <p>Two ways a model "knows": baked-in parametric weights vs in-context prompt knowledge — how they generalize differently, knowledge conflicts, and the fine-tune-vs-RAG choice.</p>
+    </a>
+    <a class="card" href="49-serving-transformers.html">
+      <span class="n">49</span><h3>Serving Transformers: Lessons from the Trenches</h3><span class="tag">~1 hr · V6</span>
+      <p>Inference as a systems discipline: prefill vs decode, the KV-cache bottleneck, PagedAttention/vLLM, continuous batching, speculative decoding, and throughput-vs-latency.</p>
+    </a>
+    <a class="card" href="50-native-multimodal-intelligence.html">
+      <span class="n">50</span><h3>From Language Models to Native Multimodal Intelligence</h3><span class="tag">~50 min · V6</span>
+      <p>The finale: early-fusion "native" multimodality vs bolt-on adapters — one token stream across text/image/audio, unified tokenization, and any-to-any understanding & generation.</p>
+    </a>
+  </div>
+
+  <h2>What each note contains</h2>
+  <ul>
+    <li><strong>Sections &amp; subsections</strong> with a clickable table of contents.</li>
+    <li><strong>Visuals</strong> — Mermaid architecture/flow diagrams, hand-drawn inline SVG schematics, and rendered equations (MathJax).</li>
+    <li><strong>Learning scaffolding</strong> — WHY-before-HOW intros, a running analogy, a 30-second prerequisites refresher, a worked numeric example, an end-to-end trace, "check yourself" prompts, and a recap you reconstruct from memory.</li>
+    <li><strong>Glossary</strong> and a <strong>References</strong> section (original papers + best follow-up explainers).</li>
+  </ul>
+
+  <div class="note">
+    <strong>🎉 Complete:</strong> all <strong>50 CS25 talks</strong> across V1–V6 are now covered (Batches 1–10). Every note is self-contained, print-to-PDF ready, and carries the full learning scaffolding. Read top-to-bottom for a guided course, or jump to any topic.
+  </div>
+
+  <h2>Where to go next <span style="font-size:15px;color:var(--muted);font-family:var(--hand)">(recommended follow-up courses)</span></h2>
+  <p style="color:var(--muted);font-size:15px;margin-top:-2px">All are university lecture playlists in the same format — each can be turned into notes just like these.</p>
+
+  <h3 style="font-size:22px">Closest in spirit — LLMs &amp; deep learning</h3>
+  <div class="path">
+    <a class="card" href="https://www.youtube.com/playlist?list=PLoROMvodv4rOY23Y0BoGoBGgQ1zmU_MT_" target="_blank">
+      <span class="n">★</span><h3>Stanford CS336 — Language Modeling from Scratch</h3><span class="tag">top pick</span>
+      <p>Build a full LLM end-to-end (data → architecture → training → serving). The perfect depth-first follow-up: CS25 gave breadth, CS336 has you build it yourself.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=Stanford+CS224N+NLP+with+Deep+Learning" target="_blank">
+      <span class="n">→</span><h3>Stanford CS224N — NLP with Deep Learning</h3><span class="tag">NLP canon</span>
+      <p>The canonical NLP course: word vectors → RNNs → transformers → LLMs. Deepens the language side of CS25.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=Stanford+CS231N+Deep+Learning+for+Computer+Vision" target="_blank">
+      <span class="n">→</span><h3>Stanford CS231N — Deep Learning for Computer Vision</h3><span class="tag">vision</span>
+      <p>The vision counterpart: CNNs, detection/segmentation, and Vision Transformers — deepens the ViT note.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=MIT+6.S191+Introduction+to+Deep+Learning" target="_blank">
+      <span class="n">→</span><h3>MIT 6.S191 — Introduction to Deep Learning</h3><span class="tag">fast &amp; modern</span>
+      <p>A compact, refreshed-yearly tour of modern deep learning — great breadth primer or refresher.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=Stanford+CS229+Machine+Learning+Andrew+Ng" target="_blank">
+      <span class="n">→</span><h3>Stanford CS229 — Machine Learning</h3><span class="tag">foundations</span>
+      <p>Andrew Ng's rigorous ML foundations — the theory beneath everything in CS25.</p>
+    </a>
+  </div>
+
+  <h3 style="font-size:22px">Frontier — agents, RL &amp; systems</h3>
+  <div class="path">
+    <a class="card" href="https://www.youtube.com/results?search_query=Stanford+CS234+Reinforcement+Learning" target="_blank">
+      <span class="n">→</span><h3>Stanford CS234 — Reinforcement Learning</h3><span class="tag">RL</span>
+      <p>MDPs, value/policy methods, deep RL — the foundations behind RLHF, Decision Transformer, and reasoning-RL.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=Berkeley+CS285+Deep+Reinforcement+Learning" target="_blank">
+      <span class="n">→</span><h3>UC Berkeley CS285 — Deep Reinforcement Learning</h3><span class="tag">deep RL</span>
+      <p>Sergey Levine's deep-RL course: policy gradients, model-based RL, and control — pairs with the robotics/agents notes.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=Stanford+CS329S+Machine+Learning+Systems+Design" target="_blank">
+      <span class="n">→</span><h3>Stanford CS329S — Machine Learning Systems Design</h3><span class="tag">ML systems</span>
+      <p>Productionizing models — data, deployment, monitoring. Complements the Serving &amp; Ultra-Scale notes.</p>
+    </a>
+  </div>
+
+  <h3 style="font-size:22px">Math &amp; intuition foundations</h3>
+  <div class="path">
+    <a class="card" href="https://www.youtube.com/results?search_query=3Blue1Brown+Neural+Networks+series" target="_blank">
+      <span class="n">→</span><h3>3Blue1Brown — Neural Networks</h3><span class="tag">visual intuition</span>
+      <p>The best visual intuition for neural nets, backprop, and attention — complements the "worked example" style of these notes.</p>
+    </a>
+    <a class="card" href="https://www.youtube.com/results?search_query=MIT+18.06+Linear+Algebra+Gilbert+Strang" target="_blank">
+      <span class="n">→</span><h3>MIT 18.06 — Linear Algebra (Gilbert Strang)</h3><span class="tag">the math</span>
+      <p>The linear algebra under attention (matrices, projections, eigenvectors) — the foundation for reading any of these notes.</p>
+    </a>
+  </div>
+
+  <div class="note">
+    <strong>Turn any of these into notes:</strong> paste the playlist link and ask — the same skill that built this set will fetch transcripts and generate matching self-contained HTML notes. <strong>Suggested next:</strong> Stanford CS336 (LLMs from Scratch) for depth after CS25's breadth.
+  </div>
+
+  <div class="foot">
+    CS25 Transformers United — personal study notes · rendering requires an internet connection (MathJax &amp; Mermaid load from CDN) · print any note to export a clean PDF.
+  </div>
+</div>
+</body>
+</html>

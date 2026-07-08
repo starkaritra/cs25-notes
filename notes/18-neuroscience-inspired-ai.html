@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 18 — Neuroscience-Inspired AI</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The two-way street</a>
+  <a href="#s1a" class="sub">1.1 What the lecture actually asks</a>
+  <a href="#s1b" class="sub">1.2 Prediction as the shared task</a>
+  <a href="#s2">2 · Sparse distributed memory</a>
+  <a href="#s2a" class="sub">2.1 Write, read, denoise</a>
+  <a href="#s2b" class="sub">2.2 Why softmax appears</a>
+  <a href="#s3">3 · Hopfield networks and attention</a>
+  <a href="#s3a" class="sub">3.1 Modern Hopfield update</a>
+  <a href="#s3b" class="sub">3.2 Attention is one retrieval step</a>
+  <a href="#s4">4 · Cognitive maps</a>
+  <a href="#s4a" class="sub">4.1 Place cells, grid cells, structure</a>
+  <a href="#s4b" class="sub">4.2 TEM as a transformer-like memory</a>
+  <a href="#s5">5 · Where the analogies break</a>
+  <a href="#s5a" class="sub">5.1 Biological plausibility</a>
+  <a href="#s5b" class="sub">5.2 Brain attention vs transformer attention</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 4 · Note 3 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Neuroscience-Inspired Artificial Intelligence</h1>
+  <p class="lead">Two guest talks ask whether transformer attention is an alien engineering trick—or a rediscovery of older memory computations studied in brains.</p>
+  <div class="meta">
+    <span class="pill">🎓 Trenton Bricken &amp; Will Dorrell</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=L4DC7e6g2iI" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>The brain is the only existing example of broadly flexible intelligence. The lecture's careful question is not "are transformers brains?" but: <strong>which computations in transformers resemble biologically plausible memory and prediction mechanisms, and what can each field learn from the other?</strong></p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — a city librarian with a map</span>
+  <p>Imagine a librarian who stores postcards around a vast city. A partial clue does two things: it points to nearby shelves by address, and it uses the city map to infer where you are. SDM/attention is the shelf lookup; hippocampal cognitive maps are the city map; prediction is guessing the next street or postcard before you arrive.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the main argument. They are the only tools the lecture repeatedly uses.</p>
+  <ul>
+    <li><strong>Attention</strong> — for one query, transformer attention is \\(\operatorname{softmax}(\beta qK^\top)V\\): score stored keys, normalize scores, then average values.</li>
+    <li><strong>Energy minimization</strong> — an energy-based memory has preferred low-energy states; retrieval moves a noisy cue downhill toward a stored pattern.</li>
+    <li><strong>Associative memory</strong> — content-addressable recall: give part of a pattern and retrieve the completed stored pattern, like a song from its first few notes.</li>
+    <li><strong>Self-supervised prediction</strong> — learn by predicting hidden or future observations, such as the next word or the next view after a movement.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The two-way street: neuroscience → AI and AI → neuroscience</h2>
+<p>Start with the lecture's concrete examples. Trenton Bricken asks why transformer attention's useful but heuristic softmax might be implementable by simple high-dimensional geometry. Will Dorrell asks why a hippocampal-entorhinal model built for cognitive maps ends up looking surprisingly transformer-like.</p>
+
+<h3 id="s1a">1.1 What the lecture actually asks</h3>
+<p>The talks are not a generic tour of "brain-inspired AI." They center on two bridges:</p>
+<ul>
+  <li><strong>Sparse Distributed Memory (SDM) → attention:</strong> Kanerva's biologically motivated memory stores patterns near sparse high-dimensional addresses. Bricken shows its read operation approximates softmax attention.</li>
+  <li><strong>Hippocampal cognitive maps → transformer-like recall:</strong> the Tolman-Eichenbaum Machine (TEM) learns reusable structure, stores observations at positions, and recalls them through Hopfield/attention-like memory.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Neuroscience models<br/>SDM, Hopfield, TEM"] --> B["Computational lens<br/>associative retrieval"]
+    B --> C["Transformer operation<br/>softmax attention"]
+    C --> D["AI helps neuroscience<br/>new circuit hypotheses"]
+    D --> A
+</div>
+<figcaption>The lecture's loop: brain-inspired memory explains attention, and transformer mathematics suggests new ways to model brain circuits.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Epistemic status</span>
+  <p><strong>Established math:</strong> modern Hopfield retrieval and transformer attention share the same softmax-weighted update. <strong>Approximation:</strong> SDM circle intersections approximate exponentials in high dimensions. <strong>Analogy/speculation:</strong> cerebellar and hippocampal circuits may implement attention-like operations, but that is not the same as proving brains run transformers.</p>
+</div>
+
+<h3 id="s1b">1.2 Prediction as the shared task</h3>
+<p>The predictive-coding slogan says cortex constantly predicts inputs and propagates errors. The transcript does not develop predictive coding as a full cortical theory, so treat it as a <em>background lens</em>: both speakers use prediction tasks. Bricken's example is next-token prediction in "the cat sat on the ___"; Dorrell's is predicting what an agent will see after moving in a structured world.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — self-supervised prediction objective</span>
+  <p>$$\min_\theta \; \mathbb{E}\big[-\log p_\theta(o_{t+1}\mid o_{\le t},a_{\le t})\big]$$</p>
+  <p>Here \\(o_t\\) is an observation, \\(a_t\\) is an action or movement when present, and \\(\theta\\) are learned parameters. For language, \\(o_{t+1}\\) is the next token; for navigation, it is the next sensory item at the next position.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the lecture's two-way claim?</summary>
+<p>Neuroscience offers memory mechanisms that make attention less mysterious; AI offers precise mathematical tools and architectures that can generate new neuroscience hypotheses.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Sparse Distributed Memory: attention before attention</h2>
+<p>Before transformers, Pentti Kanerva proposed a memory in which addresses are high-dimensional vectors, only a sparse subset of possible neurons exists, and a query reads from all nearby neurons. The library analogy is literal: you do not search by shelf number; you search by content similarity.</p>
+
+<h3 id="s2a">2.1 Write, read, denoise</h3>
+<p>In the lecture's picture, a pattern is written by activating all neurons within a radius around its address. Each active neuron stores the pattern in superposition with other patterns. Later, a noisy query activates nearby neurons; they vote out the patterns they stored; a majority/threshold step denoises the answer.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SDM read as weighted pattern sum</span>
+  <p>$$\hat{x}=\operatorname{threshold}\!\left(\frac{\sum_{\mu=1}^{M}|N(q)\cap N(k_\mu)|\,v_\mu}{\sum_{\mu=1}^{M}|N(q)\cap N(k_\mu)|}\right)$$</p>
+  <p>\\(q\\) is the query address, \\(k_\mu\\) is the address of stored pattern \\(\mu\\), \\(v_\mu\\) is the value stored there, and \\(|N(q)\cap N(k_\mu)|\\) counts neurons activated both during the write and the read.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    W["Write pattern<br/>address k_mu"] --> R["Nearby sparse neurons<br/>within radius"]
+    R --> S["Store value v_mu<br/>in superposition"]
+    Q["Noisy query q"] --> I["Overlap with write regions<br/>intersection size"]
+    S --> I
+    I --> O["Weighted vote<br/>denoised output"]
+</div>
+<figcaption>SDM is content-addressable: the closer a query is to a stored address, the more neurons participate in retrieving that value.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Why softmax appears</h3>
+<p>The central geometric fact is that in high dimensions, the intersection of two hyperspheres shrinks approximately exponentially as their centers move apart. That is exactly the shape softmax uses: nearby memories get exponentially more weight; distant memories fade quickly.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SDM intersection approximates an exponential</span>
+  <p>$$|N(q)\cap N(k_\mu)|\approx c_1\exp\!\big(\beta\,\hat q\cdot \hat k_\mu\big)$$</p>
+  <p>The hats mean L2-normalized vectors, \\(\hat q\cdot\hat k_\mu\\) is cosine similarity, \\(c_1\\) cancels during normalization, and \\(\beta\\) controls sharpness: larger \\(\beta\\) means the librarian strongly favors the nearest shelf.</p>
+</div>
+
+<p>Substitute that approximation into the SDM read equation and the normalized weighted sum becomes attention:</p>
+<div class="box eqn">
+  <span class="lbl">Bridge equation — SDM read ≈ attention</span>
+  <p>$$\frac{\sum_\mu \exp(\beta\hat q\cdot\hat k_\mu)v_\mu}{\sum_\mu \exp(\beta\hat q\cdot\hat k_\mu)}
+  =\operatorname{softmax}(\beta\hat qK^\top)V$$</p>
+  <p>This is Bricken's clean bridge: <strong>attention can be viewed as a pattern-based abstraction of an SDM read</strong>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does \\(c_1\\) disappear?</summary>
+<p>Every numerator term and the denominator are multiplied by the same constant \\(c_1\\). Dividing by the denominator cancels it, leaving only the relative exponential weights.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Modern Hopfield networks ↔ transformer attention</h2>
+<p>SDM is one associative-memory bridge. The second, emphasized in Will Dorrell's part and in Ramsauer et al., is even more exact: a modern Hopfield network update is mathematically the same kind of softmax retrieval used by attention.</p>
+
+<h3 id="s3a">3.1 From classic Hopfield to modern Hopfield</h3>
+<p>A classic Hopfield network stores patterns as attractors: if the current state is near a memory, recurrent dynamics settle into that memory. The problem is capacity and interference. Modern Hopfield networks sharpen similarity with an exponential/softmax, so the closest memories dominate.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — modern Hopfield retrieval update</span>
+  <p>$$\xi^{\text{new}}=X\,\operatorname{softmax}\!\big(\beta X^\top \xi\big)$$</p>
+  <p>\\(X=[x_1,\dots,x_M]\\) stores memory patterns as columns, \\(\xi\\) is the current partial cue, \\(X^\top\xi\\) scores cue-to-memory similarity, and \\(\beta\\) sets how winner-take-most the retrieval is.</p>
+</div>
+
+<h3 id="s3b">3.2 Attention is one retrieval step</h3>
+<p>Transformer attention uses the same recipe with different names. Keys are addresses, values are what gets returned, and the query is the partial cue. With \\(X\\) as both keys and values, it is Hopfield auto-association; with different \\(K\\) and \\(V\\), it is hetero-association.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — attention as associative retrieval</span>
+  <p>$$\operatorname{Attn}(q,K,V)=\operatorname{softmax}(\beta qK^\top)V$$</p>
+  <p>\\(qK^\top\\) asks "which stored addresses match this cue?" The softmax turns match scores into retrieval weights. Multiplication by \\(V\\) returns the associated contents.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["partial cue q"] --> S["similarities q dot k_i"]
+    K["stored keys K"] --> S
+    S --> M["softmax weights<br/>energy decreases"]
+    V["stored values V"] --> U["weighted sum"]
+    M --> U
+    U --> C["completed or blended pattern"]
+</div>
+<figcaption>Modern Hopfield retrieval and attention share the same four moves: cue, compare, normalize/sharpen, return a pattern.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception — "attention" means consciousness</span>
+  <p>Transformer attention is not visual attention, awareness, or a little executive deciding what matters. Here it is a precise algebraic operation: similarity-weighted retrieval. The analogy to brain mechanisms is useful only at that computational level.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — when is attention auto-associative versus hetero-associative?</summary>
+<p>Auto-associative retrieval uses the same stored pattern as address and content, so keys and values coincide. Hetero-associative retrieval stores one thing as the key and another as the value, as in transformer attention where \\(K\\) and \\(V\\) are different projections.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Cognitive maps: hippocampus, place cells, grid cells, and TEM</h2>
+<p>Now shift from "which memory did I store?" to "where am I in the structure of a world?" Dorrell's talk starts with a simple grid world: after moving north, east, then south, you can infer what moving west should do because you know the reusable structure of 2D space.</p>
+
+<h3 id="s4a">4.1 Place cells, grid cells, and structure</h3>
+<p>The neuroscience evidence is that the hippocampal-entorhinal system represents more than raw sensory snapshots.</p>
+<ul>
+  <li><strong>Place cells</strong> in hippocampus fire at particular positions.</li>
+  <li><strong>Grid cells</strong> in medial entorhinal cortex (MEC) fire on hexagonal lattices, suggesting a reusable coordinate system.</li>
+  <li><strong>Non-spatial maps</strong> appear in tasks such as transitive inference and abstract "bird space," where people navigate dimensions like neck length and leg length.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — path-integrating a structural code</span>
+  <p>$$g_t=M_{a_t}g_{t-1}$$</p>
+  <p>\\(g_t\\) is a grid-like structural code, and \\(M_{a_t}\\) is an action-dependent transition matrix. If moving north then south returns you to the same place, the model should learn \\(M_{\text{south}}\approx M_{\text{north}}^{-1}\\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["LEC<br/>what object or stimulus?"] --> H["Hippocampus<br/>bind what plus where"]
+    G["MEC<br/>grid-like structural code"] --> H
+    H --> P["Prediction<br/>what will I see here next?"]
+    A["Action<br/>north, east, south"] --> G
+</div>
+<figcaption>TEM separates reusable structure (MEC-like grid code) from current sensory content (LEC-like item code), then binds them in hippocampal memory.</figcaption>
+</figure>
+
+<h3 id="s4b">4.2 TEM as a transformer-like memory</h3>
+<p>The Tolman-Eichenbaum Machine stores memories that bind a position-like code \\(g_t\\) with an observation code \\(x_t\\). Later, if it knows the structural position, it can recall the observation; if it sees the observation, it can infer the position. In the transformer mapping, positional encodings do more work than usual: they are path-integrated, action-updated codes.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — binding structure and content</span>
+  <p>$$m_t=\operatorname{bind}(g_t,x_t),\qquad \hat{x}_t=\operatorname{retrieve}(g_t,\{m_\tau\}_{\tau<t})$$</p>
+  <p>\\(g_t\\) says "where/which structural state," \\(x_t\\) says "what I saw," and \\(m_t\\) stores their binding. A Hopfield/attention-like retrieve step compares the current \\(g_t\\) to previous structural codes and returns the associated \\(x\\).</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Structural generalization</span>
+  <p>The librarian does not memorize every street-turn pair in every city. Once the city map is learned, a new city requires only binding new landmarks to known map positions. That is why TEM can learn new environments faster after training on many related ones.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — in TEM, what plays the role of a transformer key?</summary>
+<p>The position-like structural code \\(g_t\\) plays the key/query role: recall depends on similarity between the current structural position and previous structural positions. The value is the observation/content code \\(x_t\\).</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Where the analogies break—and why that is productive</h2>
+<p>Good analogies make predictions, but bad analogies smuggle in false identity claims. The lecture repeatedly marks this boundary: attention-like math may be biologically plausible without implying that cortex, cerebellum, or hippocampus implements a literal Transformer block.</p>
+
+<h3 id="s5a">5.1 Biological plausibility without ordinary backprop</h3>
+<p>Bricken's cerebellar story maps SDM operations onto mossy fibers, granule cells, Purkinje cells, and climbing fibers. The important point for AI is not that backprop is hidden somewhere. It is that separate input and teaching/write signals can update synapses in a way that resembles hetero-associative memory.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — local write signal sketch</span>
+  <p>$$\Delta w_{i\to j}\propto \underbrace{\text{pre}_i(q)}_{\text{which address fired}}\;\underbrace{\text{teach}_j(v)}_{\text{what value to store}}$$</p>
+  <p>This is not the global chain-rule gradient used in standard transformers. It is a local associative update sketch: active address-like neurons and a teaching/value signal jointly change a synapse.</p>
+</div>
+
+<p>Predictive-coding and feedback-alignment theories are broader attempts to approximate useful credit assignment with biologically plausible signals. The transcript's concrete claim is narrower: cerebellar climbing fibers could supply a direct training/write signal for SDM-like storage, avoiding the need to posit full transformer backprop in the brain.</p>
+
+<h3 id="s5b">5.2 Brain attention versus transformer attention</h3>
+<div class="box pitfall">
+  <span class="lbl">Pitfall — same word, different mechanism</span>
+  <p><strong>Do not equate them.</strong> Biological attention includes arousal, task goals, eye movements, neuromodulators, recurrent loops, and embodied constraints. Transformer attention is a differentiable matrix operation. The safe claim is: both can be studied as selective, similarity-weighted routing; the unsafe claim is: they are the same mechanism.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Safe bridge<br/>computational motif"] --> B["Similarity-weighted retrieval"]
+    B --> C["Transformer attention<br/>matrix softmax"]
+    B --> D["Brain memory circuits<br/>possible implementation"]
+    E["Unsafe bridge<br/>identity claim"] --> F["Brains are transformers"]
+    F --> G["Overclaims anatomy,<br/>learning, timescale"]
+</div>
+<figcaption>The useful bridge is at the level of computation, not one-to-one identity between artificial layers and biological tissue.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — name one reason the analogy breaks.</summary>
+<p>Examples: biological circuits are recurrent and embodied; they learn through local plasticity and neuromodulatory signals; transformer attention is a static differentiable operation at inference time; brains have many kinds of attention beyond similarity-based lookup.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — modern-Hopfield / attention associative retrieval</h2>
+<p>Store three memory patterns. A query is closest to pattern 2. We will compute the attention/Hopfield retrieval by hand and watch the output become pattern 2.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Let keys and values be the same three 2D patterns:</p>
+  <p>$$K=V=\begin{bmatrix}1&0\\0&1\\-1&0\end{bmatrix},\qquad q=\begin{bmatrix}0.1&0.9\end{bmatrix},\qquad \beta=5.$$</p>
+  <p>First compute similarity scores \\(s_i=q\cdot k_i\\):</p>
+  <p>$$s=\begin{bmatrix}0.1&0.9&-0.1\end{bmatrix}.$$</p>
+  <p>Sharpen with \\(\beta=5\\):</p>
+  <p>$$\beta s=\begin{bmatrix}0.5&4.5&-0.5\end{bmatrix},\qquad \exp(\beta s)\approx\begin{bmatrix}1.65&90.02&0.61\end{bmatrix}.$$</p>
+  <p>Normalize to get softmax weights:</p>
+  <p>$$\alpha=\frac{\exp(\beta s)}{1.65+90.02+0.61}\approx\begin{bmatrix}0.018&0.976&0.0066\end{bmatrix}.$$</p>
+  <p>Finally retrieve the value:</p>
+  <p>$$\operatorname{softmax}(\beta qK^\top)V=0.018\begin{bmatrix}1&0\end{bmatrix}+0.976\begin{bmatrix}0&1\end{bmatrix}+0.0066\begin{bmatrix}-1&0\end{bmatrix}\approx\begin{bmatrix}0.011&0.976\end{bmatrix}.$$</p>
+  <p>The retrieved vector is almost pattern 2, \\((0,1)\\). In the librarian analogy, the clue lands almost entirely on shelf 2; the returned postcard is shelf 2's content.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would a small \\(\beta\\) do?</summary>
+<p>With \\(\beta=1\\), the weights are roughly \\([0.247,0.550,0.203]\\), so the output is a blend: \\(0.247(1,0)+0.550(0,1)+0.203(-1,0)\approx(0.044,0.550)\\). Small \\(\beta\\) means softer retrieval: less pattern completion, more memory blending.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one associative-recall step</h2>
+<p>Follow the same event through two framings. The brain column describes a content-addressable memory story; the transformer column describes the matrix operation.</p>
+
+<table>
+  <tr><th>Step</th><th>Brain view</th><th>Transformer view</th></tr>
+  <tr><td>0 · partial cue</td><td>A noisy or incomplete pattern appears: part of a memory, location, or context.</td><td class="tt">query q</td></tr>
+  <tr><td>1 · similarity</td><td>Memory neurons / stored patterns respond according to how close their addresses are to the cue.</td><td class="tt">scores s_i = q · k_i</td></tr>
+  <tr><td>2 · softmax / energy min</td><td>Associative dynamics favor low-energy, high-similarity memories; weak matches are suppressed.</td><td class="tt">alpha = softmax(beta s)</td></tr>
+  <tr><td>3 · completed pattern</td><td>The system settles toward the stored pattern or returns the associated value.</td><td class="tt">output = alpha V</td></tr>
+  <tr><td>4 · interpretation</td><td>Pattern completion in cortex/hippocampus/cerebellum-style memory.</td><td class="tt">attention lookup</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Why associative memory is the unifying lens</span>
+  <p>Once you see attention as "retrieve what is stored at similar addresses," SDM, modern Hopfield networks, and transformer attention stop looking like unrelated tricks. They become different implementations of the same librarian move: partial cue → similarity search → sharpened weights → completed or associated content.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does "pattern completion" appear in the transformer equation?</summary>
+<p>It appears in the final weighted sum \\(\alpha V\\). If one weight dominates, the output is nearly the stored value for that key; if several weights are comparable, the output blends several memories.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Answer from memory before re-reading. If one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is the brain a useful but dangerous source of AI analogies? <a class="ref" href="#s1">(§1)</a></li>
+    <li>What geometric fact lets SDM approximate softmax attention? <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>Write \\(\operatorname{softmax}(\beta qK^\top)V\\) and explain query, key, value, and \\(\beta\\). <a class="ref" href="#s3b">(§3.2)</a></li>
+    <li>How do place cells and grid cells motivate the TEM split between content and structure? <a class="ref" href="#s4a">(§4.1)</a></li>
+    <li>In the worked example, why did pattern 2 dominate? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain "attention as associative memory" to a beginner using the city-librarian analogy.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Sparse Distributed Memory (SDM)</td><td>A high-dimensional associative memory where sparse neurons store and retrieve patterns near their addresses.</td></tr>
+  <tr><td>Associative memory</td><td>A memory that retrieves content from a cue by similarity, rather than by an exact address.</td></tr>
+  <tr><td>Softmax</td><td>A normalization that turns scores into positive weights summing to one, while amplifying large scores.</td></tr>
+  <tr><td>Temperature / \\(\beta\\)</td><td>The sharpness of retrieval. Large \\(\beta\\) is winner-take-most; small \\(\beta\\) blends memories.</td></tr>
+  <tr><td>Modern Hopfield network</td><td>An energy-based associative memory whose retrieval update uses softmax-weighted similarity to stored patterns.</td></tr>
+  <tr><td>Place cell</td><td>A hippocampal neuron that fires strongly at a particular location in an environment.</td></tr>
+  <tr><td>Grid cell</td><td>An entorhinal neuron that fires at multiple locations arranged like a hexagonal grid.</td></tr>
+  <tr><td>Cognitive map</td><td>An internal representation of relational structure, such as physical space or an abstract task space.</td></tr>
+  <tr><td>Tolman-Eichenbaum Machine (TEM)</td><td>A model that separates reusable structure from sensory content and binds them in hippocampal-style memory.</td></tr>
+  <tr><td>Hetero-association</td><td>Using one pattern as an address/key and a different pattern as the stored value to retrieve.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or central in the lecture</h4>
+<ol class="refs">
+  <li>Trenton Bricken &amp; Cengiz Pehlevan. <strong>Attention Approximates Sparse Distributed Memory.</strong> <a class="ref" href="https://arxiv.org/abs/2111.05498" target="_blank">arXiv</a> — the main SDM-to-attention bridge from the first talk.</li>
+  <li>Pentti Kanerva (1988). <strong>Sparse Distributed Memory.</strong> <a class="ref" href="https://direct.mit.edu/books/book/4332/Sparse-Distributed-Memory" target="_blank">MIT Press</a> — the original high-dimensional memory model.</li>
+  <li>Hubert Ramsauer et al. (2020). <strong>Hopfield Networks is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/2008.02217" target="_blank">arXiv</a> — modern Hopfield retrieval as transformer-style attention.</li>
+  <li>James Whittington et al. (2020). <strong>The Tolman-Eichenbaum Machine: Unifying space and relational memory through generalization in the hippocampal formation.</strong> <a class="ref" href="https://doi.org/10.1016/j.cell.2020.10.024" target="_blank">Cell</a> — the cognitive-map model in the second talk.</li>
+  <li>Edward C. Tolman (1948). <strong>Cognitive maps in rats and men.</strong> <a class="ref" href="https://doi.org/10.1037/h0061626" target="_blank">Psychological Review</a> — the classic behavioral origin of cognitive maps.</li>
+  <li>John O'Keefe &amp; Jonathan Dostrovsky (1971). <strong>The hippocampus as a spatial map.</strong> <a class="ref" href="https://doi.org/10.1016/0006-8993(71)90358-1" target="_blank">Brain Research</a> — place cells.</li>
+  <li>Torkel Hafting et al. (2005). <strong>Microstructure of a spatial map in the entorhinal cortex.</strong> <a class="ref" href="https://doi.org/10.1038/nature03721" target="_blank">Nature</a> — grid cells.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>CS25 lecture video: <strong>Neuroscience-Inspired Artificial Intelligence.</strong> <a class="ref" href="https://www.youtube.com/watch?v=L4DC7e6g2iI" target="_blank">YouTube</a> — original lecture for the diagrams and Q&amp;A.</li>
+  <li>Hassabis et al. (2007). <strong>Patients with hippocampal amnesia cannot imagine new experiences.</strong> <a class="ref" href="https://doi.org/10.1073/pnas.0610561104" target="_blank">PNAS</a> — one of the memory/imagination results discussed in the second talk.</li>
+  <li>Stachenfeld, Botvinick &amp; Gershman (2017). <strong>The hippocampus as a predictive map.</strong> <a class="ref" href="https://doi.org/10.1038/nn.4650" target="_blank">Nature Neuroscience</a> — a complementary predictive-map view.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="17-biomedical-transformers.html">◀ Previous note</a>
+  <a class="r" href="19-embodied-intelligence-foundation-models.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 18 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

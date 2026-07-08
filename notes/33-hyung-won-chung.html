@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 33 — Hyung Won Chung (OpenAI): Scaling &amp; the Future</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\(','\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Study the change</a>
+  <a href="#s1a" class="sub">1.1 The pen-drop test</a>
+  <a href="#s1b" class="sub">1.2 Compute as the force</a>
+  <a href="#s2">2 · The bitter lesson</a>
+  <a href="#s2a" class="sub">2.1 Structure helps, then caps</a>
+  <a href="#s2b" class="sub">2.2 What looks worse today</a>
+  <a href="#worked">3 · Worked micro-example</a>
+  <a href="#trace">4 · End-to-end trace</a>
+  <a href="#s5">5 · Transformer history</a>
+  <a href="#s5a" class="sub">5.1 Three architectures</a>
+  <a href="#s5b" class="sub">5.2 Encoder-decoder assumptions</a>
+  <a href="#s6">6 · Research taste under scale</a>
+  <a href="#s6a" class="sub">6.1 Don't teach; incentivize</a>
+  <a href="#s6b" class="sub">6.2 What to build now</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 7 · Note 3 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Shaping AI from the History of the Transformer — Hyung Won Chung</h1>
+  <p class="lead">A scaling-minded research compass: find the dominant force, ride it, and remove assumptions once they become bottlenecks.</p>
+  <div class="meta">
+    <span class="pill">🎓 Hyung Won Chung (OpenAI)</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=orDKvo8h71o" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Hyung Won Chung is not giving a catalog of Transformer variants. He is teaching a way to choose research bets when AI moves too quickly to memorize every new result. His claim is deliberately opinionated: the dominant driver is <strong>exponentially cheaper compute</strong>, so good AI research often means building methods that can absorb more compute, data, and freedom.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — removing scaffolding from a growing bridge</span>
+  <p>Early in construction, scaffolding is useful: it holds pieces in place before the bridge can support itself. But if the bridge grows and the scaffolding stays bolted on, the support becomes a cage. In this note, hand-designed model structure is the scaffolding; scaling is the bridge getting stronger.</p>
+</div>
+<div class="box intuition">
+  <span class="lbl">Epistemic status</span>
+  <p>This is a <strong>research taste lecture</strong>, not a theorem. The compute trend and Transformer designs are factual; the extrapolation — which assumptions are now expired — is a practitioner intuition meant to guide bets, not prove inevitability.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these first. Each item is a hook the lecture reuses rather than reteaches.</p>
+  <ul>
+    <li><strong>Compute / scaling</strong> — if dollars buy more FLOPs over time, models can become larger or train longer; see <a class="ref" href="13-emergent-abilities-scaling.html">Note 13</a> for scaling laws and emergence.</li>
+    <li><strong>Inductive bias</strong> — an assumption baked into the model, such as “inputs and outputs deserve separate stacks”; it can reduce sample cost now and limit freedom later.</li>
+    <li><strong>The bitter lesson</strong> — Sutton's phrase for the repeated win of general methods that exploit computation over hand-coded human structure.</li>
+    <li><strong>Next-token prediction</strong> — train by predicting token \(x_t\) from context \(x_{&lt;t}\); the simple objective can incentivize many latent skills. Cross-link: <a class="ref" href="27-wei-chung-openai.html">Note 27</a>.</li>
+    <li><strong>RL for reasoning</strong> — reward a model for producing solutions that score well, rather than hand-writing the reasoning procedure; relevant as a modern “incentivize, don’t teach” extension.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Study the change, not every headline</h2>
+<p>Chung opens with a student-facing problem: if AI advances every week, “keeping up” by chasing each latest model, agent, or benchmark becomes impossible. His proposed move is to study the <strong>change itself</strong>: identify the dominant driving force, understand it, then roll it forward to guess the direction of travel.</p>
+
+<h3 id="s1a">1.1 The pen-drop test</h3>
+<p>He illustrates prediction with a pen. Many forces act on it — gravity, drag, complicated aerodynamics — but if the pen is heavy enough, gravity dominates. Once you isolate that force and use Newtonian mechanics, a rough prediction becomes easy.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — when one force dominates</span>
+  <p>$$y(t)=y_0+v_0t+\frac{1}{2}gt^2$$</p>
+  <p>Here \(y(t)\) is vertical position, \(y_0\) the starting position, \(v_0\) the starting velocity, and \(g\) gravitational acceleration. Chung's point is not physics; it is methodology: when one force dominates, prediction becomes less mystical.</p>
+</div>
+
+<h3 id="s1b">1.2 The dominant force in AI: cheaper compute</h3>
+<p>For AI, Chung points to Rich Sutton's long-run chart of calculations per dollar: the amount of compute available for the same money rises roughly exponentially. His practical inference is stark: <strong>do not compete with this trend; leverage it</strong>. Human cleverness improves, but not as reliably as the compute-per-dollar curve.</p>
+
+<figure><div class="mermaid">
+flowchart LR
+    A["Fast-moving AI headlines"] --> B["Ask: what force explains many changes?"]
+    B --> C["Compute per dollar rises exponentially"]
+    C --> D["Methods that scale absorb more data + FLOPs"]
+    D --> E["Research taste: remove assumptions that block scaling"]
+</div></figure>
+<figcaption>The lecture's reasoning loop: headlines become less chaotic when viewed through the compute-scaling lens.</figcaption>
+
+<details class="check"><summary>✓ Check yourself — what is the pen-drop analogy doing?</summary>
+<p>It is not claiming AI is as predictable as mechanics. It says: if a narrow domain has one dominant driver, you can often predict direction better than chance by understanding that driver.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The bitter lesson: today's shortcut can become tomorrow's bottleneck</h2>
+<p>The lecture's central research principle is Sutton's bitter lesson, in Chung's wording: decades of AI progress look like a march toward <strong>more general methods, weaker modeling assumptions, more data, and more compute</strong>. Hand-engineered structure can be productive at today's scale, but it often restricts the model exactly when tomorrow's scale arrives.</p>
+
+<h3 id="s2a">2.1 Structure helps, then caps</h3>
+<p>Imagine two bridges. The scaffolded bridge opens sooner, because the supports make construction easy. The self-supporting bridge looks unstable at first, because it has more degrees of freedom. But if traffic keeps increasing, the bolted-on scaffolding becomes the height limit.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — a toy scaling law plus a ceiling</span>
+  <p>$$P_{\text{general}}(C)=a+b\log_{10}C \qquad P_{\text{structured}}(C)=\min\left(L,\,a_s+b_s\log_{10}C\right)$$</p>
+  <p>\(C\) is compute, \(P\) is task performance, and \(L\) is the ceiling introduced by an assumption. This is a teaching toy, not a claimed empirical law: it encodes Chung's qualitative curve.</p>
+</div>
+
+<h3 id="s2b">2.2 What is better long-term may look worse now</h3>
+<p>Chung emphasizes a psychologically hard implication: a more scalable method can underperform today. If it gives the model more freedom, it may look chaotic at small compute. The right choice depends on where the field sits on the compute curve — use scaffolding when needed, but remember to remove it.</p>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Bitter lesson means never add structure.”</strong> Chung says the opposite nuance: add the structure needed at the current compute frontier, but treat it as temporary scaffolding. The mistake is forgetting to unbolt it later.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can a worse-looking method be the better research bet?</summary>
+<p>Because small-scale performance measures current usefulness, not scalability. A method with fewer assumptions may need more compute before it crosses over, then continue improving after the structured method has plateaued.</p></details>
+
+<h2 id="worked"><span class="num">3.</span>Worked micro-example — when added structure becomes a bottleneck</h2>
+<p>Make the lecture's curve concrete. Suppose two translation systems are tested at three compute scales. The <strong>structured model</strong> has a hand-designed bias that helps at low compute but caps what it can represent. The <strong>general model</strong> wastes compute early but keeps benefiting from scale.</p>
+
+<table>
+  <tr><th>Compute scale</th><th>Structured model accuracy</th><th>General model accuracy</th><th>Winner now</th></tr>
+  <tr><td class="tt">1×</td><td>60%</td><td>45%</td><td>Structured by 15 points</td></tr>
+  <tr><td class="tt">10×</td><td>72%</td><td>70%</td><td>Structured by 2 points</td></tr>
+  <tr><td class="tt">100×</td><td>75%</td><td>88%</td><td>General by 13 points</td></tr>
+</table>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step comparison</span>
+  <p>At \(1\times\) compute: $$60-45=15\text{ points}$$ so the structure is useful.</p>
+  <p>At \(10\times\) compute: $$72-70=2\text{ points}$$ so the advantage nearly disappears.</p>
+  <p>At \(100\times\) compute: $$88-75=13\text{ points}$$ so the general method has crossed over. The structured model improved only \(75-60=15\) points total, while the general model improved \(88-45=43\) points.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Lesson for what to build today</span>
+  <p>If your method wins only because it bakes in a narrow assumption, ask: <strong>is this a durable advantage, or a low-compute crutch?</strong> A good scaling bet should have a credible path to keep improving as \(C\) grows.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — at what scale does the research decision flip?</summary>
+<p>Between \(10\times\) and \(100\times\). At \(10\times\), structured still wins by 2 points; at \(100\times\), general wins by 13 points. The crossover is the warning sign Chung wants researchers to anticipate.</p></details>
+
+<h2 id="trace"><span class="num">4.</span>End-to-end trace — the removal-of-structure arc</h2>
+<p>Now trace one historical instance through AI eras. The state we track is the <strong>assumption added</strong>: what researchers fixed by hand because it helped at the time, and what later replaced it when scale made the assumption expensive.</p>
+
+<table>
+  <tr><th>Era</th><th>Assumption added</th><th>Why it helped then</th><th>Why it later capped performance</th><th>What replaced it</th></tr>
+  <tr><td class="tt">Feature engineering</td><td>Humans design features, rules, parsers, or templates.</td><td>Learning systems were weak; human knowledge compressed the problem.</td><td>The system could not discover features humans failed to imagine.</td><td>Representation learning from data.</td></tr>
+  <tr><td class="tt">RNN / CNN biases</td><td>Sequential recurrence for text; local convolutions for images.</td><td>They matched obvious domain structure and reduced sample needs.</td><td>Long-range dependencies and cross-domain reuse became awkward.</td><td>Attention-heavy architectures with fewer locality constraints.</td></tr>
+  <tr><td class="tt">Transformer</td><td>Tokens interact through dot-product attention.</td><td>Parallel sequence modeling made scaling much easier than recurrence.</td><td>The original encoder-decoder still assumed separate source/target machinery.</td><td>Decoder-only causal stacks for general sequence modeling.</td></tr>
+  <tr><td class="tt">Decoder-only at scale</td><td>One next-token objective over mixed data and tasks.</td><td>It unifies pretraining, prompting, chat history, and supervised examples as text.</td><td>Pure imitation can be weak for deliberate reasoning, long-horizon search, or preferences.</td><td>Instruction tuning, preference optimization, and RL-style incentives.</td></tr>
+  <tr><td class="tt">Reasoning / RL</td><td>Reward the outcome or process instead of hand-coding reasoning rules.</td><td>It can incentivize search-like behavior without teaching every algorithm explicitly.</td><td>This remains an active frontier: rewards, verification, and safety can become new bottlenecks.</td><td>More general training-time and test-time compute strategies.</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Bitter lesson as a research compass</span>
+  <p>Do not ask only “what structure improves today's benchmark?” Ask “which assumptions are becoming removable because compute, data, and algorithms have changed?” That question turns history into a compass rather than nostalgia.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one assumption in the table that was reasonable before it became costly.</summary>
+<p>Example: bidirectional encoders were excellent for 2018-style language-understanding benchmarks such as SQuAD/GLUE, but they complicate modern multi-turn generation because old tokens may need to be re-encoded instead of cached.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Transformer history as a case study in assumption removal</h2>
+<p>After the scaling thesis, Chung gets concrete: compare the original encoder-decoder Transformer, BERT-style encoder-only models, and GPT-style decoder-only models. They are not merely different diagrams; each encodes a bet about what structure is worth imposing.</p>
+
+<h3 id="s5a">5.1 Three architectures, one sequence-model family</h3>
+<p>At first principles, a Transformer is a sequence model: tokenize a sequence, embed tokens as vectors, and let tokens interact through attention. The variants differ in <em>which tokens may talk</em> and <em>whether input and output use separate machinery</em>.</p>
+
+<figure><div class="mermaid">
+flowchart TB
+    A["Encoder-decoder<br/>separate source + target stacks"] --> D["More task structure"]
+    B["Encoder-only<br/>sequence to label/vector"] --> D
+    C["Decoder-only<br/>one causal stack over input + target"] --> E["Less structure<br/>more reuse + caching"]
+    D --> F["Helps when tasks are narrow"]
+    E --> G["Scales when tasks become general"]
+</div></figure>
+<figcaption>Chung's comparison: the decoder-only model removes several assumptions that were useful in narrower regimes.</figcaption>
+
+<h3 id="s5b">5.2 Encoder-decoder assumptions Chung revisits</h3>
+<p>Chung walks through how to transform encoder-decoder toward decoder-only: share cross-attention machinery with self-attention, share parameters between source and target, align attention layer-by-layer rather than only to the final encoder layer, and remove bidirectional input attention. Each step removes a scaffold.</p>
+
+<ul>
+  <li><strong>Separate input/target parameters.</strong> Reasonable for English-to-German translation; unnatural when one model stores shared world knowledge across languages, tasks, and chat turns.</li>
+  <li><strong>Decoder attends to final encoder layer.</strong> Convenient design, but possibly a depth mismatch if models become hundreds or thousands of layers deep.</li>
+  <li><strong>Bidirectional input attention.</strong> Powerful for BERT-era understanding tasks, but costly for multi-turn chat because caching is harder: earlier tokens may need re-encoding when new tokens arrive.</li>
+  <li><strong>Encoder-only classification.</strong> Great for GLUE-era progress, but it gives up generation — too restrictive for the most general use cases.</li>
+</ul>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — decoder-only unifies supervised learning as text</span>
+  <p>$$P_\theta(y\mid x)=\prod_{t=1}^{T}P_\theta(y_t\mid x, y_{&lt;t})$$</p>
+  <p>\(x\) is the prompt or input, \(y_t\) is the \(t\)-th target token, and the same causal stack handles both “read the input” and “write the answer.” The architecture does not need a separate cross-attention module to express the supervised task.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>“Decoder-only means it can only do unsupervised language modeling.”</strong> Chung explicitly rejects this. Concatenate input and target, train the causal model to predict the target tokens, and supervised learning becomes sequence modeling.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did Flan-T5 benefit strongly from instruction tuning in Chung's anecdote?</summary>
+<p>His hypothesis: many academic instruction-tuning tasks had long inputs and short targets. Encoder-decoder's separate input/target structure matched that data shape well, so the scaffold was useful in that regime.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Research taste under scaling</h2>
+<p>The talk ends by turning architectural history into advice for students: look at your problem, list the assumptions you are making, and ask whether they are still necessary. If not, test the more general version and scale it.</p>
+
+<h3 id="s6a">6.1 Don't teach; incentivize</h3>
+<p>Chung criticizes the instinct to model “how we think” and then teach that structure to the machine. We do not understand our own cognition at the low level well enough. The scaling-friendly alternative is to create objectives that <strong>incentivize</strong> useful behavior: next-token prediction incentivizes grammar, facts, and translation; instruction tuning incentivizes following requests; RL-style reasoning training can incentivize successful solution search without hand-coding the solver.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — objective as incentive</span>
+  <p>$$\theta^*=\arg\max_\theta\;\mathbb{E}_{\tau\sim \pi_\theta}\big[R(\tau)\big]$$</p>
+  <p>\(\tau\) is a generated trajectory, \(R(\tau)\) is a reward such as correctness or preference, and \(\pi_\theta\) is the model policy. The equation says: do not specify every internal step; reward trajectories that achieve the goal. Treat this as a modern extension of the lecture's scaling intuition, not a claim that reward design is solved.</p>
+</div>
+
+<h3 id="s6b">6.2 What to build now</h3>
+<p>Chung's student takeaway is not “copy GPT.” It is a habit:</p>
+<ol>
+  <li><strong>Name the dominant force.</strong> In this lecture: compute per dollar and associated scaling.</li>
+  <li><strong>Name your scaffolding.</strong> What did you assume because today's compute, data, benchmarks, or evaluation made it convenient?</li>
+  <li><strong>Predict the expiration date.</strong> What happens at \(10\times\), \(100\times\), or \(1000\times\) more compute?</li>
+  <li><strong>Build the removal path.</strong> Design experiments where the more general method can catch up and cross over.</li>
+</ol>
+
+<div class="box intuition">
+  <span class="lbl">Connection to emergence</span>
+  <p><a class="ref" href="13-emergent-abilities-scaling.html">Note 13</a> explains why capabilities can look absent until scale crosses a threshold. Chung's addition is a research strategy: if the threshold will arrive, avoid architectures whose assumptions prevent the model from benefiting when it does.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — write the scaling-research question in one sentence.</summary>
+<p>“Which assumption helped because we lacked compute, and can we now remove it to make the method more general and scalable?”</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; jump back only when a link exposes a gap.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does Chung start with a falling pen before discussing AI? <a class="ref" href="#s1a">(§1.1)</a></li>
+    <li>What is the dominant driver he identifies for AI research? <a class="ref" href="#s1b">(§1.2)</a></li>
+    <li>Why can added structure be both rational and dangerous? <a class="ref" href="#s2">(§2)</a></li>
+    <li>In the toy example, when does the general method overtake the structured one? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Name two encoder-decoder assumptions Chung argues may be expired at modern scale. <a class="ref" href="#s5b">(§5.2)</a></li>
+    <li>Teach it back: explain “don't teach, incentivize” to a beginner in three sentences. <a class="ref" href="#s6a">(§6.1)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Dominant driving force</td><td>The main cause that explains the direction of change well enough to guide predictions.</td></tr>
+  <tr><td>Compute per dollar</td><td>How many calculations a fixed budget buys; Chung treats its exponential improvement as AI's central tailwind.</td></tr>
+  <tr><td>Inductive bias</td><td>A modeling assumption that makes some solutions easier to learn than others.</td></tr>
+  <tr><td>Bitter lesson</td><td>The historical pattern that general methods exploiting computation beat approaches that encode human structure too tightly.</td></tr>
+  <tr><td>Encoder-decoder</td><td>A Transformer with one stack for the input sequence and another for the output sequence, connected by cross-attention.</td></tr>
+  <tr><td>Encoder-only</td><td>A bidirectional Transformer used mainly to map a sequence to a representation or label.</td></tr>
+  <tr><td>Decoder-only</td><td>A causal Transformer stack that predicts the next token and can represent prompts, inputs, targets, and chat history in one sequence.</td></tr>
+  <tr><td>Cross-attention</td><td>An attention module where decoder tokens attend to representations produced by an encoder.</td></tr>
+  <tr><td>Caching</td><td>Reusing previously computed token states during generation instead of recomputing the whole context.</td></tr>
+  <tr><td>RL-style incentive</td><td>Training that rewards successful trajectories rather than specifying the internal procedure by hand.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly used in the lecture</h4>
+<ol class="refs">
+  <li>Hyung Won Chung (CS25, 2025). <strong>Shaping AI from the History of the Transformer.</strong> <a class="ref" href="https://www.youtube.com/watch?v=orDKvo8h71o">video</a> — primary lecture transcript for this note.</li>
+  <li>Richard S. Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html">essay</a> — the scaling-and-generality principle Chung calls central.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv</a> — original encoder-decoder Transformer.</li>
+  <li>Devlin et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805">arXiv</a> — encoder-only bidirectional milestone.</li>
+  <li>Brown et al. (2020). <strong>Language Models are Few-Shot Learners.</strong> <a class="ref" href="https://arxiv.org/abs/2005.14165">arXiv</a> — GPT-3 as a decoder-only scaling milestone.</li>
+  <li>Chung et al. (2022). <strong>Scaling Instruction-Finetuned Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2210.11416">arXiv</a> — FLAN-T5 / instruction-tuning context mentioned in the talk.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li><a class="ref" href="13-emergent-abilities-scaling.html">CS25 Note 13</a> — scaling laws, emergence, and threshold-like benchmark behavior.</li>
+  <li><a class="ref" href="27-wei-chung-openai.html">CS25 Note 27</a> — Jason Wei and Hyung Won Chung on next-token prediction, scaling, and removing structure.</li>
+  <li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">arXiv</a> — empirical power-law framing for language-model loss.</li>
+  <li>Hoffmann et al. (2022). <strong>Training Compute-Optimal Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.15556">arXiv</a> — the Chinchilla update on balancing parameters and data.</li>
+  <li>OpenAI (2024). <strong>Learning to reason with LLMs.</strong> <a class="ref" href="https://openai.com/index/learning-to-reason-with-llms/">article</a> — a modern pointer for the “incentivize reasoning” thread, beyond the lecture's main historical case study.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="32-starcoder-pretraining.html">◀ Previous note</a>
+  <a class="r" href="34-v5-overview.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  STANFORD CS25 · TRANSFORMERS UNITED · V4 — study notes · Note 33 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

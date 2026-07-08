@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 13 — Emergent Abilities & Scaling in LLMs</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Two faces of scale</a>
+  <a href="#s1a" class="sub">1.1 A smooth gauge and a threshold gauge</a>
+  <a href="#s2">2 · Scaling laws</a>
+  <a href="#s2a" class="sub">2.1 Kaplan-style power laws</a>
+  <a href="#s2b" class="sub">2.2 Chinchilla compute-optimal scaling</a>
+  <a href="#s3">3 · Emergent abilities</a>
+  <a href="#s3a" class="sub">3.1 What jumped in the lecture</a>
+  <a href="#s4">4 · Metrics and the mirage critique</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Chain-of-thought prompting</a>
+  <a href="#s8">8 · Implications</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 3 · Note 3 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V2</div>
+  <h1>Emergent Abilities &amp; Scaling in Large Language Models</h1>
+  <p class="lead">Scaling buys two different things: predictable loss reductions you can forecast, and task abilities that can look absent until a large model crosses a threshold.</p>
+  <div class="meta">
+    <span class="pill">🎓 Jason Wei / CS25 guest</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=tVtOevLrt5U" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Suppose you are deciding whether to spend millions training a larger model. If all you get is a slightly lower next-token loss, the business and safety case is one kind of argument. If scale suddenly unlocks multi-step arithmetic, exam performance, instruction following, or new failure modes, the argument changes. This lecture separates the <strong>smooth</strong> part of scaling from the <strong>surprising</strong> part.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — climbing a mountain with two instruments</span>
+  <p>Think of model scale as altitude. A <strong>barometer</strong> changes smoothly as you climb: that is language-model loss. A <strong>checkpoint gate</strong> stays closed until you reach a pass, then opens: that is an exact-match benchmark. The mountain is real, but what looks like a cliff can depend on which instrument you read.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow the note smoothly if these are fresh.</p>
+  <ul>
+    <li><strong>Language-model loss / perplexity</strong> — cross-entropy measures how surprised the model is by held-out text; perplexity is its exponentiated form, so lower means better next-token prediction.</li>
+    <li><strong>Power law / log-log plot</strong> — a relationship like error \(\propto\) size<sup>-α</sup> becomes close to a straight line when both axes are logarithmic; this is why scaling-law plots look so clean.</li>
+    <li><strong>Few-shot prompting</strong> — give a pretrained model a few input-output examples in the context window, then ask it to continue the pattern on a new example.</li>
+    <li><strong>Accuracy vs cross-entropy</strong> — accuracy is often all-or-nothing after decoding; cross-entropy gives partial credit to better probabilities even before the final answer flips.</li>
+  </ul>
+</div>
+
+<!-- ================= SECTION 1 ================= -->
+<h2 id="s1"><span class="num">1.</span>What scale buys: two faces of the same climb</h2>
+<p>In the transcript, Wei begins with the familiar result: as compute, parameters, or data increase, test loss goes down predictably. Then he pivots: some downstream abilities look impossible to predict from small models because small-model accuracy is flat near random until larger models appear.</p>
+
+<h3 id="s1a">1.1 A smooth gauge and a threshold gauge</h3>
+<p>The smooth gauge asks, “Did the model assign better probabilities to the next tokens?” The threshold gauge asks, “Did the final answer pass the benchmark?” Those can tell different stories about the same underlying improvement.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Scale up model<br/>(N, D, C)"] --> B["Smoother next-token probabilities"]
+    B --> C["Lower loss / perplexity<br/>(predictable)"]
+    B --> D["More complete task solutions"]
+    D --> E["Exact-match accuracy jumps<br/>(may look emergent)"]
+    D --> F["New prompting techniques work<br/>(chain of thought)"]
+</div>
+<figcaption>One climb, two instruments: loss often improves continuously, while task success may be recorded only after a threshold.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Definition with epistemic status</span>
+  <p><strong>Working definition from Wei et al.:</strong> an ability is emergent if it is not present in smaller models but is present in larger models. This is an empirical benchmark definition, not a proof that the internal computation changed discontinuously.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — which instrument would notice progress first?</summary>
+<p>If a model becomes less wrong token by token but still fails exact answer matching, cross-entropy or per-token accuracy notices first. Exact-match accuracy may remain flat until every required part is correct.</p></details>
+
+<!-- ================= SECTION 2 ================= -->
+<h2 id="s2"><span class="num">2.</span>Scaling laws: the predictable part</h2>
+<p>Before talking about surprise, anchor on the boring miracle: for many orders of magnitude, bigger language models trained on more data with more compute become predictably less surprised by held-out text.</p>
+
+<h3 id="s2a">2.1 Kaplan-style power laws</h3>
+<p>Kaplan et al. showed that test loss is well approximated by simple power laws in model size, dataset size, and compute. If you only watch this gauge, scaling looks almost engineered: spend more compute, get a forecastable reduction in loss.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — loss vs model size</span>
+  <p>$$L(N) \approx L_\infty + \left(\frac{N_0}{N}\right)^\alpha$$</p>
+  <p>\(L(N)\) is held-out loss for a model with \(N\) parameters; \(L_\infty\) is the irreducible floor for this data distribution and architecture family; \(N_0\) sets the scale; \(\alpha&gt;0\) controls how quickly returns diminish.</p>
+</div>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 360" role="img" aria-label="Log-log scaling law line with emergent threshold overlay" width="100%" height="auto">
+  <rect x="0" y="0" width="760" height="360" rx="16" fill="#f7f2e6"/>
+  <line x1="90" y1="292" x2="700" y2="292" stroke="#2b2721" stroke-width="2"/>
+  <line x1="90" y1="292" x2="90" y2="48" stroke="#2b2721" stroke-width="2"/>
+  <text x="360" y="336" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" fill="#2b2721">log scale: parameters / data / compute</text>
+  <text x="25" y="172" transform="rotate(-90 25 172)" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" fill="#2b2721">log held-out loss</text>
+  <polyline points="105,248 185,222 265,196 345,171 425,147 505,123 585,101 675,80" fill="none" stroke="#2f6df6" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="105" cy="248" r="6" fill="#2f6df6"/><circle cx="265" cy="196" r="6" fill="#2f6df6"/><circle cx="425" cy="147" r="6" fill="#2f6df6"/><circle cx="585" cy="101" r="6" fill="#2f6df6"/><circle cx="675" cy="80" r="6" fill="#2f6df6"/>
+  <line x1="500" y1="292" x2="500" y2="60" stroke="#9b5de5" stroke-width="3" stroke-dasharray="8 8"/>
+  <text x="514" y="65" font-family="Atkinson Hyperlegible, sans-serif" font-size="16" fill="#2b2721">task threshold</text>
+  <path d="M120 285 C290 284, 435 282, 498 276 C530 246, 565 190, 630 120" fill="none" stroke="#d1495b" stroke-width="4" stroke-linecap="round"/>
+  <text x="150" y="70" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" fill="#2f6df6">smooth scaling law</text>
+  <text x="540" y="215" font-family="Atkinson Hyperlegible, sans-serif" font-size="18" fill="#d1495b">harsh metric looks sudden</text>
+</svg>
+</div>
+<figcaption>A log-log scaling-law sketch: smooth loss can coexist with a benchmark curve that appears to jump when the task's pass criterion is crossed.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Chinchilla: many large models were undertrained</h3>
+<p>Hoffmann et al. refined the story: for a fixed compute budget, do not spend nearly all of it on parameters. Scale <strong>model size \(N\)</strong> and <strong>training tokens \(D\)</strong> roughly together. The lecture notes that Chinchilla was unusual in the plotted families because larger Chinchilla models used more data, not only more parameters.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — training compute budget</span>
+  <p>$$C \approx 6ND$$</p>
+  <p>For dense decoder-only transformers, training compute \(C\) is roughly proportional to parameter count \(N\) times token count \(D\). Chinchilla's practical message: for compute-optimal training, increase both instead of building a huge model that sees too few tokens.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Scaling” does not mean “increase parameters only.” In the transcript, Wei lists three scale axes: training FLOPs, parameter count, and dataset size. Better data, more in-domain examples, architecture, and fine-tuning can move an apparent threshold.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if compute quadruples, what does “scale N and D equally” suggest?</summary>
+<p>Because \(C\propto ND\), multiplying \(N\) by 2 and \(D\) by 2 multiplies compute by 4. That is the rough Chinchilla-style direction, ignoring hardware and architecture details.</p></details>
+
+<!-- ================= SECTION 3 ================= -->
+<h2 id="s3"><span class="num">3.</span>Emergent abilities: the surprising part</h2>
+<p>Now switch instruments. On many few-shot tasks, small models perform around random. Then a much larger model crosses a threshold and performance rises sharply. If you extrapolated only from the small points, you would not forecast the jump.</p>
+
+<h3 id="s3a">3.1 What jumped in the lecture</h3>
+<ul>
+  <li><strong>MMLU / multitask NLU:</strong> professional and school exam questions; models near \(10^{22}\) training FLOPs look close to random, while larger models near \(10^{24}\) FLOPs improve substantially.</li>
+  <li><strong>BIG-bench IPA transliteration:</strong> convert English sentences to International Phonetic Alphabet-style pronunciations; performance can stay flat and then improve.</li>
+  <li><strong>“Inverse scaling” style examples:</strong> “Repeat this sentence” can get worse at medium scale when the model knows the famous phrase but ignores the instruction; larger models can recover by understanding both the phrase and the command.</li>
+  <li><strong>Prompting and alignment techniques:</strong> RLHF and chain-of-thought can help only after the model is capable enough for the technique to be useful.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    A["Small model"] --> B["Knows local word patterns"]
+    B --> C["Random on hard few-shot task"]
+    D["Medium model"] --> E["Knows more facts / phrases"]
+    E --> F["May improve or even fail oddly"]
+    G["Large model"] --> H["Combines instruction + facts + reasoning"]
+    H --> I["Above-random task success"]
+</div>
+<figcaption>Emergence in the lecture is about task-level behavior across separate model sizes, not one model suddenly changing during one training run.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 Thresholds are not laws of nature</h3>
+<p>Wei emphasizes that a 100B-parameter-looking threshold is not sacred. PaLM appeared to unlock some BIG-bench abilities at smaller parameter counts than LaMDA or GPT-3, plausibly because of better data and training choices. Once a desired behavior is identified, distillation or fine-tuning can induce it in smaller models.</p>
+
+<div class="box intuition">
+  <span class="lbl">Interpretation</span>
+  <p>Emergence is useful as a <strong>map of observed capabilities</strong>: “below this region we have not seen the ability; above it we have.” It is weaker as a mechanistic claim unless we rule out metric artifacts, data effects, and prompt effects.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can a medium model be worse than a small model on “repeat the sentence”?</summary>
+<p>The small model may copy literally because it does not know the famous phrase. The medium model may know the phrase and “correct” glue to gold, violating the instruction. A larger model can know the phrase <em>and</em> obey the repeat command.</p></details>
+
+<!-- ================= SECTION 4 ================= -->
+<h2 id="s4"><span class="num">4.</span>The mirage critique: when metrics manufacture cliffs</h2>
+<p>The strongest counter-argument is not “models do not improve.” It is sharper: <strong>some reported emergence may be an artifact of how we score outputs.</strong> Schaeffer et al. argue that discontinuous or nonlinear metrics, especially exact-match accuracy, can turn smooth underlying improvement into an apparent jump.</p>
+
+<h3 id="s4a">4.1 The honest two-sided view</h3>
+<table>
+  <tr><th>Question</th><th>Emergence view</th><th>Mirage view</th></tr>
+  <tr><td>What is real?</td><td>Large models perform qualitatively new tasks above a scale threshold.</td><td>Underlying competence often improves smoothly; the scoring rule reveals it late.</td></tr>
+  <tr><td>Best evidence</td><td>MMLU, BIG-bench, arithmetic, word unscrambling, prompting techniques that work only at scale.</td><td>Re-plotting with continuous metrics like token-level loss or edit distance can remove sharp jumps.</td></tr>
+  <tr><td>Practical takeaway</td><td>Do not assume small-model curves bound large-model capability.</td><td>Do not trust one harsh metric to describe capability acquisition.</td></tr>
+</table>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — exact match compounds token difficulty</span>
+  <p>$$P(\text{all }k\text{ tokens correct}) = p^k$$</p>
+  <p>If each required token is correct with probability \(p\), a harsh exact-match metric for \(k\) independent required tokens scales as \(p^k\). Smooth changes in \(p\) become much sharper after exponentiation.</p>
+</div>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“Mirage” does not mean “nothing was learned.” It means the <em>shape of the benchmark curve</em> may exaggerate discontinuity. A model can genuinely become better while the cliff-like graph is partly a measurement artifact.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one metric that would show partial progress on word unscrambling.</summary>
+<p>Edit distance, character-level accuracy, per-token log probability, or partial-credit accuracy would show whether the model is getting closer even when exact match remains zero.</p></details>
+
+<!-- ================= ENRICHMENT #2: Worked numeric micro-example ================= -->
+<h2 id="worked"><span class="num">5.</span>Worked example — how a metric manufactures emergence</h2>
+<p>Use the smallest honest arithmetic version of the mirage argument. The underlying capability is smooth: per-token accuracy rises from 0.30 to 0.60 to 0.90 across three model sizes. The benchmark, however, demands a 4-token answer with every token correct.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Let \(p\) be per-token accuracy and let exact match require \(k=4\) correct tokens:</p>
+  <p>$$\text{ExactMatch}(p)=p^4$$</p>
+  <p>Small model: $$0.30^4 = 0.30\times0.30\times0.30\times0.30 = 0.0081 \approx 0.008$$</p>
+  <p>Medium model: $$0.60^4 = 0.60\times0.60\times0.60\times0.60 = 0.1296 \approx 0.13$$</p>
+  <p>Large model: $$0.90^4 = 0.90\times0.90\times0.90\times0.90 = 0.6561 \approx 0.66$$</p>
+  <p>The per-token metric moved smoothly: \(0.30\to0.60\to0.90\). The exact-match metric looks like a dramatic jump: \(0.008\to0.13\to0.66\).</p>
+</div>
+
+<table>
+  <tr><th>Model size</th><th>Smooth metric: per-token accuracy</th><th>Harsh metric: 4-token exact match</th><th>Visual impression</th></tr>
+  <tr><td>Small</td><td class="tt">0.30</td><td class="tt">0.008</td><td>Random-looking</td></tr>
+  <tr><td>Medium</td><td class="tt">0.60</td><td class="tt">0.13</td><td>Still weak</td></tr>
+  <tr><td>Large</td><td class="tt">0.90</td><td class="tt">0.66</td><td>Sudden “emergence”</td></tr>
+</table>
+
+<details class="check"><summary>✓ Check yourself — redo it for a 2-token task at p = 0.30, 0.60, 0.90</summary>
+<p>For \(k=2\): \(0.30^2=0.09\), \(0.60^2=0.36\), and \(0.90^2=0.81\). The curve still bends upward, but it looks less cliff-like than the 4-token exact-match task.</p></details>
+
+<!-- ================= ENRICHMENT #4: End-to-end trace ================= -->
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one benchmark task across scale</h2>
+<p>Follow a single symbolic task: “Take the last letters of <code>Elon Musk</code> and concatenate them.” The desired answer is <code>NK</code>. Track both a smooth metric and a harsh metric.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / value</th></tr>
+  <tr><td>0 · task</td><td>Benchmark asks for two letters, in order: last(<code>Elon</code>) then last(<code>Musk</code>).</td><td class="tt">target = N K</td></tr>
+  <tr><td>1 · small model</td><td>Often copies a visible letter or guesses; one required token may be plausible, but full answer fails.</td><td class="tt">per-token acc ≈ 0.30 · exact match = 0.09</td></tr>
+  <tr><td>2 · medium model</td><td>Recognizes names and task format more often; still swaps or misses one character.</td><td class="tt">per-token acc ≈ 0.60 · exact match = 0.36</td></tr>
+  <tr><td>3 · large model</td><td>Reliably decomposes word by word and emits both letters.</td><td class="tt">per-token acc ≈ 0.90 · exact match = 0.81</td></tr>
+  <tr><td>4 · reported graph</td><td>If the paper reports only exact match, early progress is compressed near the floor.</td><td class="tt">curve looks thresholded</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The same run can support two true statements: “the model improved smoothly at the subanswer level” and “the benchmark success appeared suddenly.” Good evaluation reports both instruments.</p>
+</div>
+
+<!-- ================= SECTION 7 ================= -->
+<h2 id="s7"><span class="num">7.</span>Chain-of-thought prompting: emergence you can elicit</h2>
+<p>Wei's second major topic is chain-of-thought prompting. Instead of showing only question-answer pairs, you show intermediate reasoning steps: “like your teacher asking you to show your work.” This helps large models solve tasks where one-shot answer generation is too compressed.</p>
+
+<h3 id="s7a">7.1 Why it helps at scale</h3>
+<p>For arithmetic, navigation, word sorting, and StrategyQA-style commonsense reasoning, a model may need to maintain intermediate state. Chain of thought gives the model a token-by-token workspace. But it is also scale-sensitive: small models may ramble, repeat, or fail to produce coherent steps.</p>
+
+<figure>
+<div class="mermaid">
+sequenceDiagram
+    participant P as "Prompt"
+    participant M as "Large LM"
+    participant R as "Reasoning trace"
+    participant A as "Final answer"
+    P->>M: "Few-shot examples with steps"
+    M->>R: "Generate intermediate state"
+    R->>A: "Use state to answer"
+    A-->>P: "Higher accuracy on multi-step tasks"
+</div>
+<figcaption>Chain-of-thought prompting turns the answer into a short computation written in natural language tokens.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — self-consistency voting</span>
+  <p>$$\hat{a}=\arg\max_a \sum_{i=1}^{m} \mathbf{1}[a_i=a]$$</p>
+  <p>Sample \(m\) reasoning paths at nonzero temperature, extract final answers \(a_i\), then choose the majority answer \(\hat{a}\). The lecture reports large gains on GSM8K-style math because diverse paths make independent mistakes.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does “xxxxx” padding not explain chain-of-thought gains?</summary>
+<p>The transcript notes that length-matched nonsense prompts do not work. The extra tokens help because they encode useful intermediate state and decomposition, not merely because the model receives more inference compute.</p></details>
+
+<!-- ================= SECTION 8 ================= -->
+<h2 id="s8"><span class="num">8.</span>Implications: forecasting, evaluation, and safety</h2>
+<p>The practical lesson is not “bigger is magic.” It is: when scale changes both probability quality and task-level behavior, we need better forecasts and better measurements.</p>
+
+<h3 id="s8a">8.1 What to do differently</h3>
+<ul>
+  <li><strong>Forecast with smooth metrics</strong> such as loss, perplexity, calibration, and partial credit; they give earlier signal.</li>
+  <li><strong>Evaluate with harsh metrics too</strong> when the application really is all-or-nothing, such as code passing tests or exact database queries.</li>
+  <li><strong>Do not extrapolate only from small models</strong> for high-stakes capabilities; the lecture frames emergence as a reason people kept scaling.</li>
+  <li><strong>Search for undesirable thresholds</strong>: harmful or deceptive capabilities could also appear late, so safety evaluations should scale with model capability.</li>
+  <li><strong>Use targeted data and distillation</strong> once you know the desired behavior; production systems often prefer smaller, cheaper specialized models.</li>
+</ul>
+
+<div class="box check">
+  <span class="lbl">Epistemic status — where I would be cautious</span>
+  <p><strong>High confidence:</strong> loss scaling is smooth over broad ranges; exact-match metrics can amplify smooth progress into jumps. <strong>Medium confidence:</strong> some abilities remain genuinely hard to predict from small-model curves even under better metrics. <strong>Open question:</strong> which future capabilities can be forecast before training frontier-scale models?</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — design a better emergence plot for one task</summary>
+<p>Plot at least two y-axes or panels: exact-match accuracy and a continuous proxy such as edit distance, per-token loss, or partial-credit score. Keep the same x-axis across model families and mark chance performance.</p></details>
+
+<!-- ================= RECAP as questions ================= -->
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What is the difference between the barometer and checkpoint-gate instruments? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Write the power-law form for loss vs model size and interpret \(L_\infty\), \(N_0\), and \(\alpha\). <a class="ref" href="#s2">(§2)</a></li>
+    <li>Why did Chinchilla argue that many models were undertrained? <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>Name two examples from the lecture that looked emergent. <a class="ref" href="#s3">(§3)</a></li>
+    <li>How can exact-match accuracy turn smooth per-token improvement into a cliff? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain scaling laws, emergence, and the mirage critique to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Scaling law</td><td>A predictable mathematical relationship between model/data/compute scale and loss, often a power law.</td></tr>
+  <tr><td>Emergent ability</td><td>A benchmark ability absent or random in smaller models but present in larger models.</td></tr>
+  <tr><td>Training FLOPs</td><td>Total floating-point operations spent during training; a proxy for scale.</td></tr>
+  <tr><td>Perplexity</td><td>Exponentiated cross-entropy loss; roughly, the model's average uncertainty about the next token.</td></tr>
+  <tr><td>Exact match</td><td>A harsh metric that gives credit only when the full predicted answer equals the target.</td></tr>
+  <tr><td>BIG-bench</td><td>A broad benchmark suite of diverse tasks for language models.</td></tr>
+  <tr><td>MMLU</td><td>Massive Multitask Language Understanding, a benchmark of exam-style questions across many subjects.</td></tr>
+  <tr><td>Chain-of-thought prompting</td><td>Prompting a model to produce intermediate reasoning steps before the final answer.</td></tr>
+  <tr><td>Self-consistency</td><td>Sampling several reasoning paths and taking a majority vote over their final answers.</td></tr>
+  <tr><td>Compute-optimal training</td><td>Choosing model size and training tokens to minimize loss for a fixed compute budget.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Jason Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682">arXiv</a> — the central paper discussed in the talk.</li>
+  <li>Jared Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">arXiv</a> — canonical smooth power-law scaling result.</li>
+  <li>Jordan Hoffmann et al. (2022). <strong>Training Compute-Optimal Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.15556">arXiv</a> — Chinchilla result: scale parameters and data together.</li>
+  <li>Jason Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">arXiv</a> — prompting technique discussed in the second half.</li>
+  <li>Xuezhi Wang et al. (2022). <strong>Self-Consistency Improves Chain of Thought Reasoning in Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.11171">arXiv</a> — majority-vote sampling over reasoning paths.</li>
+  <li>P. W. Anderson (1972). <strong>More Is Different.</strong> <a class="ref" href="https://www.science.org/doi/10.1126/science.177.4047.393">Science</a> — broader scientific framing for emergence.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Rylan Schaeffer, Brando Miranda, Sanmi Koyejo (2023). <strong>Are Emergent Abilities of Large Language Models a Mirage?</strong> <a class="ref" href="https://arxiv.org/abs/2304.15004">arXiv</a> — strongest metric-artifact critique.</li>
+  <li>BIG-bench authors (2022). <strong>Beyond the Imitation Game Benchmark.</strong> <a class="ref" href="https://arxiv.org/abs/2206.04615">arXiv</a> — benchmark family used in many emergence plots.</li>
+  <li>Dan Hendrycks et al. (2020). <strong>Measuring Massive Multitask Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/2009.03300">arXiv</a> — MMLU benchmark referenced in the lecture.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="12-language-human-alignment.html">◀ Previous: Language &amp; Human Alignment</a>
+  <a class="r" href="14-strategic-games.html">Next: Strategic Games ▶</a>
+</div>
+
+<div class="foot">
+  CS25 — study notes · Note 13 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Rendering requires an internet connection for CDN-loaded MathJax, Mermaid, and fonts.
+</div>
+
+</article>
+</div>
+</body>
+</html>

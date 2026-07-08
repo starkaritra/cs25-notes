@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<title>CS25 · Notes 02 — Introduction to Transformers (Karpathy)</title>
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  /* ---- sidebar TOC ---- */
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  /* ---- article ---- */
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:22px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  /* ---- callouts ---- */
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  /* ---- figures = light "paper" sketch cards on the dark page ---- */
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  /* ---- refs / footer / nav ---- */
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  /* ---- print / PDF: force a clean light layout so ink + math stay readable ---- */
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this lecture matters</a>
+  <a href="#prereq" class="sub">Prerequisites refresher</a>
+  <a href="#history">1 · The short history</a>
+  <a href="#bottleneck" class="sub">1.1 seq2seq bottleneck</a>
+  <a href="#graph">2 · Attention as message passing</a>
+  <a href="#qkv" class="sub">2.1 Query, key, value</a>
+  <a href="#scaled">3 · Scaled dot-product attention</a>
+  <a href="#masks">4 · Self, cross, and causal attention</a>
+  <a href="#heads">5 · Multi-head attention</a>
+  <a href="#positions">6 · Positional encodings</a>
+  <a href="#block">7 · The Transformer block</a>
+  <a href="#scale">8 · Why it scales</a>
+  <a href="#nano">9 · nanoGPT practical view</a>
+  <a href="#families">10 · Encoder/decoder families</a>
+  <a href="#worked">12 · Worked numeric example</a>
+  <a href="#trace">13 · End-to-end trace</a>
+  <a href="#recap">11 · Recap (rebuild it)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 1 · Note 2 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">Stanford CS25 · Transformers United · V2 — Lecture 2</div>
+  <h1>Introduction to Transformers</h1>
+  <p class="lead">Andrej Karpathy's mechanics-first view: a transformer is a <em>message-passing computer over tokens</em> — communication by attention, computation by MLPs.</p>
+  <div class="meta">
+    <span class="pill">🎓 Presenter: Andrej Karpathy</span>
+    <span class="pill">⏱ ~1h15m</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=XfpMkf4rD6E" target="_blank">▶ Watch on YouTube</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this lecture matters</span>
+  <p>Most transformer explanations begin with a wall of tensor shapes. Karpathy begins one level lower: <strong>what computation is the model trying to perform?</strong> His answer is simple and durable. Each token is a node in a graph; attention is the rule by which nodes exchange information; the MLP is the per-node thinking step after communication.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Imagine a seminar room where every word in a sentence is a student holding a private notebook. On each round, a student asks a question (<strong>query</strong>), others advertise what they know (<strong>keys</strong>), and the student copies useful notes from them (<strong>values</strong>). The whole transformer is many rounds of this seminar: <em>talk, think, talk, think</em>.</p>
+</div>
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these; dive into any that feel shaky.</p>
+  <ul>
+    <li><strong>Dot product</strong> — \(a\cdot b=\sum_i a_i b_i\); a scalar for how aligned two vectors are (attention's similarity score).</li>
+    <li><strong>Softmax</strong> — scores → positive weights summing to 1.</li>
+    <li><strong>Matrix multiply shapes</strong> — \((T\times d)(d\times k)=(T\times k)\); tracking shapes is how you read attention.</li>
+    <li><strong>Vector / embedding</strong> — a token represented as a length-\(d\) vector.</li>
+  </ul>
+</div>
+</section>
+
+<!-- ================= 1. HISTORY ================= -->
+<h2 id="history"><span class="num">1.</span>The short history: why attention was needed</h2>
+<p><a class="ref" href="P127jhj-8-Y.html">Note 1</a> covers the historical arc in detail, so keep only the motivation here. Before 2017, sequence models were mostly recurrent: RNNs, LSTMs, GRUs, and encoder-decoder <strong>seq2seq</strong> systems for translation. They could process variable-length text, but their computation was a long thin chain.</p>
+
+<h3 id="bottleneck">1.1 The seq2seq bottleneck</h3>
+<p>Concrete example first. Suppose the English sentence is <em>"I grew up in France ... I speak fluent ___"</em>. A recurrent model must carry the clue <em>France</em> through many updates before it can predict <em>French</em>. In translation, the problem is worse: the whole source sentence was often compressed into one fixed vector before decoding.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    E1["English token 1"] --> E2["English token 2"] --> E3["English token 3"] --> C{{"one context vector"}}
+    C --> D1["French token 1"] --> D2["French token 2"] --> D3["French token 3"]
+    style C fill:#fdeeee,stroke:#d64545,stroke-width:2px
+</div>
+<figcaption>The encoder bottleneck: too much sentence meaning is squeezed through one vector.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Bahdanau's fix</span>
+  <p>Do not force the decoder to remember the source sentence through one vector. Keep all encoder states around, and let the decoder <strong>soft-search</strong> them whenever it needs a word. This was Bahdanau attention: a softmax-weighted average over source states. The 2017 Transformer kept the attention idea and removed the recurrence.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what did attention fix before transformers existed?</summary>
+<p>It fixed the encoder bottleneck. Instead of translating from one compressed vector, the decoder could dynamically look back at all source states and blend the relevant ones for each output word.</p></details>
+
+<!-- ================= 2. GRAPH VIEW ================= -->
+<h2 id="graph"><span class="num">2.</span>Attention as message-passing on a directed graph</h2>
+<p>Karpathy's central framing: <strong>attention is a communication phase</strong>. Forget text for a moment. We have a directed graph; each node stores a vector; edges say who is allowed to send information to whom. One attention layer performs one round of data-dependent message passing.</p>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["node A<br/>token vector"] --> C["node C<br/>updates itself"]
+    B["node B<br/>token vector"] --> C
+    D["node D<br/>token vector"] --> C
+    C --> C2["new vector for C"]
+    style C fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>For node C, incoming neighbors offer messages. C decides how strongly to listen to each one.</figcaption>
+</figure>
+
+<h3 id="qkv">2.1 Query, key, value: three views of the same token</h3>
+<p>Each token vector is projected into three smaller vectors:</p>
+<ul>
+  <li><strong>Query</strong> \(q\): "what am I looking for?"</li>
+  <li><strong>Key</strong> \(k\): "what information do I contain?"</li>
+  <li><strong>Value</strong> \(v\): "what message will I send if someone listens to me?"</li>
+</ul>
+<p>Those are just learned linear maps: \(q=xW_Q\), \(k=xW_K\), \(v=xW_V\). The names are only helpful after the intuition: a query scores keys, and the resulting weights mix values.</p>
+
+<div class="box analogy">
+  <span class="lbl">Seminar-room translation</span>
+  <p>A token saying <em>"it"</em> emits a query like "I need the thing I refer to." Nearby nouns emit keys like "I am an object/person/place." If <em>"robot"</em> is compatible, its value vector is copied strongly into the representation of <em>"it"</em>.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why are keys and values separate?</summary>
+<p>The key is used to decide <em>whether</em> to listen; the value is the content transferred if we do listen. This lets a token advertise one aspect for matching while sending a different learned representation as its message.</p></details>
+
+<!-- ================= 3. SCALED DOT PRODUCT ================= -->
+<h2 id="scaled"><span class="num">3.</span>Scaled dot-product attention</h2>
+<p>Now the whole communication rule can be written in one line:</p>
+
+<div class="box eqn">
+  <span class="lbl">Core equation</span>
+  <p>$$\text{Attention}(Q,K,V)=\text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$</p>
+</div>
+
+<p>Read it left to right:</p>
+<ol>
+  <li><strong>\(QK^\top\)</strong>: every query dot-products every key. A large dot product means "my question matches your advertised information." Geometrically, aligned vectors have high similarity.</li>
+  <li><strong>divide by \(\sqrt{d_k}\)</strong>: if keys/queries have dimension \(d_k\), random dot products have variance proportional to \(d_k\). Without scaling, scores get large, softmax saturates into near one-hot weights, and gradients become brittle. The scale keeps logits in a healthy range.</li>
+  <li><strong>softmax</strong>: converts raw compatibility scores into nonnegative weights that sum to 1 for each receiving token.</li>
+  <li><strong>multiply by \(V\)</strong>: use those weights to take a weighted average of value messages.</li>
+</ol>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 820 170" role="img" aria-label="Scaled dot-product attention pipeline" width="100%" height="170">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2f6df6"></path>
+    </marker>
+  </defs>
+  <rect x="24" y="48" width="115" height="62" rx="12" fill="#eef4ff" stroke="#2f6df6"></rect>
+  <text x="82" y="74" text-anchor="middle" font-size="18" font-weight="700">QKᵀ</text>
+  <text x="82" y="96" text-anchor="middle" font-size="12" fill="#5b6572">compatibility</text>
+  <line x1="146" y1="79" x2="220" y2="79" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"></line>
+  <rect x="228" y="48" width="130" height="62" rx="12" fill="#fff7ec" stroke="#d9822b"></rect>
+  <text x="293" y="73" text-anchor="middle" font-size="18" font-weight="700">÷ √dₖ</text>
+  <text x="293" y="96" text-anchor="middle" font-size="12" fill="#5b6572">stabilize logits</text>
+  <line x1="365" y1="79" x2="439" y2="79" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"></line>
+  <rect x="447" y="48" width="130" height="62" rx="12" fill="#eefaf1" stroke="#0f9d58"></rect>
+  <text x="512" y="73" text-anchor="middle" font-size="18" font-weight="700">softmax</text>
+  <text x="512" y="96" text-anchor="middle" font-size="12" fill="#5b6572">listening weights</text>
+  <line x1="584" y1="79" x2="658" y2="79" stroke="#2f6df6" stroke-width="3" marker-end="url(#arrow)"></line>
+  <rect x="666" y="48" width="130" height="62" rx="12" fill="#f4efff" stroke="#7b3fe4"></rect>
+  <text x="731" y="73" text-anchor="middle" font-size="18" font-weight="700">× V</text>
+  <text x="731" y="96" text-anchor="middle" font-size="12" fill="#5b6572">weighted messages</text>
+  <text x="410" y="145" text-anchor="middle" font-size="13" fill="#5b6572">Attention is not a lookup table; it is a differentiable, content-addressed weighted average.</text>
+</svg>
+</div>
+<figcaption>Hand-authored schematic of the scaled dot-product attention pipeline.</figcaption>
+</figure>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["queries Q"] --> S["scores QK^T"]
+    K["keys K"] --> S
+    S --> Scale["scale by sqrt(d_k)"] --> SM["row-wise softmax"] --> W["attention weights"]
+    V["values V"] --> Mix["weighted sum"]
+    W --> Mix --> O["updated token vectors"]
+</div>
+<figcaption>The same pipeline as a Mermaid flowchart.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common mistake</span>
+  <p>The \(\sqrt{d_k}\) is not an arbitrary decoration. It is a variance-control trick. If the logits are too large, softmax becomes nearly one-hot too early, so most positions receive almost no gradient.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what exactly is normalized by softmax?</summary>
+<p>For each receiving token, softmax normalizes its compatibility scores over the allowed sending tokens. Each row of the attention matrix becomes a distribution over "who I listen to."</p></details>
+<!-- ================= 4. MASKS ================= -->
+<h2 id="masks"><span class="num">4.</span>Self-attention, cross-attention, and causal attention</h2>
+<p>The same equation creates different modules depending on where \(Q,K,V\) come from and which graph edges are allowed.</p>
+
+<table>
+  <tr><th>Mode</th><th>Where queries come from</th><th>Where keys/values come from</th><th>What it is for</th></tr>
+  <tr><td>Self-attention</td><td>same sequence</td><td>same sequence</td><td>tokens in one input communicate with each other</td></tr>
+  <tr><td>Cross-attention</td><td>decoder sequence</td><td>encoder output</td><td>decoder retrieves information from a source sequence</td></tr>
+  <tr><td>Causal self-attention</td><td>current prefix</td><td>current prefix, past only</td><td>autoregressive next-token prediction without cheating</td></tr>
+</table>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph ENC["Encoder memory"]
+      E1["source token 1"]
+      E2["source token 2"]
+      E3["source token 3"]
+    end
+    subgraph DEC["Decoder state"]
+      D1["target token 1"]
+      D2["target token 2"]
+    end
+    D1 --> Q["queries from decoder"]
+    D2 --> Q
+    E1 --> KV["keys and values from encoder"]
+    E2 --> KV
+    E3 --> KV
+    Q --> CA["cross-attention"]
+    KV --> CA
+</div>
+<figcaption>Cross-attention: the decoder asks; the encoder memory answers.</figcaption>
+</figure>
+
+<h3>4.1 Causal masking: hiding the future</h3>
+<p>For GPT-style generation, token \(t\) must predict the next token using only positions \(\le t\). If it could attend to future tokens in the training batch, the answer would leak. So we add a triangular mask before softmax: disallowed scores become \(-\infty\), and softmax turns them into zero probability.</p>
+
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 430 285" role="img" aria-label="Triangular causal attention mask" width="100%" height="285">
+  <text x="215" y="28" text-anchor="middle" font-size="16" font-weight="700">Causal self-attention mask</text>
+  <text x="72" y="58" text-anchor="middle" font-size="12" fill="#5b6572">query position</text>
+  <text x="245" y="58" text-anchor="middle" font-size="12" fill="#5b6572">key position</text>
+  <g transform="translate(115,70)">
+    <text x="25" y="-8" text-anchor="middle" font-size="12">1</text><text x="75" y="-8" text-anchor="middle" font-size="12">2</text><text x="125" y="-8" text-anchor="middle" font-size="12">3</text><text x="175" y="-8" text-anchor="middle" font-size="12">4</text>
+    <text x="-18" y="30" text-anchor="middle" font-size="12">1</text><text x="-18" y="80" text-anchor="middle" font-size="12">2</text><text x="-18" y="130" text-anchor="middle" font-size="12">3</text><text x="-18" y="180" text-anchor="middle" font-size="12">4</text>
+    <rect x="0" y="0" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="50" y="0" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="100" y="0" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="150" y="0" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="0" y="50" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="50" y="50" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="100" y="50" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="150" y="50" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="0" y="100" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="50" y="100" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="100" y="100" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="150" y="100" width="50" height="50" fill="#fdeeee" stroke="#e4e8ee"></rect>
+    <rect x="0" y="150" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="50" y="150" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="100" y="150" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <rect x="150" y="150" width="50" height="50" fill="#eefaf1" stroke="#e4e8ee"></rect>
+    <text x="25" y="31" text-anchor="middle" font-size="16">✓</text><text x="75" y="31" text-anchor="middle" font-size="16">×</text><text x="125" y="31" text-anchor="middle" font-size="16">×</text><text x="175" y="31" text-anchor="middle" font-size="16">×</text>
+    <text x="25" y="81" text-anchor="middle" font-size="16">✓</text><text x="75" y="81" text-anchor="middle" font-size="16">✓</text><text x="125" y="81" text-anchor="middle" font-size="16">×</text><text x="175" y="81" text-anchor="middle" font-size="16">×</text>
+    <text x="25" y="131" text-anchor="middle" font-size="16">✓</text><text x="75" y="131" text-anchor="middle" font-size="16">✓</text><text x="125" y="131" text-anchor="middle" font-size="16">✓</text><text x="175" y="131" text-anchor="middle" font-size="16">×</text>
+    <text x="25" y="181" text-anchor="middle" font-size="16">✓</text><text x="75" y="181" text-anchor="middle" font-size="16">✓</text><text x="125" y="181" text-anchor="middle" font-size="16">✓</text><text x="175" y="181" text-anchor="middle" font-size="16">✓</text>
+  </g>
+  <text x="215" y="260" text-anchor="middle" font-size="13" fill="#5b6572">Green = can attend. Red = future token clamped to −∞ before softmax.</text>
+</svg>
+</div>
+<figcaption>The lower triangle is visible; the upper triangle is hidden.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — why use \(-\infty\) for masked scores?</summary>
+<p>Because \(\exp(-\infty)=0\). After softmax, masked future positions receive exactly zero attention weight, so no value information can flow from them.</p></details>
+
+<!-- ================= 5. MULTI HEAD ================= -->
+<h2 id="heads"><span class="num">5.</span>Multi-head attention: many relationship detectors in parallel</h2>
+<p>One attention head can learn one kind of communication pattern. But language has many relations at once: pronoun-to-noun, adjective-to-noun, subject-to-verb, delimiter-to-matching-delimiter, and so on. Multi-head attention runs several independent attention operations in parallel, concatenates their outputs, and projects back to the model dimension.</p>
+
+<div class="box eqn">
+  <span class="lbl">Multi-head form</span>
+  <p>$$\text{head}_i=\text{Attention}(QW_i^Q,KW_i^K,VW_i^V),\qquad \text{MHA}=\text{Concat}(\text{head}_1,\ldots,\text{head}_h)W^O$$</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["token vectors X"] --> H1["head 1<br/>syntax relation"]
+    X --> H2["head 2<br/>coreference"]
+    X --> H3["head 3<br/>local context"]
+    X --> H4["head h<br/>other subspace"]
+    H1 --> C["concatenate"]
+    H2 --> C
+    H3 --> C
+    H4 --> C
+    C --> P["output projection W^O"] --> Y["updated vectors"]
+</div>
+<figcaption>Heads are parallel copies of attention with different learned projections.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Copy-paste in parallel</span>
+  <p>Karpathy's phrasing: heads are copy-paste attention in parallel; layers are copy-paste attention in series. Heads let one layer collect different kinds of evidence before the residual stream continues.</p>
+</div>
+
+<!-- ================= 6. POSITION ================= -->
+<h2 id="positions"><span class="num">6.</span>Positional encodings: giving a set an order</h2>
+<p>Raw self-attention is <strong>permutation-invariant</strong>: if you shuffle the token vectors and shuffle them back afterward, the same content interactions happen. That is powerful for sets, but sentences are not sets. "dog bites man" and "man bites dog" contain the same words and different meanings.</p>
+
+<p>So transformers add position information to token embeddings before the first block:</p>
+
+<div class="box eqn">
+  <span class="lbl">Token identity + location</span>
+  <p>$$x_t = e_{\text{token}(t)} + p_t$$</p>
+  <p>In the original paper, \(p_t\) used sinusoidal features such as $$PE_{(pos,2i)}=\sin\!\left(pos/10000^{2i/d_{model}}\right),\quad PE_{(pos,2i+1)}=\cos\!\left(pos/10000^{2i/d_{model}}\right).$$ Modern systems often use learned, relative, or rotary position encodings.</p>
+</div>
+
+<table>
+  <tr><th>Type</th><th>Idea</th><th>Tradeoff</th></tr>
+  <tr><td>Sinusoidal</td><td>fixed sine/cosine features at different frequencies</td><td>no learned parameters; extrapolation intuition</td></tr>
+  <tr><td>Learned absolute</td><td>a trainable vector for each position</td><td>simple and common; tied to trained context length</td></tr>
+  <tr><td>Relative / rotary</td><td>encode distances or rotate queries/keys by position</td><td>often better for long contexts and modern LLMs</td></tr>
+</table>
+
+<details class="check"><summary>✓ Check yourself — what breaks if we omit position entirely?</summary>
+<p>The model knows which tokens are present but not their order. It cannot reliably distinguish sequences that are permutations of each other, so syntax and temporal structure become ambiguous.</p></details>
+
+<!-- ================= 7. BLOCK ================= -->
+<h2 id="block"><span class="num">7.</span>The full Transformer block: communicate, then compute</h2>
+<p>A modern decoder block is often <strong>pre-norm</strong>: apply LayerNorm before each sublayer, then add the sublayer output back to the residual stream. The two phases are:</p>
+<ul>
+  <li><strong>Attention</strong>: tokens communicate across the graph.</li>
+  <li><strong>Position-wise MLP</strong>: each token independently "thinks" on the information it has gathered.</li>
+</ul>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    X["residual stream x"] --> LN1["LayerNorm"] --> ATT["multi-head attention<br/>communicate"] --> ADD1["add residual"]
+    X --> ADD1
+    ADD1 --> LN2["LayerNorm"] --> MLP["MLP per token<br/>compute"] --> ADD2["add residual"]
+    ADD1 --> ADD2
+    ADD2 --> Y["next block input"]
+    style ATT fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+    style MLP fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>One pre-norm Transformer block: LayerNorm → sublayer → residual add, twice.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">Why residuals matter</span>
+  <p>Residual connections are gradient highways. A block does not have to rewrite the whole representation; it can add a useful update. During backpropagation, gradients can travel through the identity path instead of crossing dozens of nonlinear transformations.</p>
+</div>
+
+<h3>7.1 Stacking blocks and encoder/decoder structure</h3>
+<figure>
+<div class="mermaid">
+flowchart LR
+    Tokens["tokens + positions"] --> E1["block 1"] --> E2["block 2"] --> E3["block N"] --> Out["contextual representations"]
+    subgraph Block["inside each block"]
+      B1["attention communication"] --> B2["MLP computation"]
+    end
+</div>
+<figcaption>Depth means repeated rounds of communication and computation.</figcaption>
+</figure>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    SRC["source tokens"] --> ENC["encoder stack<br/>full self-attention"] --> MEM["encoder memory"]
+    TGT["target prefix"] --> DEC["decoder stack<br/>causal self-attention"]
+    MEM --> XATT["cross-attention"] --> DEC
+    DEC --> LOGITS["next-token logits"]
+</div>
+<figcaption>Encoder-decoder models add cross-attention from decoder states into encoder memory.</figcaption>
+</figure>
+
+<details class="check"><summary>✓ Check yourself — what is the MLP doing if attention already mixed tokens?</summary>
+<p>Attention moves information between tokens. The MLP transforms each token's gathered information locally, adding nonlinear computation at every position. Karpathy calls these the communication phase and the compute phase.</p></details>
+<!-- ================= 8. SCALE ================= -->
+<h2 id="scale"><span class="num">8.</span>Why transformers scale so well</h2>
+<p>Karpathy emphasizes three properties that made transformers dominate:</p>
+<ul>
+  <li><strong>Expressive forward pass.</strong> Attention creates data-dependent edges; prompts can configure behavior at runtime, enabling in-context learning.</li>
+  <li><strong>Optimizable.</strong> Residual pathways and LayerNorm keep gradient flow and activation scales manageable.</li>
+  <li><strong>Efficient on GPUs.</strong> Training is a shallow, wide computation graph full of matrix multiplications, not a long serial RNN chain.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">The scaling tradeoff</span>
+  <p>Full attention costs \(O(n^2)\) scores for a sequence of length \(n\). That is the price of every token being able to talk to every other token in one layer. Long-context research is largely about reducing, structuring, caching, or externalizing this communication.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    RNN["RNN<br/>long thin graph<br/>serial over time"] --> Bad["hard to parallelize"]
+    TX["Transformer<br/>shallow wide graph<br/>parallel matrix multiplies"] --> Good["GPU-friendly scaling"]
+    TX --> Cost["attention matrix<br/>O(n^2)"]
+</div>
+<figcaption>The transformer is not only more expressive; it matches the hardware better.</figcaption>
+</figure>
+
+<!-- ================= 9. NANOGPT ================= -->
+<h2 id="nano"><span class="num">9.</span>nanoGPT: the practical view</h2>
+<p>Karpathy's practical point is disarming: a serious GPT-style model is not magic code. The core architecture can fit in a few hundred readable lines. The complexity is mostly batching, tensor shapes, masks, and scaling the training run.</p>
+
+<pre><code># one causal self-attention head, schematic PyTorch-ish pseudocode
+q = x @ Wq                 # (B, T, d_head)
+k = x @ Wk                 # (B, T, d_head)
+v = x @ Wv                 # (B, T, d_head)
+
+scores = q @ k.transpose(-2, -1) / sqrt(d_head)  # (B, T, T)
+scores = scores.masked_fill(future_mask == 0, -inf)
+weights = softmax(scores, dim=-1)
+y = weights @ v             # weighted message aggregation</code></pre>
+
+<div class="box analogy">
+  <span class="lbl">Generation as a loop</span>
+  <p>A decoder-only transformer predicts the next token, samples or chooses it, appends it to the prefix, and repeats. Once the prefix exceeds the model's context length, old tokens must be cropped, compressed, cached, or moved into some external memory scheme.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is GPT called decoder-only?</summary>
+<p>It has the Transformer decoder's causal self-attention stack but no separate source encoder and no cross-attention to an encoded input. It models the next token from the prefix alone.</p></details>
+
+<!-- ================= 10. FAMILIES ================= -->
+<h2 id="families"><span class="num">10.</span>Encoder-only, decoder-only, and encoder-decoder</h2>
+<p>Once you understand the graph mask and the source of keys/values, the famous model families are easy to compare.</p>
+
+<table>
+  <tr><th>Family</th><th>Attention pattern</th><th>Training signal</th><th>Best at</th><th>Examples</th></tr>
+  <tr><td>Encoder-only</td><td>full bidirectional self-attention</td><td>masked/denoising or supervised objectives</td><td>classification, retrieval, sentence understanding</td><td>BERT, RoBERTa</td></tr>
+  <tr><td>Decoder-only</td><td>causal self-attention</td><td>next-token prediction</td><td>generation, in-context learning, chat/code models</td><td>GPT series, LLaMA-style models</td></tr>
+  <tr><td>Encoder-decoder</td><td>encoder full attention; decoder causal + cross-attention</td><td>sequence-to-sequence likelihood</td><td>translation, summarization, conditional generation</td><td>original Transformer, T5, BART</td></tr>
+</table>
+
+<div class="box why">
+  <span class="lbl">One architecture, many domains</span>
+  <p>The same block can process text tokens, image patches, spectrogram slices, protein residues, or state-action-reward triples. What changes is tokenization, positional/structural encoding, and the mask. That flexibility is why Karpathy calls transformers a general-purpose, efficient, optimizable computer.</p>
+</div>
+
+<!-- ================= 12. WORKED EXAMPLE ================= -->
+<h2 id="worked"><span class="num">12.</span>Worked numeric micro-example: one attention row by hand</h2>
+<p>Use a toy single self-attention head with three tokens and 2-D query/key/value vectors. Pretend the learned projections have already produced these small integers:</p>
+
+<div class="box eqn">
+  <span class="lbl">Setup</span>
+  <p>$$
+Q=\begin{bmatrix}1&0\\0&1\\1&1\end{bmatrix},\quad
+K=\begin{bmatrix}1&1\\1&0\\0&1\end{bmatrix},\quad
+V=\begin{bmatrix}1&2\\0&1\\3&0\end{bmatrix}
+$$</p>
+</div>
+
+<p>First compute every query-key dot product:</p>
+<p>$$
+QK^\top=
+\begin{bmatrix}
+1&1&0\\
+1&0&1\\
+2&1&1
+\end{bmatrix}
+$$</p>
+<p>For token 1, the first row is especially easy to see:</p>
+<p>$$
+q_1K^\top=[1,0]K^\top=[1,1,0]
+$$</p>
+
+<p>Because \(d_k=2\), scale the row by \(1/\sqrt{d_k}=1/\sqrt2\):</p>
+<p>$$
+\frac{[1,1,0]}{\sqrt2}\approx[0.707,0.707,0]
+$$</p>
+<p>Now softmax that row. The exponentials are approximately \([2.028,2.028,1]\), so the normalized attention weights are:</p>
+<p>$$
+\text{softmax}([0.707,0.707,0])\approx[0.401,0.401,0.198]
+$$</p>
+<p>Finally, token 1 receives the weighted sum of the value rows:</p>
+<p>$$
+o_1=0.401[1,2]+0.401[0,1]+0.198[3,0]\approx[0.995,1.203]
+$$</p>
+
+<details class="check"><summary>✓ Check yourself — why divide by \(\sqrt{d_k}\)?</summary>
+<p>Dot products grow in typical magnitude as the key/query dimension grows. Without the \(1/\sqrt{d_k}\) scaling, logits become large, softmax saturates toward one-hot choices, and gradients through the non-winning positions shrink.</p></details>
+
+<!-- ================= 13. TRACE ================= -->
+<h2 id="trace"><span class="num">13.</span>End-to-end trace through one Transformer block</h2>
+<p>Concrete setting: one sequence with \(T=5\) tokens, model width \(d=512\), \(h=8\) heads, and per-head width \(d_h=64\). Shapes below omit the batch dimension.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>1</td><td>Token embeddings are added to positional vectors: <span class="tt">tokens + pos</span>.</td><td>\(T\times d=5\times512\)</td></tr>
+  <tr><td>2</td><td>Linear projections produce <span class="tt">Q,K,V</span> for attention.</td><td>\(5\times512\) each</td></tr>
+  <tr><td>3</td><td>Within each head, queries compare with keys: <span class="tt">scores = QKᵀ</span>.</td><td>\(T\times T=5\times5\)</td></tr>
+  <tr><td>4</td><td>Scale, mask if needed, then apply row-wise <span class="tt">softmax</span>.</td><td>\(5\times5\)</td></tr>
+  <tr><td>5</td><td>One head uses those weights to mix value rows.</td><td>\(T\times d_h=5\times64\)</td></tr>
+  <tr><td>6</td><td>Concatenate all \(h=8\) head outputs and project back to the residual width.</td><td>\(T\times d=5\times512\)</td></tr>
+  <tr><td>7</td><td>Add the attention update to the incoming residual stream.</td><td>\(5\times512\)</td></tr>
+  <tr><td>8</td><td>Apply <span class="tt">LayerNorm</span> before the next sublayer in the pre-norm view.</td><td>\(5\times512\)</td></tr>
+  <tr><td>9</td><td>Run the position-wise <span class="tt">MLP</span>; it may expand internally, but returns to model width.</td><td>\(T\times d=5\times512\)</td></tr>
+  <tr><td>10</td><td>Add the MLP update back to the residual stream.</td><td>\(T\times d=5\times512\)</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">Communication vs computation</span>
+  <p><strong>Attention is communication:</strong> each token chooses which other tokens to read from and blends their value messages. <strong>The MLP is computation:</strong> after communication, each token independently transforms its own gathered information. A Transformer block alternates these two moves: talk across positions, then think locally.</p>
+</div>
+<!-- ================= 11. RECAP ================= -->
+<h2 id="recap"><span class="num">11.</span>Recap — rebuild it yourself</h2>
+<p>Close the page and try to reconstruct the lecture from these prompts. Then reopen the sections you cannot rebuild.</p>
+<div class="box check">
+  <span class="lbl">Reconstruction questions</span>
+  <ol>
+    <li>Start from the seq2seq bottleneck. Why did Bahdanau attention help? <a class="ref" href="#bottleneck">(§1)</a></li>
+    <li>Draw four token nodes. For one receiving token, label its query, the senders' keys, and the values it aggregates. <a class="ref" href="#graph">(§2)</a></li>
+    <li>Write \(\text{Attention}(Q,K,V)\) and explain every symbol, including \(\sqrt{d_k}\). <a class="ref" href="#scaled">(§3)</a></li>
+    <li>What single line changes decoder attention into encoder attention in nanoGPT-style code? <a class="ref" href="#masks">(§4)</a></li>
+    <li>Why do residuals and LayerNorm make deep stacks trainable? <a class="ref" href="#block">(§7)</a></li>
+    <li>What do encoder-only, decoder-only, and encoder-decoder models allow each token to see? <a class="ref" href="#families">(§10)</a></li>
+  </ol>
+</div>
+
+<!-- ================= GLOSSARY ================= -->
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Token</td><td>The unit processed by the transformer: word-piece, character, image patch, audio slice, protein residue, or RL event.</td></tr>
+  <tr><td>Residual stream</td><td>The main vector pathway through the network; sublayers add updates to it.</td></tr>
+  <tr><td>Query \(q\)</td><td>A learned vector describing what a token is looking for.</td></tr>
+  <tr><td>Key \(k\)</td><td>A learned vector describing what a token offers for matching.</td></tr>
+  <tr><td>Value \(v\)</td><td>The learned message content transferred through attention weights.</td></tr>
+  <tr><td>Attention matrix</td><td>The row-normalized weights saying how much each token listens to each allowed token.</td></tr>
+  <tr><td>Causal mask</td><td>A triangular mask that blocks future positions during autoregressive training.</td></tr>
+  <tr><td>Head</td><td>One independent attention operation; multi-head attention runs several in parallel.</td></tr>
+  <tr><td>LayerNorm</td><td>A normalization layer that stabilizes activation scales within each token vector.</td></tr>
+  <tr><td>Position-wise MLP</td><td>The feed-forward network applied independently to every token after communication.</td></tr>
+  <tr><td>Context length</td><td>The maximum number of tokens a model can condition on in one forward pass.</td></tr>
+</table>
+
+<!-- ================= REFERENCES ================= -->
+<h2 id="refs">References &amp; further study</h2>
+<h4>Primary papers</h4>
+<ol class="refs">
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv:1706.03762</a> — the original Transformer.</li>
+  <li>Bahdanau, Cho, Bengio (2015). <strong>Neural Machine Translation by Jointly Learning to Align and Translate.</strong> <a class="ref" href="https://arxiv.org/abs/1409.0473" target="_blank">arXiv:1409.0473</a> — soft attention for seq2seq.</li>
+  <li>Sutskever, Vinyals, Le (2014). <strong>Sequence to Sequence Learning with Neural Networks.</strong> <a class="ref" href="https://arxiv.org/abs/1409.3215" target="_blank">arXiv:1409.3215</a> — encoder-decoder LSTM translation.</li>
+  <li>Devlin et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805" target="_blank">arXiv:1810.04805</a> — encoder-only transformer.</li>
+  <li>Brown et al. (2020). <strong>Language Models are Few-Shot Learners.</strong> <a class="ref" href="https://arxiv.org/abs/2005.14165" target="_blank">arXiv:2005.14165</a> — GPT-3 and in-context learning.</li>
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929" target="_blank">arXiv:2010.11929</a> — ViT image patches as tokens.</li>
+  <li>Raffel et al. (2019). <strong>Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1910.10683" target="_blank">arXiv:1910.10683</a> — T5 encoder-decoder.</li>
+</ol>
+<h4>Code and visual companions</h4>
+<ol class="refs">
+  <li>Andrej Karpathy — <strong>nanoGPT.</strong> <a class="ref" href="https://github.com/karpathy/nanoGPT" target="_blank">github.com/karpathy/nanoGPT</a> — compact GPT training code.</li>
+  <li>Jay Alammar — <strong>The Illustrated Transformer.</strong> <a class="ref" href="https://jalammar.github.io/illustrated-transformer/" target="_blank">jalammar.github.io</a> — visual intuition for attention blocks.</li>
+  <li>Next in this series: <a class="ref" href="qGkzHFllWDY.html">Note 3 — Transformers in Language</a>.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="P127jhj-8-Y.html">◀ Note 1 · Overview</a>
+  <a href="index.html">Index</a>
+  <a class="r" href="qGkzHFllWDY.html">Note 3 · Transformers in Language ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 02 · Built for learning (WHY→HOW, check-yourself, references).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 27 — Jason Wei &amp; Hyung Won Chung (OpenAI)</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== TOC (one <a> per section; .sub for subsections) ===================== -->
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Jason: next-token learning</a>
+  <a href="#s1a" class="sub">1.1 Inspect the data</a>
+  <a href="#s1b" class="sub">1.2 One loss, many tasks</a>
+  <a href="#worked">2 · Worked micro-example</a>
+  <a href="#s3">3 · Jason: scale and emergence</a>
+  <a href="#s3a" class="sub">3.1 Smooth loss, sharp skills</a>
+  <a href="#s3b" class="sub">3.2 Chain-of-thought</a>
+  <a href="#trace">4 · End-to-end trace</a>
+  <a href="#s5">5 · Hyung Won: remove structure</a>
+  <a href="#s5a" class="sub">5.1 Encoder-decoder to decoder-only</a>
+  <a href="#s5b" class="sub">5.2 Why the assumptions changed</a>
+  <a href="#s6">6 · Don't teach, incentivize</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 6 · Note 2 of 5</p>
+</nav>
+
+<!-- ===================== ARTICLE ===================== -->
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V4</div>
+  <h1>Intuitions on Language Models &amp; Scaling — Jason Wei &amp; Hyung Won Chung</h1>
+  <p class="lead">A practitioner note on why next-token prediction can become many skills, and why the winning structure in AI tends to get simpler as compute grows.</p>
+  <div class="meta">
+    <span class="pill">🎓 Jason Wei &amp; Hyung Won Chung (OpenAI)</span>
+    <span class="pill">⏱ ~1 hr</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=3gb-ZkVRemQ" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<!-- ---------- HOOK: WHY before HOW ---------- -->
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>Two OpenAI practitioners are not trying to prove a theorem here. They are teaching a way to think. Jason Wei asks: <strong>what does the next-token loss force a model to learn?</strong> Hyung Won Chung asks: <strong>what assumptions should researchers remove once scale makes them unnecessary?</strong> If you can hold both questions at once, modern LLM behavior becomes less magical and more inspectable.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — the giant training gym</span>
+  <p>Picture pretraining as a giant gym. Every sentence is a station: one asks for grammar, another facts, another translation, another arithmetic. Scaling buys more floor space, more equipment, and a stronger trainee. Hyung Won's point is that early handrails help beginners, but later they can block the strongest athletes; the research job is to remove handrails when the gym gets large enough.</p>
+</div>
+<div class="box intuition">
+  <span class="lbl">Epistemic status</span>
+  <p>This note marks the talk as <strong>intuition and perspective</strong>. Scaling laws and cross-entropy are measurable facts; claims like "this structure is now a bottleneck" are practitioner judgments, useful precisely because they expose the assumptions behind research taste.</p>
+</div>
+</section>
+
+<!-- ---------- ENRICHMENT #7: Prerequisites 30-sec refresher ---------- -->
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the argument; each term is used as a building block, not as the main lesson.</p>
+  <ul>
+    <li><strong>Language-model loss / cross-entropy</strong> — the model assigns a probability to the actual next token; lower loss means it was less surprised. Jason's whole argument starts here.</li>
+    <li><strong>Scaling laws</strong> — loss often improves predictably as parameters, data, and compute grow; see <a class="ref" href="13-emergent-abilities-scaling.html">Note 13</a> for the deeper scaling/emergence treatment.</li>
+    <li><strong>Inductive bias</strong> — structure we impose to make learning easier, such as bidirectional encoders or separate source/target modules. Hyung Won asks when those biases become bottlenecks.</li>
+    <li><strong>Encoder-decoder vs decoder-only</strong> — encoder-decoder separates input processing from output generation; decoder-only concatenates input and target into one causal sequence.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Jason Wei: next-token prediction is secretly a huge curriculum</h2>
+<p>Jason starts from a deceptively plain task. Given <em>Dartmouth students like to</em>, the model assigns probabilities to every vocabulary word and is trained to put high probability on the observed next word. His advice is unusually concrete: <strong>manually inspect the data</strong>. He tells a lung-cancer-classification story to make the methodological point: if you stare at real examples until you can almost do the task yourself, you get intuitions that abstract metrics hide.</p>
+
+<h3 id="s1a">1.1 Inspect the data: what is each token asking?</h3>
+<p>Take the Wikipedia-style fragment from the talk: <em>Biden married Neilia Hunter, a student...</em> Predicting <em>Hunter</em> asks for world knowledge; predicting the comma asks for punctuation; predicting <em>a</em> asks for grammar; predicting <em>student</em> is a more arbitrary blend of context and biography. The "task" is not one clean benchmark. The gym has millions of tiny stations.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — next-token loss</span>
+  <p>$$\mathcal{L}_t=-\log P_\theta(x_t\mid x_{&lt;t})$$</p>
+  <p>
+    At position \(t\), \(x_t\) is the actual next token, \(x_{&lt;t}\) is the preceding context, and \(P_\theta\) is the model's probability distribution over the vocabulary. Training pushes the probability of the observed token toward 1.
+  </p>
+</div>
+
+<h3 id="s1b">1.2 One objective, many skills</h3>
+<p>Jason's core intuition is <strong>massively multi-task learning</strong>. Grammar, lexical semantics, world knowledge, sentiment, translation, spatial reasoning, and arithmetic all appear as next-token predictions somewhere in the corpus. The model is not explicitly told "now do translation"; it is rewarded for predicting the continuation that translation-like contexts demand.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["Internet-scale text<br/>many local contexts"] --> B["Same loss:<br/>predict the next token"]
+    B --> C["Grammar station<br/>'I like to ___'"]
+    B --> D["Fact station<br/>'capital of Azerbaijan is ___'"]
+    B --> E["Translation station<br/>'pretty in Spanish is ___'"]
+    B --> F["Reasoning station<br/>'Zuko left the ___'"]
+    B --> G["Math station<br/>'7 + 8 = ___'"]
+    C --> H["Shared model weights"]
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+</div>
+<figcaption>Jason's lens: one training objective sends gradients from many implicit tasks into the same weights.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"It only learns surface statistics."</strong> Sometimes that is enough; sometimes the cheapest way to lower next-token loss is to store a fact, infer a location, follow an instruction, or compute. Jason's claim is not that every prediction is deep reasoning; it is that the loss does not care which internal method lowers surprise.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — classify the hidden task</summary>
+<p>For "The word for beautiful in Spanish is ___", the local hidden task is translation plus lexical semantics. The model receives the same cross-entropy signal as everywhere else; only the context makes the station translation-shaped.</p></details>
+
+<h2 id="worked"><span class="num">2.</span>Worked micro-example — next-token prediction forces multi-task learning</h2>
+<p>Now compute the smallest honest case. Context: <em>The capital of France is</em> ___ . The target token is <em>Paris</em>. A tiny vocabulary slice has four candidates.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Suppose the model assigns logits</p>
+  <p>$$z=[z_{\text{Paris}},z_{\text{London}},z_{\text{banana}},z_{\text{is}}]=[3,1,0,-1].$$</p>
+  <p>The softmax probability of <em>Paris</em> is</p>
+  <p>$$
+  P(\text{Paris}\mid x_{&lt;t})=
+  \frac{e^3}{e^3+e^1+e^0+e^{-1}}
+  =\frac{20.085}{20.085+2.718+1+0.368}\approx0.831.
+  $$</p>
+  <p>Cross-entropy for the observed target is</p>
+  <p>$$\mathcal{L}=-\log P(x_t\mid x_{&lt;t})=-\log(0.831)\approx0.185.$$</p>
+  <p>If the corpus instead contains <em>The word for pretty in Spanish is</em> ___, the same formula rewards <em>bonita</em>. If it contains <em>7 + 8 =</em> ___, the same formula rewards <em>15</em>. One objective, many skills.</p>
+</div>
+
+<table>
+  <tr><th>Context station</th><th>Correct next token</th><th>Skill pressured by the same loss</th></tr>
+  <tr><td>"The capital of France is"</td><td class="tt">Paris</td><td>World knowledge</td></tr>
+  <tr><td>"The word for pretty in Spanish is"</td><td class="tt">bonita</td><td>Translation / lexical semantics</td></tr>
+  <tr><td>"7 + 8 ="</td><td class="tt">15</td><td>Arithmetic pattern or computation</td></tr>
+  <tr><td>"Iroh went to the kitchen... Zuko left the"</td><td class="tt">kitchen</td><td>Spatial and discourse tracking</td></tr>
+</table>
+
+<details class="check"><summary>✓ Check yourself — why does this scale to many abilities?</summary>
+<p>Because every token in a diverse corpus is a supervised example. As data variety grows, the same loss supplies gradients for facts, syntax, translation, arithmetic, instruction following, and many arbitrary mixtures. The objective is narrow; the contexts are not.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Jason Wei: why scaling can look smooth and sudden at the same time</h2>
+<p>Jason then separates two observations. First, scaling compute — roughly more data times a larger model — reliably improves overall loss. Second, individual abilities can appear suddenly because the overall loss is an average over many hidden tasks, some already saturated and some still far from solved.</p>
+
+<h3 id="s3a">3.1 Smooth total loss, sharp local abilities</h3>
+<p>A large model can store more tail facts and execute more complex functions in its forward pass. In Jason's terms, memorization and reasoning are not separate training objectives; both are ways to win the same next-word game. A small model may learn first-order heuristics because that is enough to reduce loss; a larger model has room to memorize rarer facts and represent more complex procedures.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — total loss as a mixture of hidden tasks</span>
+  <p>$$
+  \mathcal{L}_{\text{overall}}
+  \approx w_g\mathcal{L}_{\text{grammar}}
+  +w_f\mathcal{L}_{\text{facts}}
+  +w_m\mathcal{L}_{\text{math}}
+  +w_r\mathcal{L}_{\text{reasoning}}+\cdots
+  $$</p>
+  <p>The weights \(w_i\) reflect how often those token situations appear. Grammar may saturate early; math or instruction following may improve much later. A smooth average can hide a delayed jump in one component.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["More compute<br/>parameters × data"] --> B["Lower average next-token loss"]
+    B --> C["Common tasks saturate<br/>grammar, punctuation"]
+    B --> D["Tail facts memorized<br/>Baku, rare biographies"]
+    B --> E["Hard tasks cross thresholds<br/>math, instruction following"]
+    E --> F["Emergent ability<br/>see Note 13"]
+</div>
+<figcaption>Emergence in Jason's sense is task-level performance appearing after enough smooth probability improvements accumulate.</figcaption>
+</figure>
+
+<p>He also discusses inverse or U-shaped scaling with the prompt "Repeat after me. All that glisters is not glib, all that glisters is not ___". A tiny model may repeat <em>glib</em>; a middle model knows the Shakespeare quote and incorrectly "fixes" it to <em>gold</em>; a larger model can both know the quote and follow the instruction, so it returns <em>glib</em>. The curve is weird because multiple hidden subtasks conflict.</p>
+
+<h3 id="s3b">3.2 Chain-of-thought as giving the gym a scratchpad</h3>
+<p>Chain-of-thought prompting asks the model to produce intermediate reasoning tokens before the final answer. Jason's broader intuition makes this less mysterious: if reasoning traces exist in the data, then predicting them is another next-token station. At scale, the model can use generated tokens as a working scratchpad, turning a single hard jump into a sequence of easier next-token steps.</p>
+
+<div class="box intuition">
+  <span class="lbl">Connection to Note 13</span>
+  <p>For a deeper treatment of emergent abilities, metrics, and the "mirage" critique, see <a class="ref" href="13-emergent-abilities-scaling.html">Note 13</a>. Jason's stance in the Q&amp;A is practical: metrics can change the visual shape, but the useful capabilities themselves are real enough to study.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — explain the U-shape without saying "the model got worse"</summary>
+<p>The middle model gained one subskill: quote correction. But it had not yet gained the stronger instruction-following subskill. The aggregate answer got worse because the newly learned subskill conflicted with the prompt's instruction.</p></details>
+
+<h2 id="trace"><span class="num">4.</span>End-to-end trace — the bitter lesson in action</h2>
+<p>Hyung Won's half begins by studying change itself. If many forces act, prediction is hard; if one dominant force acts, you can get directionality. His proposed dominant force for AI is the long-term fall in compute cost and the scaling efforts it enables. Follow that force across eras.</p>
+
+<table>
+  <tr><th>Step</th><th>Era</th><th>What structure was added / removed</th><th>Result</th></tr>
+  <tr><td>0</td><td>Hand-engineered ML</td><td class="tt">add human-designed features, rules, task-specific pipelines</td><td>Works in low-compute regimes, but the handrails encode human assumptions and cap flexibility.</td></tr>
+  <tr><td>1</td><td>CNNs / RNNs</td><td class="tt">add useful inductive biases: locality, recurrence, sequence order</td><td>Huge gains when data and compute are limited; still more general than hand features.</td></tr>
+  <tr><td>2</td><td>Transformers</td><td class="tt">remove much recurrence; use attention and scalable parallel training</td><td>Less hand-coded sequence machinery; more compute and data can be exploited.</td></tr>
+  <tr><td>3</td><td>Encoder-decoder / encoder-only period</td><td class="tt">add source-target separation, bidirectional encoders, task-specific heads</td><td>Strong for translation, SQuAD, GLUE, and academic fine-tuning where those assumptions fit.</td></tr>
+  <tr><td>4</td><td>Decoder-only at scale</td><td class="tt">remove separate input/target stacks; use one causal sequence model</td><td>One simple interface handles pretraining, prompting, chat turns, tool text, and long generation.</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">The bitter lesson, in this talk's language</span>
+  <p>General methods that leverage computation tend to win over methods that encode our hand-built understanding. But the lesson is not "never add structure." It is: add the minimum structure that works at today's compute, remember that it was a shortcut, and remove it when scale makes it a bottleneck.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what makes the trace "bitter"?</summary>
+<p>The bitter part is that clever human structure often helps now and hurts later. The work that looks sophisticated in a low-compute regime can become the thing preventing the next scale-up from using data and compute freely.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Hyung Won Chung: the right assumptions change as compute grows</h2>
+<p>Hyung Won compares transformer variants not mainly to teach architecture, but to show how historical assumptions become negotiable. Encoder-decoder was natural when machine translation was the flagship task. Decoder-only becomes natural when the goal is a general text interface trained and used as one long sequence.</p>
+
+<h3 id="s5a">5.1 From encoder-decoder to decoder-only</h3>
+<p>In an encoder-decoder transformer, the input is encoded bidirectionally, the output is generated causally, and cross-attention connects decoder layers to the final encoder states. In a decoder-only transformer, the input and target are concatenated; causal self-attention serves both "read the prompt" and "generate the answer" roles.</p>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    subgraph ED["Encoder-decoder"]
+      E1["Input sequence<br/>bidirectional encoder"] --> E2["Final encoder states"]
+      D1["Target prefix<br/>causal decoder"] --> D2["Next token"]
+      E2 -->|"cross-attention"| D1
+    end
+    subgraph DO["Decoder-only"]
+      X1["Input + target prefix<br/>one causal stream"] --> X2["Shared self-attention stack"]
+      X2 --> X3["Next token"]
+    end
+    ED --> R["Extra structure helps when assumptions fit"]
+    DO --> S["Less structure scales as one interface"]
+</div>
+<figcaption>The architectural comparison is a scaling argument: separate modules can help specific regimes, but a unified causal stream removes assumptions.</figcaption>
+</figure>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — causal factorization</span>
+  <p>$$P(x_1,\ldots,x_T)=\prod_{t=1}^{T}P(x_t\mid x_{&lt;t})$$</p>
+  <p>A decoder-only model treats prompt tokens, answer tokens, previous chat turns, and sometimes tool text as one sequence. The same factorization supports pretraining and generation.</p>
+</div>
+
+<h3 id="s5b">5.2 Why the old assumptions became less attractive</h3>
+<p>Hyung Won names several structures in encoder-decoder systems and asks whether they still match the modern regime:</p>
+<ul>
+  <li><strong>Separate input/target parameters.</strong> Useful when English input and German output are genuinely different. Less natural when knowledge appears across languages and when this turn's answer becomes next turn's input.</li>
+  <li><strong>Decoder attends to final encoder layer.</strong> Perhaps fine at 24 layers, but a possible information bottleneck if models become dramatically deeper.</li>
+  <li><strong>Bidirectional input attention.</strong> Very useful for BERT-era SQuAD/GLUE, but less decisive at scale and awkward for chat serving because new turns can force re-encoding. Causal attention supports key-value caching.</li>
+  <li><strong>Encoder-only classifiers.</strong> Productive for classification benchmarks, but giving up generation was a simplifying structure that did not become the most general interface.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Less structure means worse science."</strong> Hyung Won's point is subtler: structure is a loan from the future. It buys progress when compute is scarce, but the interest is paid when the structure stops matching the scaled-up task.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why is multi-turn chat awkward for bidirectional encoders?</summary>
+<p>If earlier tokens can attend to later tokens, adding a new assistant or user turn can change representations of previous tokens, so you may need to encode old context again. In a causal decoder, previous key/value states remain valid because past tokens never attend to future tokens.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Don't teach, incentivize</h2>
+<p>Hyung Won frames the AI researcher's job as teaching machines how to think, then warns against teaching them how <em>we think we think</em>. We do not understand cognition well enough to hand-code it. A more scalable strategy is to specify incentives that reward general capability and let learning discover the mechanism.</p>
+
+<div class="box intuition">
+  <span class="lbl">Practitioner slogan</span>
+  <p><strong>Don't teach, incentivize.</strong> Instead of hand-writing narrow behaviors, choose objectives, data, feedback, and evaluation pressures that reward broad competence. Next-token prediction is one crude incentive; instruction tuning and RLHF are attempts to shape behavior with broader feedback than a single hand-coded rule.</p>
+</div>
+
+<p>This also explains his discomfort with maximum-likelihood training for open-ended chat. In supervised learning, one target string is treated as the only correct continuation. For a factual label this may be fine; for "write a poem" it is a harsh, over-structured teaching signal. A learned reward model in RLHF is not presented as the final answer, but as evidence that learned objectives can remove some of that rigid structure.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — from one target to a learned preference signal</span>
+  <p>$$\text{MLE: }\max_\theta \log P_\theta(y^\star\mid x) \qquad\Longrightarrow\qquad
+  \text{RLHF-style: }\max_\theta \mathbb{E}_{y\sim P_\theta(\cdot\mid x)}[R_\phi(x,y)]$$</p>
+  <p>In MLE, \(y^\star\) is the single recorded target. In the reward formulation, \(R_\phi(x,y)\) is a learned scoring function over possible outputs. The latter can represent "many good poems" more naturally, though it introduces its own scalability and reward-modeling problems.</p>
+</div>
+
+<div class="box why">
+  <span class="lbl">What researchers should do with this</span>
+  <p>Jason's prescription is to plot scaling curves and inspect data. Hyung Won's prescription is to ask, for every added structure: <em>What assumption does this encode? Was it only helpful because compute was scarce? Can a more general method now absorb it?</em> The two prescriptions meet: measure the curve, then decide which handrail to remove.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what would be a "teaching" solution vs an "incentivizing" solution?</summary>
+<p>Teaching: write a rule that all summaries must follow a fixed template. Incentivizing: train or evaluate with feedback that rewards faithful, concise, useful summaries across many formats, allowing the model to learn when the template helps and when it hurts.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; jump back only where your explanation breaks.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does Jason call next-token prediction massively multi-task learning? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Redo the Paris softmax example and explain what the loss is pushing on. <a class="ref" href="#worked">(worked)</a></li>
+    <li>How can overall loss improve smoothly while a benchmark ability appears suddenly? <a class="ref" href="#s3">(§3)</a></li>
+    <li>In the "all that glisters" example, which hidden subtasks conflict? <a class="ref" href="#s3b">(§3.2)</a></li>
+    <li>What does Hyung Won mean by removing structure over time? <a class="ref" href="#trace">(trace)</a></li>
+    <li>Why did encoder-decoder assumptions fit translation better than modern chat? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain "don't teach, incentivize" using the giant training gym analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Next-token prediction</td><td>Training a model to predict the next token from the preceding context.</td></tr>
+  <tr><td>Cross-entropy loss</td><td>The penalty \(-\log p\) for assigning probability \(p\) to the observed token.</td></tr>
+  <tr><td>Massively multi-task learning</td><td>Learning many implicit skills because diverse contexts all use the same predictive objective.</td></tr>
+  <tr><td>Scaling law</td><td>An empirical relationship where loss changes predictably with compute, data, or model size.</td></tr>
+  <tr><td>Emergent ability</td><td>A benchmark ability that is absent or near-random in smaller models and appears in larger ones.</td></tr>
+  <tr><td>Chain-of-thought</td><td>Prompting or training a model to produce intermediate reasoning tokens before the final answer.</td></tr>
+  <tr><td>Inductive bias</td><td>A structural assumption that makes some functions easier for a model to learn than others.</td></tr>
+  <tr><td>Bitter lesson</td><td>Rich Sutton's observation that general methods leveraging computation tend to outperform hand-engineered domain structure over time.</td></tr>
+  <tr><td>Encoder-decoder</td><td>A transformer layout with a separate input encoder and output decoder connected by cross-attention.</td></tr>
+  <tr><td>Decoder-only</td><td>A causal transformer that models one sequence and predicts each token from previous tokens.</td></tr>
+  <tr><td>Bidirectional attention</td><td>An attention mask where tokens can attend to both earlier and later input tokens.</td></tr>
+  <tr><td>RLHF</td><td>Reinforcement learning from human feedback; a family of methods that train models using learned preference or reward signals.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or central in the lecture</h4>
+<ol class="refs">
+  <li>Stanford CS25 (2024). <strong>Jason Wei and Hyung Won Chung — Intuitions on Language Models and Scaling.</strong> <a class="ref" href="https://www.youtube.com/watch?v=3gb-ZkVRemQ">link</a> — source talk for this note.</li>
+  <li>Sutton (2019). <strong>The Bitter Lesson.</strong> <a class="ref" href="http://www.incompleteideas.net/IncIdeas/BitterLesson.html">link</a> — Hyung Won's central framing for compute-leveraging methods.</li>
+  <li>Kaplan et al. (2020). <strong>Scaling Laws for Neural Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2001.08361">link</a> — the smooth loss-scaling result Jason cites.</li>
+  <li>Wei et al. (2022). <strong>Emergent Abilities of Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2206.07682">link</a> — the empirical framing for emergent abilities and BIG-Bench curves.</li>
+  <li>Wei et al. (2022). <strong>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2201.11903">link</a> — the reasoning-scratchpad idea associated with Jason's work.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">link</a> — the original encoder-decoder transformer.</li>
+  <li>Devlin et al. (2018). <strong>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.</strong> <a class="ref" href="https://arxiv.org/abs/1810.04805">link</a> — encoder-only, bidirectional transformer era.</li>
+  <li>Raffel et al. (2019). <strong>Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1910.10683">link</a> — T5, the encoder-decoder family discussed in relation to FLAN.</li>
+  <li>Chung et al. (2022). <strong>Scaling Instruction-Finetuned Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2210.11416">link</a> — FLAN/T5 and PaLM instruction-finetuning context for Hyung Won's examples.</li>
+</ol>
+<h4>Best next things to read</h4>
+<ol class="refs">
+  <li>Hoffmann et al. (2022). <strong>Training Compute-Optimal Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2203.15556">link</a> — Chinchilla scaling: balance data and parameters under compute.</li>
+  <li>Schaeffer, Miranda, and Koyejo (2023). <strong>Are Emergent Abilities of Large Language Models a Mirage?</strong> <a class="ref" href="https://arxiv.org/abs/2304.15004">link</a> — the metric critique Jason is asked about in Q&amp;A.</li>
+  <li>Ouyang et al. (2022). <strong>Training language models to follow instructions with human feedback.</strong> <a class="ref" href="https://arxiv.org/abs/2203.02155">link</a> — a concrete RLHF pipeline for the "incentivize" discussion.</li>
+  <li>Brown et al. (2020). <strong>Language Models are Few-Shot Learners.</strong> <a class="ref" href="https://arxiv.org/abs/2005.14165">link</a> — decoder-only scaling and in-context learning context.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="26-v4-overview.html">◀ Previous note</a>
+  <a class="r" href="28-aligning-open-llms.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 27 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Rendering uses CDN fonts, Mermaid, and MathJax.
+</div>
+
+</article>
+</div>
+</body>
+</html>

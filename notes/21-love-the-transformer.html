@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 21 — How I Learned to Stop Worrying and Love the Transformer</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The old dream, the fragmented field</a>
+  <a href="#s1a" class="sub">1.1 Dartmouth's wager</a>
+  <a href="#s1b" class="sub">1.2 NLP before consolidation</a>
+  <a href="#s2">2 · Why recurrence and convolutions were not enough</a>
+  <a href="#s2a" class="sub">2.1 LSTMs: powerful but sequential</a>
+  <a href="#s2b" class="sub">2.2 Convolutions: parallel but local</a>
+  <a href="#s3">3 · The transformer block</a>
+  <a href="#s3a" class="sub">3.1 Attention as content-based pooling</a>
+  <a href="#s3b" class="sub">3.2 Multi-head attention and residual blocks</a>
+  <a href="#s4">4 · What changed after the original paper</a>
+  <a href="#s4a" class="sub">4.1 Position: from sinusoids to RoPE</a>
+  <a href="#s4b" class="sub">4.2 Long context and the physics of memory</a>
+  <a href="#s5">5 · The bigger thesis</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 5 · Note 1 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>How I Learned to Stop Worrying and Love the Transformer</h1>
+  <p class="lead">Ashish Vaswani tells the transformer story as a story of consolidation: from hand-built AI and NLP pipelines to one parallel, content-routing architecture that scales into modern LLMs, agents, tools, and data-center-sized computers.</p>
+  <div class="meta">
+    <span class="pill">🎓 Ashish Vaswani</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=1GbDTTK3aR4" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>The original AI dream was a single machine that could simulate intelligence. For decades, practical AI moved the other way: specialized pipelines, rule systems, and task-specific components. Vaswani's core claim is that the transformer helped reverse that fragmentation. Its central trick is not magic prose generation; it is <strong>parallel content-based routing</strong> — every token can look at other tokens and decide what information to pull in.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a transformer as a busy research library. Each token is a researcher with a question. Keys are catalog cards, values are the books on the shelves, and attention is the act of walking to the most relevant shelves, copying useful pages, and returning with a better note. Multi-head attention means each researcher has several assistants, each searching for a different kind of clue.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before entering the library.</p>
+  <ul>
+    <li><strong>Dot product</strong> — a score for vector alignment; here it asks, “does this query match that key?”</li>
+    <li><strong>Softmax</strong> — turns arbitrary scores into positive weights that sum to 1, so a token can blend several values.</li>
+    <li><strong>Sequence-to-sequence</strong> — maps an input sequence to an output sequence, the old workhorse for translation, summarization, and dialogue.</li>
+    <li><strong>Residual connection</strong> — adds a layer's update back to its input, preserving a highway for information and gradients.</li>
+    <li><strong>GPU/TPU matrix multiplication</strong> — modern accelerators love dense matrix products; architecture choices that fit them train and serve better.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The old dream, the fragmented field</h2>
+<p>Vaswani starts not with the 2017 paper, but with the 1955 Dartmouth proposal. The founders hoped every aspect of intelligence could be described precisely enough for a machine to simulate it, and they thought a summer of work by selected scientists might make major progress. The joke lands because the goal was grand, but two assumptions were wrong: intelligence resisted clean hand-written rules, and machine capacity mattered far more than expected.</p>
+
+<h3 id="s1a">1.1 Dartmouth's wager</h3>
+<p>The lecture frames transformers as one answer to that long-running wager. Instead of writing down all the rules for intelligence, we build systems that learn useful rules from data. Solomonoff-style compression and self-supervised learning appear in the background: if a model predicts the world well, it must internalize some structure of the world.</p>
+<div class="box intuition">
+  <span class="lbl">The thesis in one sentence</span>
+  <p>The transformer is a general substrate for moving information around: once the routing mechanism is flexible, parallel, and accelerator-friendly, many tasks can be expressed as “learn representations, then route the right pieces to the right places.”</p>
+</div>
+
+<h3 id="s1b">1.2 NLP before consolidation</h3>
+<p>Before neural end-to-end systems, a machine-translation system was a cathedral of components: word alignment, phrase extraction, scoring, re-ranking, and a small neural language model hidden somewhere in the pipeline. Even research conferences were “verticalized” into morphology, dialogue, discourse, sentiment, and translation tracks. Word embeddings began the consolidation by giving words distributed representations; contextual models went further by letting <em>king</em> mean different things in “king of Persia” and “the emperor has no clothes.”</p>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>It is tempting to say “transformers replaced linguistics with scale.” The lecture's subtler point is that they replaced many brittle, manually connected modules with a trainable substrate. Linguistic structure did not disappear; it became something the model could learn, route, and reuse.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what was being consolidated?</summary>
+<p>Not merely code. The field was consolidating task formulations, representations, and data-driven learning: many NLP problems became variable-length sequence problems, then sequence-to-sequence problems, then attention-based representation-learning problems.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Why recurrence and convolutions were not enough</h2>
+<p>The pre-transformer era already had powerful neural models. LSTMs could learn counters and grammar-like state; Google Neural Machine Translation showed that sequence-to-sequence systems could be practical. The frustration was architectural: the model still read left-to-right through a narrow state bottleneck.</p>
+
+<h3 id="s2a">2.1 LSTMs: powerful but sequential</h3>
+<p>An LSTM “eats” a word, updates a hidden state, then moves to the next word. That hidden state must carry local details and long-distance dependencies. To represent the tenth word, the encoder must process words one through nine first. Translation also decodes autoregressively. Reading and writing both become serial processes.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — recurrence as a bottleneck</span>
+  <p>$$h_t = f_	heta(x_t, h_{t-1})$$</p>
+  <p>More plainly: the representation at position \(t\), called \(h_t\), is computed from the current token \(x_t\) and the previous state \(h_{t-1}\). The function \(f_\theta\) is learned. Because \(h_t\) depends on \(h_{t-1}\), positions cannot all be processed at once.</p>
+</div>
+
+<h3 id="s2b">2.2 Convolutions: parallel but local</h3>
+<p>Convolutions looked promising because every position can look at local neighbors in parallel, and GPUs already compute them well. ByteNet, ConvS2S, and WaveNet showed the approach could work. But a small convolutional receptive field grows with depth: a word only “sees” faraway words after many layers. Attention offered a direct path from any token to any other token in one layer.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Rule/pipeline era<br/>hand-built modules"] --> B["Distributed word vectors<br/>static meanings"]
+    B --> C["Contextual seq2seq<br/>LSTMs + attention"]
+    C --> D["Convolutions<br/>parallel local mixing"]
+    D --> E["Transformer<br/>parallel content routing"]
+</div>
+<figcaption>The lecture's historical arc: consolidation happens when more of the pipeline becomes one learnable representation system.</figcaption>
+</figure>
+<div class="box analogy">
+  <span class="lbl">Library analogy checkpoint</span>
+  <p>An LSTM is one librarian walking shelf by shelf with a notebook. A convolution is many librarians checking nearby shelves. Self-attention is every librarian searching the whole catalog by content, in parallel.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why did convolutions not fully solve long-distance language?</summary>
+<p>They parallelize local computation, but distant tokens need enough layers for the receptive field to reach them. Self-attention can score every token pair in one layer, so the path length between faraway words is shorter.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>The transformer block</h2>
+<p>The central move is simple: let a sentence attend to itself. Each token creates a query, a key, and a value. The query asks what it needs; keys advertise what other positions contain; values carry the content to be pooled. This made attention a content-based pooling operation that could be written as matrix multiplication.</p>
+
+<h3 id="s3a">3.1 Attention as content-based pooling</h3>
+<div class="box eqn">
+  <span class="lbl">Key equation — scaled dot-product attention</span>
+  <p>$$\operatorname{Attention}(Q,K,V)=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right)V$$</p>
+  <p>\(Q\) contains one query per position, \(K\) contains keys, \(V\) contains values, \(d_k\) is the key/query dimension, and \(M\) is an optional mask, such as a causal mask in a decoder. The matrix \(QK^\top\) scores every query against every key; dividing by \(\sqrt{d_k}\) keeps logits from growing too large; softmax converts scores into mixing weights.</p>
+</div>
+<figure>
+<div class="svgcard">
+<svg viewBox="0 0 760 250" width="100%" role="img" aria-label="Self-attention as content-based library lookup">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2f6df6" />
+    </marker>
+  </defs>
+  <rect x="20" y="30" width="140" height="56" rx="12" fill="#ffffff" stroke="#1b1f24"/>
+  <text x="90" y="63" text-anchor="middle" font-size="16" fill="#1b1f24">token: it</text>
+  <rect x="215" y="20" width="120" height="50" rx="10" fill="#eef4ff" stroke="#2f6df6"/>
+  <text x="275" y="50" text-anchor="middle" font-size="15" fill="#1b1f24">Query</text>
+  <rect x="215" y="96" width="120" height="50" rx="10" fill="#fff8e8" stroke="#8a6b16"/>
+  <text x="275" y="126" text-anchor="middle" font-size="15" fill="#1b1f24">Keys</text>
+  <rect x="215" y="172" width="120" height="50" rx="10" fill="#f0fff4" stroke="#187245"/>
+  <text x="275" y="202" text-anchor="middle" font-size="15" fill="#1b1f24">Values</text>
+  <rect x="410" y="60" width="140" height="70" rx="12" fill="#eef4ff" stroke="#2f6df6"/>
+  <text x="480" y="88" text-anchor="middle" font-size="14" fill="#1b1f24">score</text>
+  <text x="480" y="110" text-anchor="middle" font-size="14" fill="#1b1f24">softmax</text>
+  <rect x="610" y="88" width="125" height="72" rx="12" fill="#ffffff" stroke="#1b1f24"/>
+  <text x="672" y="116" text-anchor="middle" font-size="15" fill="#1b1f24">updated</text>
+  <text x="672" y="138" text-anchor="middle" font-size="15" fill="#1b1f24">representation</text>
+  <path d="M160 58 C185 58 190 45 215 45" stroke="#2f6df6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M335 45 C370 45 380 70 410 86" stroke="#2f6df6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M335 121 C370 121 380 102 410 100" stroke="#8a6b16" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M335 197 C420 197 520 168 610 130" stroke="#187245" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M550 96 C575 96 590 108 610 118" stroke="#2f6df6" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="380" y="230" text-anchor="middle" font-size="13" fill="#6d6555">Query chooses weights; values carry the information that gets blended.</text>
+</svg>
+</div>
+<figcaption>The “library lookup” version of self-attention: score by content, normalize, then retrieve a weighted mixture of values.</figcaption>
+</figure>
+
+<h3 id="s3b">3.2 Multi-head attention and residual blocks</h3>
+<p>Single-head attention can blur roles together. In the lecture's “the cat licked the owner's hands” example, a single head that needs both <em>who</em> and <em>what</em> might average two useful positions. Multi-head attention restores selectivity: one subspace can attend to the subject, another to the object, another to local syntax, all for roughly the same overall model width.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — multi-head attention</span>
+  <p>$$\operatorname{MHA}(X)=\operatorname{Concat}(H_1,\ldots,H_h)W^O,\qquad H_i=\operatorname{Attention}(XW_i^Q,XW_i^K,XW_i^V)$$</p>
+  <p>\(X\) is the matrix of token representations, \(h\) is the number of heads, \(W_i^Q,W_i^K,W_i^V\) are learned projections for head \(i\), and \(W^O\) mixes the heads back together. Each head searches the library through a different lens.</p>
+</div>
+<figure>
+<div class="mermaid">
+flowchart TB
+    X["token representations X"] --> LN1["LayerNorm<br/>(pre-LN in modern deep models)"]
+    LN1 --> A["multi-head self-attention<br/>content routing"]
+    A --> R1["residual add<br/>X + attention update"]
+    R1 --> LN2["LayerNorm"]
+    LN2 --> F["feed-forward network<br/>expand then contract"]
+    F --> R2["residual add<br/>next layer input"]
+</div>
+<figcaption>A transformer block is spatial mixing by attention plus channel mixing by a feed-forward network, held together by residual highways.</figcaption>
+</figure>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>Attention is not “the model thinking in English.” It is a differentiable routing operation. Some heads become interpretable, but Vaswani warns that reading attention maps can become tea-leaf reading unless backed by stronger mechanistic evidence.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why divide by \(\sqrt{d_k}\)?</summary>
+<p>If query and key dimensions grow, raw dot products tend to grow in magnitude. Very large logits make softmax nearly one-hot and gradients unstable. Scaling by \(\sqrt{d_k}\) keeps the score variance in a healthier range.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>What changed after the original paper</h2>
+<p>The lecture's middle act is a guided tour of changes that “stuck.” The original transformer solved enough of the problem to win on WMT translation and parsing, but later systems changed the block to train deeper, represent position better, serve faster, and handle longer contexts.</p>
+
+<h3 id="s4a">4.1 Position: from sinusoids to RoPE</h3>
+<p>Self-attention by itself is permutation-invariant: if you shuffle tokens and do not tell the model where they came from, attention has no built-in ordering. The original paper used sinusoidal absolute positions and hoped relative distances would be easy to learn. Later work made the relative-distance signal more explicit: learned relative attention, ALiBi biases, and rotary position embeddings.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — relative bias idea</span>
+  <p>$$\ell_{ij}=\frac{q_i \cdot k_j}{\sqrt{d_k}} + b(i-j)$$</p>
+  <p>\(\ell_{ij}\) is the attention logit from position \(i\) to position \(j\). The term \(b(i-j)\) depends on relative distance, so the model can distinguish “nearby,” “far behind,” and “far ahead” even when token content is similar. RoPE reaches a related effect by rotating query/key dimensions according to absolute position so their dot product depends on relative offset.</p>
+</div>
+<p>The Music Transformer example makes this concrete. Music needs motifs at several scales: local rhythm, phrase repetition, and long-range return. Vaswani plays examples where vanilla positional encodings drift, while relative attention better preserves structure.</p>
+<details class="check"><summary>✓ Check yourself — why is position not optional?</summary>
+<p>Without position, “dog bites man” and “man bites dog” contain the same tokens. Attention can compare content, but it needs position information to model order, roles, rhythm, and causality.</p></details>
+
+<h3 id="s4b">4.2 Long context and the physics of memory</h3>
+<p>Full attention is expressive but expensive in sequence length. More importantly, not all FLOPs are equal. Attention can spend too much time moving logits, probabilities, keys, and values through GPU memory rather than doing compute. Vaswani repeatedly returns to the practical rule: make physics your friend.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — length cost</span>
+  <p>$$\text{attention logits per head} = n\times n, \qquad \text{compute} \approx O(n^2 d_k)$$</p>
+  <p>\(n\) is the sequence length and \(d_k\) is the head dimension. Long context hurts because the logit matrix grows quadratically, and because writing/reading those intermediate tensors can dominate runtime.</p>
+</div>
+<figure>
+<div class="mermaid">
+flowchart TD
+    P["Long-context pressure"] --> L["local / sliding windows<br/>structured sparsity"]
+    P --> U["routing or LSH attention<br/>content-based sparsity"]
+    P --> R["retrieval memory<br/>documents or past activations"]
+    P --> M["MQA / GQA<br/>fewer KV read heads"]
+    P --> F["FlashAttention<br/>online softmax + less HBM traffic"]
+    P --> S["speculative decoding<br/>small draft model + large verifier"]
+</div>
+<figcaption>The post-2017 efficiency toolbox: some methods reduce attended positions; others reduce memory movement or decoding cost.</figcaption>
+</figure>
+<div class="box intuition">
+  <span class="lbl">Why FlashAttention felt inevitable in hindsight</span>
+  <p>Softmax can be computed online. If the GPU streams blocks of \(Q,K,V\), updates partial softmax statistics, and avoids writing the full \(n\times n\) logit matrix to high-bandwidth memory, the same math becomes much faster.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why can grouped-query attention be a good compromise?</summary>
+<p>Multi-query attention uses one shared key/value head, saving KV-cache memory but reducing expressivity. Grouped-query attention shares keys/values within groups of query heads, retaining more specialization while still shrinking inference memory traffic.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>The bigger thesis: a new computer, not the final computer</h2>
+<p>The closing sections return to Dartmouth. Modern LLMs are closer to the single general machine than the 2009 MT pipeline ever was: one model can follow prompts, blend knowledge, call tools, and help program agents. But Vaswani does not declare the architecture finished. He emphasizes scaling laws, data quality, quantization, retrieval, tool use, adaptive reasoning, and the fact that a frontier transformer is now less like a Colab notebook and more like a data center.</p>
+<div class="box check">
+  <span class="lbl">Takeaway stance</span>
+  <p>Love the transformer, but do not worship it. The durable ideas are likely content-based routing, residual representation streams, accelerator-aware dense computation, and scalable self-supervised learning. Future architectures may improve the scaling laws, but they will probably keep some of these invariants.</p>
+</div>
+<p>In Q&amp;A, the lecture also touches non-autoregressive decoding. The dream was to read and write in parallel, but parallel generation must learn which words are conditionally independent and in what order to lock down modes. Autoregressive left-to-right decoding supplies that ordering for free; speculative decoding became the practical compromise.</p>
+<details class="check"><summary>✓ Check yourself — why do tools not contradict the consolidation story?</summary>
+<p>A model should not waste billions of FLOPs doing arithmetic or database lookup that external software can do exactly. Tools are interfaces to capabilities; some may later be absorbed into models, while others remain better as external modules.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — one tiny attention lookup by hand</h2>
+<p>Numbers make the library analogy precise. Suppose the token <em>it</em> needs to decide whether to copy information from three previous tokens: <em>cat</em>, <em>mat</em>, and <em>slept</em>. Use one 2-D query and three 2-D keys/values.</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Let
+  $$q=\begin{bmatrix}1&1\end{bmatrix},\quad
+  K=\begin{bmatrix}1&0\\0&1\\1&1\end{bmatrix},\quad
+  V=\begin{bmatrix}10&0\\0&10\\6&6\end{bmatrix},\quad d_k=2.$$
+  Raw dot products are
+  $$qK^\top=[1,1,2].$$
+  Scale by \(\sqrt{2}\):
+  $$s=\left[\frac{1}{1.414},\frac{1}{1.414},\frac{2}{1.414}\right]\approx[0.707,0.707,1.414].$$
+  Softmax uses exponentials:
+  $$e^s\approx[2.028,2.028,4.113],\qquad \sum e^s=8.169.$$
+  So the attention weights are
+  $$a\approx[0.248,0.248,0.504].$$
+  Finally blend values:
+  $$aV=0.248[10,0]+0.248[0,10]+0.504[6,6]\approx[5.50,5.50].$$</p>
+</div>
+<p>The query matched the third key most strongly, so the output mostly copies the third value, but still keeps a quarter of each other source. That is attention as soft retrieval, not hard selection.</p>
+<details class="check"><summary>✓ Check yourself — if the third value became \([8,2]\), what would the output be?</summary>
+<p>Keep the same weights \([0.248,0.248,0.504]\). The output is \(0.248[10,0]+0.248[0,10]+0.504[8,2]=[2.48+4.032,2.48+1.008]\approx[6.51,3.49]\).</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — follow one translation input</h2>
+<p>Now follow one concrete sentence through the architecture Vaswani motivates: not every numeric value, but the state and shape at each stage.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · input</td><td>German sentence is tokenized.</td><td class="tt">["Ich", "liebe", "Transformer"] · n=3</td></tr>
+  <tr><td>1 · embed + position</td><td>Each token becomes a vector, and position information is added so order is visible.</td><td class="tt">X ∈ ℝ^{3×d_model}</td></tr>
+  <tr><td>2 · self-attention</td><td>Each position forms Q/K/V and pulls content from all source positions in parallel.</td><td class="tt">attention weights ∈ ℝ^{heads×3×3}</td></tr>
+  <tr><td>3 · feed-forward</td><td>Each position's routed representation is expanded, transformed, and contracted.</td><td class="tt">hidden ∈ ℝ^{3×d_model}</td></tr>
+  <tr><td>4 · repeated layers</td><td>Local and long-distance relationships accumulate through residual streams.</td><td class="tt">encoder memory ∈ ℝ^{3×d_model}</td></tr>
+  <tr><td>5 · decoder masked self-attention</td><td>The English output prefix attends only to earlier generated tokens.</td><td class="tt">prefix: ["I", "love"]</td></tr>
+  <tr><td>6 · encoder-decoder attention</td><td>The decoder query attends to the German memory to choose the next English word.</td><td class="tt">cross-attention over 3 source states</td></tr>
+  <tr><td>7 · output</td><td>A vocabulary distribution is produced and one token is selected.</td><td class="tt">P(next) → "Transformers"</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The transformer separates two jobs: <strong>routing</strong> decides which positions should exchange information, while <strong>feed-forward layers</strong> transform the routed content. Residual paths let every layer add an update without erasing the evolving representation.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; if one is shaky, jump back.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What were the two wrong assumptions in the Dartmouth-era framing? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why did LSTMs and convolutions each solve only half of the parallelism/long-distance problem? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Explain \(Q\), \(K\), and \(V\) using the library analogy. <a class="ref" href="#s3">(§3)</a></li>
+    <li>Why is position information necessary if attention already compares all tokens? <a class="ref" href="#s4a">(§4.1)</a></li>
+    <li>In the worked example, where did the 0.504 weight come from? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain why Vaswani can both love transformers and still expect future architectures to improve.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Content-based routing</td><td>Moving information according to similarity between learned representations, not fixed position alone.</td></tr>
+  <tr><td>Query</td><td>The vector representation of “what this position is looking for.”</td></tr>
+  <tr><td>Key</td><td>The vector representation of “what this position offers for matching.”</td></tr>
+  <tr><td>Value</td><td>The information vector that gets copied/blended after attention weights are computed.</td></tr>
+  <tr><td>Residual stream</td><td>The running representation that layers update additively, preserving old information while adding new computations.</td></tr>
+  <tr><td>Pre-LayerNorm</td><td>A transformer block layout where normalization happens before sublayers, making very deep models easier to train.</td></tr>
+  <tr><td>RoPE</td><td>Rotary position embeddings: rotate query/key dimensions by position so attention scores reflect relative distance.</td></tr>
+  <tr><td>KV cache</td><td>Stored decoder keys and values reused during autoregressive inference so earlier tokens need not be recomputed.</td></tr>
+  <tr><td>FlashAttention</td><td>An exact attention algorithm organized to reduce GPU memory traffic by tiling and online softmax.</td></tr>
+  <tr><td>Speculative decoding</td><td>Generate candidate tokens with a small model, then verify them with a larger model to speed inference.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>McCarthy, Minsky, Rochester, and Shannon (1955). <strong>A Proposal for the Dartmouth Summer Research Project on Artificial Intelligence.</strong> <a class="ref" href="https://raysolomonoff.com/dartmouth/boxa/dart564props.pdf">link</a> — the “single machine” dream that frames the talk.</li>
+  <li>Bengio et al. (2003). <strong>A Neural Probabilistic Language Model.</strong> <a class="ref" href="https://www.jmlr.org/papers/v3/bengio03a.html">link</a> — early neural language modeling, later used inside larger MT pipelines.</li>
+  <li>Sutskever, Vinyals, and Le (2014). <strong>Sequence to Sequence Learning with Neural Networks.</strong> <a class="ref" href="https://arxiv.org/abs/1409.3215">link</a> — the seq2seq formulation that helped consolidate NLP tasks.</li>
+  <li>Bahdanau, Cho, and Bengio (2014). <strong>Neural Machine Translation by Jointly Learning to Align and Translate.</strong> <a class="ref" href="https://arxiv.org/abs/1409.0473">link</a> — additive attention for encoder-decoder translation.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">link</a> — the original transformer paper.</li>
+  <li>Huang et al. (2018). <strong>Music Transformer.</strong> <a class="ref" href="https://arxiv.org/abs/1809.04281">link</a> — relative attention for long-range musical structure.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Shaw, Uszkoreit, and Vaswani (2018). <strong>Self-Attention with Relative Position Representations.</strong> <a class="ref" href="https://arxiv.org/abs/1803.02155">link</a> — learned relative position representations.</li>
+  <li>Press, Smith, and Lewis (2021). <strong>Train Short, Test Long: Attention with Linear Biases.</strong> <a class="ref" href="https://arxiv.org/abs/2108.12409">link</a> — ALiBi, a simple relative bias for extrapolation.</li>
+  <li>Su et al. (2021). <strong>RoFormer: Enhanced Transformer with Rotary Position Embedding.</strong> <a class="ref" href="https://arxiv.org/abs/2104.09864">link</a> — rotary position embeddings.</li>
+  <li>Dao et al. (2022). <strong>FlashAttention.</strong> <a class="ref" href="https://arxiv.org/abs/2205.14135">link</a> — exact attention made IO-aware.</li>
+  <li>Shazeer (2019). <strong>Fast Transformer Decoding: One Write-Head is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1911.02150">link</a> — multi-query attention for faster inference.</li>
+  <li>Leviathan, Kalman, and Matias (2022). <strong>Fast Inference from Transformers via Speculative Decoding.</strong> <a class="ref" href="https://arxiv.org/abs/2211.17192">link</a> — the practical successor to fully parallel decoding dreams.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="index.html">◀ Index</a>
+  <a class="r" href="22-helpful-chatbots.html">Next: Helpful Chatbots ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 21 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

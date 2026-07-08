@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 41 — Transformers for Video Generation</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why video is harder</a>
+  <a href="#s1a" class="sub">1.1 Time changes the problem</a>
+  <a href="#s2">2 · Spacetime tokens</a>
+  <a href="#s2a" class="sub">2.1 Tubelets, not pixels</a>
+  <a href="#s3">3 · Latent video diffusion</a>
+  <a href="#s3a" class="sub">3.1 Movie Gen's recipe</a>
+  <a href="#s4">4 · Cost and coherence</a>
+  <a href="#s4a" class="sub">4.1 Factorized attention</a>
+  <a href="#worked">5 · Worked example</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 9 · Note 1 of 5</p>
+</nav>
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V5</div>
+  <h1>Transformers for Video Generation</h1>
+  <p class="lead">Andrew Brown explains how modern text-to-video systems turn prompts into coherent moving worlds by combining compressed video latents, flow/diffusion objectives, and scaled transformers.</p>
+  <div class="meta"><span class="pill">🎓 Andrew Brown (Meta)</span><span class="pill">⏱ ~50 min</span><a class="pill" href="https://www.youtube.com/watch?v=YGHF8_tf--g" target="_blank">▶ Watch</a></div>
+</div>
+<section id="hook">
+<div class="box why"><span class="lbl">Why this matters</span><p>Image generation asks, “Can I make one plausible still?” Video generation asks, “Can I make <strong>many</strong> plausible stills that agree about identity, motion, lighting, camera movement, and physics over time?” The hard part is not only the huge token count: it is <strong>temporal coherence</strong>—the ghost should still be the same ghost when it moves, and its reflection should move with it.</p></div>
+<div class="box analogy"><span class="lbl">Running analogy — storyboarding a flipbook</span><p>Think of the model as a film student making a flipbook. A weak student draws each page independently: page 12 has a sloth, page 13 has a vaguely different sloth. A strong student plans the whole flipbook as one spacetime object, so character identity, motion, and cause/effect carry across pages.</p></div>
+</section>
+<div class="box prereq" id="prereq"><span class="lbl">Prerequisites — 30-second refresher</span><p>You will follow this note smoothly if these are fresh:</p><ul>
+<li><strong>Diffusion / flow matching</strong> — train a network to move noisy data back toward clean data; this note uses the same denoising idea as <a class="ref" href="40-diffusion-transformers.html">Note 40 on DiT</a>.</li>
+<li><strong>ViT patchify</strong> — split an image into patches, embed each patch as a token, then use a transformer; video extends <a class="ref" href="04-vision-transformers.html">Note 4 on ViT</a> from 2D patches to 3D tubelets.</li>
+<li><strong>Attention is quadratic</strong> — full self-attention over \(N\) tokens compares every token to every other token, costing \(O(N^2)\).</li>
+<li><strong>VAE / latent space</strong> — an encoder compresses pixels into a smaller latent; a decoder later turns generated latents back into pixels.</li>
+<li><strong>Text conditioning</strong> — text features enter the video model through cross-attention or similar conditioning, so the prompt guides denoising without being noised itself.</li>
+</ul></div>
+<h2 id="s1"><span class="num">1.</span>Video is images plus time</h2>
+<p>A single generated frame can hide many sins. In a video, every frame checks the previous frame: did the car keep its shape? did the camera obey the same scene geometry? did the sloth on the donut float remain the same sloth?</p>
+<h3 id="s1a">1.1 Time changes the problem</h3>
+<p>Brown's lecture traces the jump from early 2022 text-to-video systems to 2024 systems such as Movie Gen: the field moved from specialized CNN/U-Net-style architectures toward scaled transformers. The reason is architectural unification: once a modality is turned into a token sequence, the same scaling playbook used for language can be reused for media.</p>
+<div class="box pitfall"><span class="lbl">Common misconception — “just generate frames independently”</span><p>If each frame is generated alone, the model has no strong reason to preserve identity, motion direction, object permanence, or physical interactions. You may get 16 nice images, but not one coherent clip. Video generation is a <strong>joint spacetime</strong> problem, not repeated image generation.</p></div>
+<div class="box eqn"><span class="lbl">Key equation — the size of the raw video object</span><p>$$x_{\text{video}} \in \mathbb{R}^{T \times H \times W \times C}$$</p><p>Here \(T\) is frames, \(H\) and \(W\) are frame height and width, and \(C\) is channels. Images have \(H\times W\times C\); video multiplies that by time.</p></div>
+<details class="check"><summary>✓ Check yourself — why does a beautiful per-frame model still flicker?</summary><p>Because the model can choose slightly different identities, textures, poses, or lighting in each frame. Coherence requires the random choices for one frame to be constrained by neighboring frames.</p></details>
+<h2 id="s2"><span class="num">2.</span>Spacetime patches become transformer tokens</h2>
+<p>Instead of treating a video as millions of unrelated pixels, modern systems cut it into small 3D chunks: a little area of space over a short duration. These <strong>spacetime patches</strong>, or tubelets, become tokens.</p>
+<h3 id="s2a">2.1 Tubelets, not pixels</h3>
+<p>A tubelet might cover \(2\) frames, \(16\) pixels of height, and \(16\) pixels of width. Flatten it, project it into a vector of width \(d\), and it can enter a transformer exactly as a word embedding or ViT patch embedding would.</p>
+<figure><div class="svgcard"><svg viewBox="0 0 820 260" width="100%" height="260" role="img" aria-label="Video tensor is cut into spacetime patches and embedded as tokens"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#2b2721"></path></marker></defs><rect x="24" y="58" width="180" height="130" rx="10" fill="#fff7df" stroke="#2b2721" stroke-width="2"></rect><rect x="42" y="42" width="180" height="130" rx="10" fill="#fff0c8" stroke="#2b2721" stroke-width="2"></rect><rect x="60" y="26" width="180" height="130" rx="10" fill="#ffe7a3" stroke="#2b2721" stroke-width="2"></rect><text x="70" y="82" font-size="18" fill="#2b2721">video</text><text x="70" y="108" font-size="16" fill="#2b2721">T × H × W × C</text><line x1="258" y1="108" x2="345" y2="108" stroke="#2b2721" stroke-width="3" marker-end="url(#arrow)"></line><g transform="translate(365,34)"><rect x="0" y="0" width="58" height="46" fill="#dbeafe" stroke="#2b2721"></rect><rect x="64" y="0" width="58" height="46" fill="#dbeafe" stroke="#2b2721"></rect><rect x="128" y="0" width="58" height="46" fill="#dbeafe" stroke="#2b2721"></rect><rect x="0" y="54" width="58" height="46" fill="#bfdbfe" stroke="#2b2721"></rect><rect x="64" y="54" width="58" height="46" fill="#bfdbfe" stroke="#2b2721"></rect><rect x="128" y="54" width="58" height="46" fill="#bfdbfe" stroke="#2b2721"></rect><rect x="0" y="108" width="58" height="46" fill="#93c5fd" stroke="#2b2721"></rect><rect x="64" y="108" width="58" height="46" fill="#93c5fd" stroke="#2b2721"></rect><rect x="128" y="108" width="58" height="46" fill="#93c5fd" stroke="#2b2721"></rect><text x="14" y="185" font-size="16" fill="#2b2721">tubelets: Δt × p × p</text></g><line x1="570" y1="108" x2="635" y2="108" stroke="#2b2721" stroke-width="3" marker-end="url(#arrow)"></line><g transform="translate(660,54)"><rect x="0" y="0" width="118" height="26" rx="6" fill="#e9d5ff" stroke="#2b2721"></rect><rect x="0" y="38" width="118" height="26" rx="6" fill="#ddd6fe" stroke="#2b2721"></rect><rect x="0" y="76" width="118" height="26" rx="6" fill="#c4b5fd" stroke="#2b2721"></rect><rect x="0" y="114" width="118" height="26" rx="6" fill="#a78bfa" stroke="#2b2721"></rect><text x="16" y="176" font-size="16" fill="#2b2721">tokens N × d</text></g></svg></div><figcaption>Money diagram: Sora-style systems treat video as a 3D spacetime volume, patch it into tubelets, and feed the resulting token sequence to a transformer.</figcaption></figure>
+<div class="box eqn"><span class="lbl">Key equation — token count after spacetime patching</span><p>$$N = \frac{T}{\Delta t}\,\frac{H}{p}\,\frac{W}{p}$$</p><p>\(\Delta t\) is temporal patch size, \(p\) is spatial patch size, and \(N\) is video tokens before adding text conditioning.</p></div>
+<details class="check"><summary>✓ Check yourself — what happens to tokens if you double the duration?</summary><p>If resolution and patch sizes stay fixed, \(T\) doubles, so \(N\) doubles. Full attention then grows by roughly four times because it scales as \(N^2\).</p></details>
+<h2 id="s3"><span class="num">3.</span>Latent video diffusion + a Diffusion Transformer</h2>
+<p>Brown stresses that Movie Gen does not model RGB pixels directly. It first compresses video with a temporal autoencoder, then learns a generative model over the compressed latent. That is why large videos become computationally feasible.</p>
+<h3 id="s3a">3.1 Movie Gen's recipe</h3>
+<p>In Movie Gen, a temporal autoencoder compresses space and time; Brown reports \(8\times\) compression in height, width, and time. A 16-second, 768×768, 16 FPS clip that would be enormous in pixel space becomes about 73K latent tokens after compression and patching. The denoiser is a transformer with three adaptations to a Llama-style architecture: text cross-attention, timestep conditioning via adaptive layer norm, and bidirectional self-attention instead of causal masking.</p>
+<figure><div class="mermaid">
+flowchart LR
+    V["training video<br/>RGB frames"] --> E["temporal autoencoder<br/>(spatial + temporal compression)"]
+    E --> Z["latent video z"]
+    Z --> P["patchify + flatten<br/>spacetime tokens"]
+    P --> D["Diffusion/flow transformer<br/>denoiser"]
+    T["text encoders<br/>UL2 + MetaCLIP + T5"] --> D
+    S["timestep t<br/>adaptive LayerNorm"] --> D
+    D --> U["predict noise or velocity"]
+    U --> Dec["decode latent"]
+    Dec --> O["generated video"]
+</div><figcaption>Latent video generation: compress first, denoise in latent spacetime, then decode to pixels.</figcaption></figure>
+<div class="box eqn"><span class="lbl">Key equation — diffusion-style noise prediction</span><p>$$\mathcal{L}_{\text{diff}} = \mathbb{E}_{z_0,\epsilon,t,c}\left[\left\|\epsilon - \epsilon_\theta(z_t,t,c)\right\|_2^2\right],\qquad z_t = \alpha_t z_0 + \sigma_t\epsilon$$</p><p>\(z_0\) is the clean video latent, \(\epsilon\) is Gaussian noise, \(t\) is the noise level, \(c\) is text conditioning, and \(\epsilon_\theta\) is the transformer denoiser. Movie Gen uses the closely related <strong>flow matching</strong> objective, predicting a velocity from noisy latent toward data latent.</p></div>
+<div class="box eqn"><span class="lbl">Movie Gen detail — flow matching target</span><p>$$x_t = (1-t)x_0 + t x_1, \qquad \mathcal{L}_{\text{flow}} = \mathbb{E}\left[\left\|u_\theta(x_t,t,c) - (x_1-x_0)\right\|_2^2\right]$$</p><p>Here \(x_0\) is noise, \(x_1\) is a clean latent sample, and \(u_\theta\) predicts the velocity along the path from noise to data.</p></div>
+<div class="box intuition"><span class="lbl">What the transcript adds</span><p>Brown's key systems claim is scale: Movie Gen is a 30B-parameter foundation model trained on roughly 100M licensed videos and 1B images. Its data pipeline filters visual quality, motion quality, scene changes, duplicates, and concept imbalance; captions are generated by a video-conditioned Llama 3 captioner.</p></div>
+<details class="check"><summary>✓ Check yourself — where does the prompt enter if the input is pure noise?</summary><p>The noisy video latent is the main input, but text embeddings enter through cross-attention in every denoising step. The prompt is clean conditioning information, not part of the noised video latent.</p></details>
+<h2 id="s4"><span class="num">4.</span>Cost, temporal consistency, and scale</h2>
+<p>The same transformer simplicity that makes scaling attractive also makes the cost scary. Full 3D attention over every spacetime token is expensive, so practical systems use compression, patching, parallelism, and often attention patterns that exploit video structure.</p>
+<h3 id="s4a">4.1 Factorized spatial + temporal attention</h3>
+<p>Full attention lets every token compare with every other token. Factorized attention breaks the question into two passes: first “what is happening inside this frame or temporal group?” then “how does this location evolve through time?” This keeps much of the flipbook coherence while cutting the \(O(N^2)\) blowup.</p>
+<figure><div class="mermaid">
+flowchart TB
+    A["full 3D attention<br/>all spacetime tokens"] --> B["N² pairwise scores<br/>expensive"]
+    C["factorized attention"] --> D["spatial pass<br/>within each frame/group"]
+    C --> E["temporal pass<br/>across frames for locations"]
+    D --> F["lower cost"]
+    E --> F
+    F --> G["coherent motion + tractable training"]
+</div><figcaption>Factorization reduces unnecessary comparisons while preserving the two questions video must answer: what is in each scene, and how does it move?</figcaption></figure>
+<div class="box eqn"><span class="lbl">Key equation — full vs factorized attention scale</span><p>$$\text{full} \approx (S\tau)^2, \qquad \text{factorized} \approx \tau S^2 + S\tau^2$$</p><p>\(S\) is spatial tokens per frame or temporal group, and \(\tau\) is the number of temporal groups. Full attention compares all \(S\tau\) tokens together; factorized attention compares space and time separately.</p></div>
+<div class="box intuition"><span class="lbl">How coherence emerges</span><p>Coherence comes from several pressures at once: joint spacetime tokens expose nearby frames to each other; text conditioning anchors the scene; denoising repeatedly revises the whole clip; and scale plus data teaches regularities such as object permanence, reflections, and plausible motion. Brown's main claim is not that the architecture hard-codes physics, but that large transformers can learn much of it from large clean video corpora.</p></div>
+<div class="box pitfall"><span class="lbl">Limitations to keep honest</span><p>Video generation is not solved. Brown shows a car-crash prompt where cars split or implode: complex physics, long-range planning, and detailed multi-step prompts still fail. Long videos hit sequence-length limits; evaluation remains hard, so teams rely heavily on human preference studies alongside metrics such as FVD.</p></div>
+<details class="check"><summary>✓ Check yourself — why can more data help a transformer more than a hand-built video prior?</summary><p>At small scale, a prior such as convolutional locality can help. At large scale, the transformer can learn many useful regularities while remaining flexible, and the infrastructure/scaling laws for transformers are well understood.</p></details>
+<h2 id="worked"><span class="num">5.</span>Worked example — why video is expensive</h2>
+<p>Take the required micro-case: a 16-frame clip at 256×256 resolution. Use spatial patches of 16×16 pixels and temporal patches of 2 frames.</p>
+<div class="box eqn"><span class="lbl">Step-by-step with real numbers</span><p>Spatial tokens per frame-group:</p><p>$$S = \left(\frac{256}{16}\right)^2 = 16^2 = 256$$</p><p>Temporal groups:</p><p>$$\tau = \frac{16}{2}=8$$</p><p>Total spacetime tokens:</p><p>$$N = S\tau = 256\times 8 = 2048$$</p><p>Full self-attention scores:</p><p>$$N^2 = 2048^2 = 4{,}194{,}304 \approx 4.2\text{M scores}$$</p><p>Factorized spatial + temporal attention:</p><p>$$\tau S^2 + S\tau^2 = 8\cdot256^2 + 256\cdot8^2 = 524{,}288 + 16{,}384 = 540{,}672$$</p><p>So this simple factorization is about \(4{,}194{,}304 / 540{,}672 \approx 7.8\times\) fewer attention scores before considering heads, layers, or batch size.</p></div>
+<details class="check"><summary>✓ Check yourself — if the clip doubles to 32 frames, what changes?</summary><p>Temporal groups become \(\tau=32/2=16\), so \(N=256\times16=4096\). Full attention becomes \(4096^2=16{,}777{,}216\) scores. Factorized attention becomes \(16\cdot256^2 + 256\cdot16^2 = 1{,}048{,}576 + 65{,}536 = 1{,}114{,}112\) scores.</p></details>
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — text prompt to video</h2>
+<p>Follow one prompt through a latent video diffusion/flow transformer pipeline. Shapes are schematic; real systems choose compression, patch sizes, and model width based on compute budgets.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape</th></tr>
+  <tr><td>0 · prompt</td><td>User asks for “a sloth wearing pink sunglasses on a donut float.” Text encoders produce conditioning vectors.</td><td class="tt">text prompt → text tokens</td></tr>
+  <tr><td>1 · noise latent</td><td>Start from Gaussian noise in compressed video latent space, not RGB pixels.</td><td class="tt">noise latent (t×h×w×c)</td></tr>
+  <tr><td>2 · spacetime patchify</td><td>Cut the latent volume into tubelets and linearly project each tubelet.</td><td class="tt">tokens (N×d)</td></tr>
+  <tr><td>3 · conditioning</td><td>Add timestep information and text conditioning through adaptive layer norm and cross-attention.</td><td class="tt">(N×d) + text cond + timestep</td></tr>
+  <tr><td>4 · denoiser stack</td><td>Run the diffusion transformer with factorized or otherwise efficient spacetime attention for \(L\) layers.</td><td class="tt">Diffusion Transformer ×L</td></tr>
+  <tr><td>5 · predict</td><td>Predict noise \(\epsilon\) or flow velocity \(u\), depending on the objective.</td><td class="tt">predicted noise/velocity</td></tr>
+  <tr><td>6 · sample loop</td><td>Repeat denoising over many solver steps, gradually moving noise toward a clean latent video.</td><td class="tt">denoise T steps</td></tr>
+  <tr><td>7 · decode</td><td>The temporal VAE/autoencoder decoder converts latent video back to frames.</td><td class="tt">video (frames)</td></tr>
+</table>
+<div class="box intuition"><span class="lbl">Why joint spacetime modeling gives coherence</span><p>The transformer is not drawing frame 1, then forgetting it before drawing frame 2. It repeatedly updates a shared spacetime latent, so tokens for nearby places and times can coordinate. That shared workspace is what lets identity, motion, reflections, and camera geometry become properties of the whole clip.</p></div>
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check"><span class="lbl">Reconstruct the chain</span><ol>
+<li>Why is “generate frames independently” the wrong mental model for video? <a class="ref" href="#s1">(§1)</a></li>
+<li>How does a video tensor \(T\times H\times W\times C\) become transformer tokens? <a class="ref" href="#s2">(§2)</a></li>
+<li>Why do large systems denoise in latent space instead of pixel space? <a class="ref" href="#s3">(§3)</a></li>
+<li>Derive the \(2048^2\) attention-score count in the worked example. <a class="ref" href="#worked">(worked example)</a></li>
+<li>Teach it back: explain video diffusion transformers to a beginner in three sentences.</li>
+</ol></div>
+<h2 id="glossary">Glossary</h2>
+<table>
+<tr><th>Term</th><th>Plain meaning</th></tr>
+<tr><td>Spacetime patch / tubelet</td><td>A small 3D chunk of video covering a patch of pixels across a few frames; used as a transformer token.</td></tr>
+<tr><td>Temporal coherence</td><td>The property that objects, motion, lighting, and identity remain consistent across frames.</td></tr>
+<tr><td>Latent video</td><td>A compressed representation of a video produced by an encoder; cheaper to model than RGB pixels.</td></tr>
+<tr><td>Temporal autoencoder / video VAE</td><td>An encoder-decoder model that compresses and reconstructs video across both space and time.</td></tr>
+<tr><td>Diffusion Transformer (DiT)</td><td>A transformer used as the denoising network in a diffusion model, often with timestep conditioning.</td></tr>
+<tr><td>Flow matching</td><td>A diffusion-like objective that trains a model to predict the velocity moving noise toward data.</td></tr>
+<tr><td>Cross-attention</td><td>A mechanism where video tokens attend to text embeddings, letting the prompt guide generation.</td></tr>
+<tr><td>FVD</td><td>Fréchet Video Distance, an automatic metric comparing distributions of generated and real videos; useful but incomplete.</td></tr>
+</table>
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+<li>Polyak et al. (2024). <strong>Movie Gen: A Cast of Media Foundation Models.</strong> <a class="ref" href="https://ai.meta.com/research/movie-gen/" target="_blank">Meta AI page</a> — the system Brown presents, including text-to-video, editing, personalization, and audio.</li>
+<li>Singer et al. (2022). <strong>Make-A-Video: Text-to-Video Generation without Text-Video Data.</strong> <a class="ref" href="https://makeavideo.studio/" target="_blank">project page</a> — an earlier Meta text-to-video milestone Brown contrasts with 2024 systems.</li>
+<li>Lipman et al. (2023). <strong>Flow Matching for Generative Modeling.</strong> <a class="ref" href="https://arxiv.org/abs/2210.02747" target="_blank">arXiv</a> — the flow objective Brown describes as a simpler generalization of diffusion.</li>
+<li>Peebles &amp; Xie (2023). <strong>Scalable Diffusion Models with Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2212.09748" target="_blank">arXiv</a> — the DiT paper behind transformer denoisers and adaptive layer norm conditioning.</li>
+<li>OpenAI (2024). <strong>Video generation models as world simulators.</strong> <a class="ref" href="https://openai.com/index/video-generation-models-as-world-simulators/" target="_blank">Sora technical report</a> — popularized spacetime patches at scale.</li>
+<li>Esser et al. (2021). <strong>Taming Transformers for High-Resolution Image Synthesis.</strong> <a class="ref" href="https://arxiv.org/abs/2012.09841" target="_blank">arXiv</a> — VQGAN-style autoencoder losses Brown references when explaining compression.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+<li><a class="ref" href="40-diffusion-transformers.html">CS25 Note 40 — Diffusion Transformers</a> — review DiT mechanics before returning to video.</li>
+<li><a class="ref" href="04-vision-transformers.html">CS25 Note 4 — Vision Transformers</a> — the 2D patchify idea that tubelets extend.</li>
+<li>Unterthiner et al. (2018). <strong>Towards Accurate Generative Models of Video: A New Metric &amp; Challenges.</strong> <a class="ref" href="https://arxiv.org/abs/1812.01717" target="_blank">arXiv</a> — introduces FVD and why video evaluation is difficult.</li>
+</ol>
+<div class="navbtns"><a href="index.html">◀ Index</a><a class="r" href="42-v6-overview.html">Next: V6 overview ▶</a></div>
+<div class="foot">Stanford CS25 — study notes · Note 41 · Built for learning (WHY→HOW · worked example · trace · check-yourself). Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.</div>
+</article>
+</div>
+</body>
+</html>

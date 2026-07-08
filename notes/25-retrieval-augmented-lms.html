@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 25 — Retrieval-Augmented Language Models</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Closed-book LMs break in the real world</a>
+  <a href="#s1a" class="sub">1.1 Parametric vs non-parametric memory</a>
+  <a href="#s1b" class="sub">1.2 RAG as the open-book move</a>
+  <a href="#s2">2 · Retriever + reader/generator</a>
+  <a href="#s2a" class="sub">2.1 The pipeline</a>
+  <a href="#s2b" class="sub">2.2 Sparse, dense, and hybrid search</a>
+  <a href="#s3">3 · Dense retrieval by inner products</a>
+  <a href="#s3a" class="sub">3.1 DPR-style dual encoders</a>
+  <a href="#s3b" class="sub">3.2 ANN indexes and FAISS</a>
+  <a href="#s4">4 · Systems in the lecture</a>
+  <a href="#s4a" class="sub">4.1 REALM, RAG, FiD</a>
+  <a href="#s4b" class="sub">4.2 RETRO, Atlas, and newer RAG</a>
+  <a href="#s5">5 · Training and trade-offs</a>
+  <a href="#s5a" class="sub">5.1 Frozen vs end-to-end</a>
+  <a href="#s5b" class="sub">5.2 Benefits and limits</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 5 · Note 5 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>Retrieval-Augmented Language Models</h1>
+  <p class="lead">Douwe Kiela's lecture shows why language models should not be forced to memorize the world in their weights: retrieval turns a closed-book generator into an open-book system with updateable evidence, citations, and better grounding.</p>
+  <div class="meta">
+    <span class="pill">🎓 Douwe Kiela / Contextual AI</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=mE7IDf2SmJg" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A plain language model stores facts <strong>parametrically</strong>: inside billions of weights fixed by training. That is powerful, but awkward for enterprise use: facts go stale, private information is hard to remove, attribution is unclear, and the model can answer with high-confidence fiction. Retrieval augmentation adds an external memory the model can look up at answer time.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of the model as a student taking an exam. A closed-book student must cram every fact into memory; an open-book student can look up the right page, quote it, and then reason from it. In this note, the <strong>weights</strong> are the student's memory, the <strong>index</strong> is the book, the <strong>retriever</strong> finds pages, and the <strong>generator</strong> writes the final answer.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>You'll follow the lecture smoothly if these four pieces are fresh.</p>
+  <ul>
+    <li><strong>Language model generation</strong> — an LM predicts the next token from previous tokens; RAG changes the conditioning context before generation.</li>
+    <li><strong>Embeddings and dot-product/cosine similarity</strong> — texts become vectors; aligned vectors have high dot product or cosine similarity.</li>
+    <li><strong>Nearest-neighbor / vector search</strong> — given a query vector, find the closest document vectors quickly, often approximately.</li>
+    <li><strong>Encoder-decoder model</strong> — an encoder reads input context and a decoder generates output; several RAG systems fuse retrieved evidence through this split.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Closed-book LMs break in the real world</h2>
+<p>Start with a customer support bot. Yesterday the refund policy changed. A closed-book LM may still answer from whatever was true at training time, and even worse, it may sound certain. Douwe frames this as a systems problem, not merely a model-size problem: the model needs a way to consult current, trusted evidence.</p>
+
+<h3 id="s1a">1.1 Parametric vs non-parametric memory</h3>
+<p><strong>Parametric knowledge</strong> lives in neural weights. It is compressed, fast at inference, and useful for general language and reasoning patterns. But updating one fact can require retraining, fine-tuning, or fragile model editing. <strong>Non-parametric knowledge</strong> lives outside the model, in a corpus or index. You can add, delete, replace, and audit it without rewriting the whole student.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — closed-book generation</span>
+  <p>$$p_\theta(y\mid x)=\prod_{t=1}^{T}p_\theta(y_t\mid x,y_{&lt;t})$$</p>
+  <p>Here \(x\) is the prompt, \(y\) is the generated answer, and \(\theta\) are the LM parameters. In a closed-book setting, all factual support must be recoverable from \(\theta\) and the prompt alone.</p>
+</div>
+
+<h3 id="s1b">1.2 RAG as the open-book move</h3>
+<p>Retrieval-augmented generation changes the contract: before answering, retrieve a small set of relevant documents \(D_k\), then generate conditioned on both the question and those documents. That gives the system an external memory whose contents can be updated, versioned, and cited.</p>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Just make the model bigger to know more facts."</strong> Bigger parametric memory helps, but it does not solve staleness, deletion, attribution, or domain customization. The open-book move separates <em>knowing where to look</em> from <em>writing the answer</em>.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is deleting a fact easier in an index than in weights?</summary>
+<p>Because an index contains explicit records or chunks. You can remove or replace the offending document and rebuild or refresh the index. In weights, the fact is entangled with many other learned patterns, so targeted deletion is hard to verify.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Retriever + reader/generator</h2>
+<p>The smallest honest RAG system has two jobs. First, the <strong>retriever</strong> finds likely evidence. Second, the <strong>reader/generator</strong> uses that evidence to answer. In the lecture, Douwe emphasizes that today's common "frozen RAG" cobbles together independently trained pieces; the research frontier is making the pieces learn as a system.</p>
+
+<h3 id="s2a">2.1 The pipeline</h3>
+<p>For a question like "What changed in our refund policy?", the retriever should find the policy document, not a random FAQ. The generator then writes a concise answer grounded in those retrieved chunks.</p>
+<figure>
+<div class="mermaid">
+flowchart LR
+    Q["Question"] --> QE["Query encoder E_q"]
+    QE --> V["Query embedding q"]
+    V --> IDX["Vector index<br/>N document embeddings"]
+    IDX --> D["Top-k documents"]
+    D --> C["Prompt = question + docs"]
+    C --> G["Reader/generator"]
+    G --> A["Grounded answer<br/>with citation"]
+</div>
+<figcaption>RAG is an evidence-routing pipeline: retrieve a small open-book context, then generate from it.</figcaption>
+</figure>
+<div class="box eqn">
+  <span class="lbl">Key equation — retrieval-augmented generation</span>
+  <p>$$p(y\mid x)\approx \sum_{d\in \mathrm{TopK}(x)} p_\eta(d\mid x)\,p_\theta(y\mid x,d)$$</p>
+  <p>\(p_\eta(d\mid x)\) is the retriever's probability for document \(d\), and \(p_\theta(y\mid x,d)\) is the generator's answer probability when that document is supplied. RAG marginalizes over retrieved documents instead of trusting only one memory trace.</p>
+</div>
+
+<h3 id="s2b">2.2 Sparse, dense, and hybrid search</h3>
+<p>The lecture starts retrieval from TF-IDF and BM25: sparse methods count word overlap but downweight common words like "the". Dense retrieval uses learned vectors, so it can match semantic neighbors and synonyms. In practice, Douwe notes that many production systems use <strong>hybrid search</strong>: cast a wide lexical net, then refine or fuse with dense scores.</p>
+<table>
+  <tr><th>Retriever</th><th>What it stores</th><th>Strength</th><th>Failure mode</th></tr>
+  <tr><td>BM25 / TF-IDF</td><td>Sparse term-weight vectors</td><td>Exact names, rare terms, CPU-friendly search</td><td>Misses synonyms and paraphrases</td></tr>
+  <tr><td>DPR / dense</td><td>Neural embeddings</td><td>Semantic similarity and paraphrase matching</td><td>Can blur exact entities such as Apple the company vs apple the fruit</td></tr>
+  <tr><td>Hybrid</td><td>Combined sparse+dense rankings</td><td>Best of both when fused well</td><td>Extra tuning: how to combine scores and ranks</td></tr>
+</table>
+<details class="check"><summary>✓ Check yourself — why might BM25 beat dense retrieval for a product code?</summary>
+<p>A product code is an exact lexical identifier. Dense models may map it near semantically related but wrong items, while sparse matching preserves the precise token overlap.</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Dense retrieval by inner products</h2>
+<p>Imagine each document as a point in a high-dimensional library map. A query is another point. Dense retrieval asks: which document points lie closest to the query point?</p>
+
+<h3 id="s3a">3.1 DPR-style dual encoders</h3>
+<p>DPR-style systems use two encoders: one for the query and one for documents. They can be BERT-like encoders, but the important systems idea is the <strong>bi-encoder</strong>: encode all documents once, cache them in an index, then encode the query at runtime.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — dense retrieval score</span>
+  <p>$$\text{score}(q,d)=E_q(q)^\top E_d(d)$$</p>
+  <p>\(E_q(q)\) is the query embedding and \(E_d(d)\) is the document embedding. If vectors are normalized, this dot product is cosine similarity; otherwise it is a maximum-inner-product-search score.</p>
+</div>
+
+<h3 id="s3b">3.2 ANN indexes and FAISS</h3>
+<p>A corpus may have millions or trillions of chunks, so exact comparison with every vector can be too slow. Approximate nearest-neighbor search trades a little recall for speed. The lecture highlights <strong>FAISS</strong> as the foundational open-source library behind many vector databases: very fast inner-product and nearest-neighbor search, often with compression or quantization tricks.</p>
+<div class="box intuition">
+  <span class="lbl">Why the bi-encoder is fast</span>
+  <p>The expensive document encodings are cached. At test time, the system computes one query vector and searches precomputed document vectors. That is why dense retrieval can be bolted onto a generator as an external memory.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — what do you lose when you move from a cross-encoder to a bi-encoder?</summary>
+<p>You lose rich token-level interaction between the query and each document during first-stage retrieval. In exchange, you gain the ability to precompute document vectors and search huge corpora efficiently.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Systems in the lecture: from open-book QA to RAG 2.0</h2>
+<p>Douwe's arc is historical and architectural: early open-domain QA separates retrieval and reading; dense retrievers improve semantic search; then systems like REALM, RAG, FiD, RETRO, and Atlas ask how retrieval and generation should be trained together.</p>
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["DrQA and BM25<br/>sparse retriever + reader"] --> B["DPR<br/>dual encoders + MIPS"]
+    B --> C["REALM<br/>retrieval during pretraining"]
+    C --> D["RAG<br/>marginalize over top-k docs"]
+    D --> E["FiD<br/>encode docs separately, fuse in decoder"]
+    E --> F["RETRO<br/>chunk-level retrieval at scale"]
+    F --> G["Atlas<br/>few-shot RAG analysis"]
+</div>
+<figcaption>The lecture's named systems progressively tighten the coupling between retriever, index, and generator.</figcaption>
+</figure>
+
+<h3 id="s4a">4.1 REALM, RAG, and Fusion-in-Decoder</h3>
+<p><strong>REALM</strong> is the visionary early system: retrieval happens during pretraining, and the model can update retrieval components, including document-side representations through expensive index refreshes. <strong>RAG</strong> combines a dense retriever with a seq2seq generator and trains by marginalizing over top-k documents. <strong>Fusion-in-Decoder (FiD)</strong> handles more passages by encoding each retrieved document separately, then letting the decoder fuse them.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — training objective with retrieved evidence</span>
+  <p>$$\mathcal{L}(\theta,\eta)=-\log\sum_{d\in \mathrm{TopK}(x)}p_\eta(d\mid x)p_\theta(y\mid x,d)$$</p>
+  <p>The loss rewards retrievers that put useful documents in the top-k and generators that use those documents to predict the target answer \(y\). The hard part is that top-k retrieval is discrete, so many systems approximate, marginalize, rerank, or refresh indexes.</p>
+</div>
+
+<h3 id="s4b">4.2 RETRO, Atlas, and newer RAG</h3>
+<p><strong>RETRO</strong> retrieves at the chunk level during language-model pretraining, using external neighbors so a smaller model can lean on a large datastore. <strong>Atlas</strong> studies few-shot retrieval-augmented language modeling and compares retriever-training strategies such as attention distillation, RePlug-style KL losses, and leave-one-out document utility. The lecture also names kNN-LM, RePlug, FLARE, Self-RAG, SILO, LENS, HyDE, LlamaIndex, LangChain, Chroma, Weaviate, and reranking systems as signs that RAG is becoming a full systems discipline.</p>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"RAG" only means pasting search results into a prompt.</strong> That frozen version is useful, but Douwe calls it closer to Frankenstein's monster: pieces stitched together without joint optimization. The deeper research question is how to train retrieval, ranking, fusion, and generation to cooperate.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why can FiD scale to more documents than naive concatenation?</summary>
+<p>It encodes each retrieved passage separately, so the encoder does not need to process one huge concatenated sequence. The decoder then attends across the encoded passage representations and fuses the evidence.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Training and trade-offs</h2>
+<p>Once retrieval is part of the model, training becomes a design space. Do you freeze the generator? Train only a reranker? Update the query encoder? Refresh the document encoder? Retrieve once, every token, every chunk, or only when uncertainty is high?</p>
+
+<h3 id="s5a">5.1 Frozen vs end-to-end</h3>
+<p><strong>Frozen RAG</strong> uses an off-the-shelf embedder, vector database, and black-box LM. It is easy to deploy, but the retriever is not trained for the generator's needs. <strong>Retriever-tuned RAG</strong> keeps the LM fixed but backpropagates into a retriever or reranker using likelihood, KL, or REINFORCE-style signals. <strong>End-to-end RAG</strong> updates the generator and retrieval components together, but document-encoder updates can require costly index refreshes.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — turning scores into retrieval probabilities</span>
+  <p>$$p_\eta(d_i\mid q)=\frac{\exp(s_i)}{\sum_{j\in \mathrm{TopK}}\exp(s_j)},\qquad s_i=E_q(q)^\top E_d(d_i)$$</p>
+  <p>The softmax makes retrieved documents compete. A document with a higher inner product receives more probability mass, so it contributes more to the marginalized answer likelihood.</p>
+</div>
+
+<h3 id="s5b">5.2 Benefits and limits</h3>
+<p>The upside is concrete: updateable knowledge, citations and attribution, smaller models supported by large indexes, domain customization, and less hallucination when the generator is trained to respect evidence. The limits are equally concrete: the retriever bounds the whole system, retrieval adds latency, documents can be stale or conflicting, context windows can still overflow, and fusing many pieces of evidence is hard.</p>
+<div class="box intuition">
+  <span class="lbl">Hallucination is not merely "being wrong"</span>
+  <p>Douwe distinguishes hallucination from generic mistakes. In a grounded setting, hallucination means the answer conflicts with the evidence or ground truth the system was supposed to use. RAG helps because it gives a concrete source of truth, but a generator can still ignore or misread retrieved text unless the system is trained and evaluated for grounding.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — name two reasons long context does not make retrieval obsolete.</summary>
+<p>First, attending over an entire book to answer one fact is inefficient. Second, long-context models still need to decide which parts matter; scalable attention often becomes sparse or retrieval-like behind the scenes.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked micro-example — dense retrieval scoring</h2>
+<p>Now compute the smallest honest dense-retrieval step by hand. Suppose the query embedding \(q\) is compared with three document embeddings \(d_1,d_2,d_3\). The inner products are already computed:</p>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>$$
+  q\cdot d_1=8.0,\qquad q\cdot d_2=2.0,\qquad q\cdot d_3=5.0
+  $$</p>
+  <p>Convert scores into a retrieval distribution with softmax. For numerical clarity, subtract the largest score, 8.0:</p>
+  <p>$$
+  \operatorname{softmax}([8,2,5])=\frac{[e^{0},e^{-6},e^{-3}]}{e^{0}+e^{-6}+e^{-3}}
+  =\frac{[1,0.00248,0.04979]}{1.05227}
+  $$</p>
+  <p>So the probabilities are approximately</p>
+  <p>$$
+  [p(d_1\mid q),p(d_2\mid q),p(d_3\mid q)]\approx[0.9503,0.0024,0.0473].
+  $$</p>
+  <p><strong>Top-1 retrieval</strong> selects document 1. <strong>Top-k retrieval</strong> might keep documents 1 and 3, then let the generator fuse or marginalize their evidence.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — how does the answer change if you retrieve top-2 and fuse?</summary>
+<p>The top-2 set is \(\{d_1,d_3\}\). If you renormalize only over those two, \(p(d_1)=1/(1+e^{-3})\approx0.9526\) and \(p(d_3)\approx0.0474\). The generator can now use document 3 as backup, contradiction, or extra detail instead of relying entirely on document 1.</p></details>
+
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one question through RAG</h2>
+<p>Follow one concrete question through the full system. The key state changes from text, to vector, to document IDs, to a grounded prompt, to an answer with attribution.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/Output</th></tr>
+  <tr><td>0 · question</td><td>User asks: "What is our current refund window for annual plans?"</td><td class="tt">text string</td></tr>
+  <tr><td>1 · query encoder</td><td>Encode the question into a dense vector.</td><td class="tt">embedding \(q\in\mathbb{R}^{d}\)</td></tr>
+  <tr><td>2 · ANN search over N-doc index</td><td>Search cached document embeddings for maximum inner product or cosine similarity.</td><td class="tt">scores over N docs</td></tr>
+  <tr><td>3 · top-k docs</td><td>Return the highest-scoring chunks, e.g., policy page, update memo, FAQ.</td><td class="tt">\(D_k=\{d_1,\ldots,d_k\}\)</td></tr>
+  <tr><td>4 · concatenate</td><td>Build a prompt from the question plus retrieved documents and instructions to cite evidence.</td><td class="tt">query + docs context</td></tr>
+  <tr><td>5 · generator/reader</td><td>Generate an answer while attending to the retrieved evidence.</td><td class="tt">tokens \(y_1\ldots y_T\)</td></tr>
+  <tr><td>6 · grounded answer</td><td>Return the answer and link it to the supporting document.</td><td class="tt">answer + citation</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Parametric vs non-parametric knowledge</span>
+  <p>The parametric part is the generator's language ability and general reasoning in weights. The non-parametric part is the index: explicit, swappable evidence. Retrieval reduces hallucination because the answer is no longer forced to emerge from weights alone; it can be constrained by a document the system can cite, inspect, update, or delete.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — where can this trace fail even if the generator is excellent?</summary>
+<p>At retrieval. If the ANN search returns the wrong chunks, the generator is grounded on bad evidence. RAG quality is bounded by retrieval quality, document freshness, ranking, and how well the generator fuses the selected context.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Try to answer from memory, then jump back only where needed.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why are parametric weights a poor place to store every enterprise fact? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Draw the RAG pipeline from question to answer. Where do top-k documents enter? <a class="ref" href="#s2">(§2)</a></li>
+    <li>What does \(E_q(q)^\top E_d(d)\) measure, and when does it become cosine similarity? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Compare REALM, RAG, FiD, RETRO, and Atlas in one sentence each. <a class="ref" href="#s4">(§4)</a></li>
+    <li>Compute the softmax distribution for scores \([8,2,5]\) without looking. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain RAG to a beginner in three sentences using the open-book exam analogy.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Parametric knowledge</td><td>Facts or patterns stored implicitly in model weights.</td></tr>
+  <tr><td>Non-parametric memory</td><td>External documents or indexes the model can retrieve from at runtime.</td></tr>
+  <tr><td>RAG</td><td>Retrieval-augmented generation: retrieve evidence, then generate conditioned on it.</td></tr>
+  <tr><td>Retriever</td><td>The component that maps a query to relevant documents or chunks.</td></tr>
+  <tr><td>Reader/generator</td><td>The model that consumes the question plus retrieved context and produces the answer.</td></tr>
+  <tr><td>BM25</td><td>A strong sparse lexical retrieval method based on weighted term overlap.</td></tr>
+  <tr><td>DPR</td><td>Dense Passage Retriever; a dual-encoder approach for semantic passage search.</td></tr>
+  <tr><td>MIPS</td><td>Maximum Inner Product Search: find vectors with the largest dot product against a query.</td></tr>
+  <tr><td>ANN</td><td>Approximate nearest-neighbor search; fast approximate vector lookup over large indexes.</td></tr>
+  <tr><td>FAISS</td><td>Facebook AI Similarity Search, a widely used library for efficient vector search.</td></tr>
+  <tr><td>FiD</td><td>Fusion-in-Decoder; encode documents separately and fuse evidence in the decoder.</td></tr>
+  <tr><td>Index refresh</td><td>Re-encoding and rebuilding document vectors after the document encoder or corpus changes.</td></tr>
+  <tr><td>Grounding</td><td>Constraining an answer to match explicit evidence or a trusted source.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Chen et al. (2017). <strong>Reading Wikipedia to Answer Open-Domain Questions.</strong> <a class="ref" href="https://arxiv.org/abs/1704.00051">link</a> — DrQA, an early retriever-reader open-domain QA system.</li>
+  <li>Karpukhin et al. (2020). <strong>Dense Passage Retrieval for Open-Domain Question Answering.</strong> <a class="ref" href="https://arxiv.org/abs/2004.04906">link</a> — DPR dual encoders and dense passage search.</li>
+  <li>Guu et al. (2020). <strong>REALM: Retrieval-Augmented Language Model Pre-Training.</strong> <a class="ref" href="https://arxiv.org/abs/2002.08909">link</a> — retrieval during pretraining with index refresh.</li>
+  <li>Lewis et al. (2020). <strong>Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.</strong> <a class="ref" href="https://arxiv.org/abs/2005.11401">link</a> — the original RAG model with top-k marginalization.</li>
+  <li>Izacard and Grave (2020). <strong>Leveraging Passage Retrieval with Generative Models for Open Domain Question Answering.</strong> <a class="ref" href="https://arxiv.org/abs/2007.01282">link</a> — Fusion-in-Decoder.</li>
+  <li>Borgeaud et al. (2021). <strong>Improving language models by retrieving from trillions of tokens.</strong> <a class="ref" href="https://arxiv.org/abs/2112.04426">link</a> — RETRO chunk-level retrieval at scale.</li>
+  <li>Izacard et al. (2022). <strong>Atlas: Few-shot Learning with Retrieval Augmented Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2208.03299">link</a> — systematic few-shot RAG training study.</li>
+  <li>Shi et al. (2023). <strong>REPLUG: Retrieval-Augmented Black-Box Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2301.12652">link</a> — trains retrieval around a fixed black-box LM.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Johnson, Douze, and Jégou (2017). <strong>Billion-scale similarity search with GPUs.</strong> <a class="ref" href="https://arxiv.org/abs/1702.08734">link</a> — the FAISS paper behind much modern vector search.</li>
+  <li>Liu et al. (2023). <strong>Lost in the Middle: How Language Models Use Long Contexts.</strong> <a class="ref" href="https://arxiv.org/abs/2307.03172">link</a> — why retrieved-document order can matter.</li>
+  <li>Jiang et al. (2023). <strong>FLARE: Forward-Looking Active Retrieval Augmented Generation.</strong> <a class="ref" href="https://arxiv.org/abs/2305.06983">link</a> — retrieve only when generation needs more evidence.</li>
+  <li>Asai et al. (2023). <strong>Self-RAG: Learning to Retrieve, Generate, and Critique.</strong> <a class="ref" href="https://arxiv.org/abs/2310.11511">link</a> — a tool-use view of retrieval and self-critique.</li>
+  <li>Stanford CS25 lecture video. <strong>Retrieval-Augmented Language Models.</strong> <a class="ref" href="https://www.youtube.com/watch?v=mE7IDf2SmJg">link</a> — the source lecture for this note.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="24-beyond-llms-agents-reasoning.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 25 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. Rendering uses CDN fonts, Mermaid, and MathJax.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 20 — Generalist Agents in Open-Ended Worlds</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The open-world problem</a>
+  <a href="#s1a" class="sub">1.1 Active kittens</a>
+  <a href="#s1b" class="sub">1.2 Why Minecraft</a>
+  <a href="#s2">2 · MineDojo and MineCLIP</a>
+  <a href="#s2a" class="sub">2.1 Internet-scale knowledge</a>
+  <a href="#s2b" class="sub">2.2 Learned rewards</a>
+  <a href="#s3">3 · Voyager</a>
+  <a href="#s3a" class="sub">3.1 Code as skill memory</a>
+  <a href="#s3b" class="sub">3.2 Self-curriculum</a>
+  <a href="#s4">4 · Learning from video</a>
+  <a href="#s4a" class="sub">4.1 VPT and action labels</a>
+  <a href="#s4b" class="sub">4.2 Beyond video</a>
+  <a href="#s5">5 · Limits and research frontier</a>
+  <a href="#worked">6 · Worked example</a>
+  <a href="#trace">7 · End-to-end trace</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 4 · Note 5 of 5</p>
+</nav>
+
+<article>
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>Generalist Agents in Open-Ended Worlds</h1>
+  <p class="lead">Jim Fan's lecture asks how agents can stop being one-trick optimizers and become lifelong learners that use internet-scale knowledge, learned rewards, language plans, code skills, and video pretraining inside open worlds like Minecraft.</p>
+  <div class="meta">
+    <span class="pill">🎓 Jim Fan / NVIDIA</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=wwQ1LQA3RCU" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>AlphaGo, AlphaStar, and OpenAI Five were historic, but each lived inside a narrow arena with one scoreboard. Real intelligence looks more like a child in a world: invent goals, try tools, reuse skills, ask what is worth doing next, and recover from mistakes. This lecture is about <strong>open-ended agency</strong>, where the agent keeps expanding its own competence instead of maximizing one fixed reward forever.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of the agent as an adventurer in an enormous sandbox game. <strong>MineDojo</strong> is the world plus the library of guidebooks and videos; <strong>MineCLIP</strong> is the quest judge that says whether a clip looks like the quest text; <strong>Voyager</strong> is the adventurer who writes reusable spells into a notebook; <strong>VPT</strong> is apprenticeship by watching thousands of human playthroughs.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before entering the open world.</p>
+  <ul>
+    <li><strong>RL agent / reward</strong> — an agent chooses actions to maximize accumulated reward; here the hard part is that open-ended goals rarely have clean hand-written rewards.</li>
+    <li><strong>Contrastive vision-language model (CLIP)</strong> — train matching images/videos and text to have high similarity and mismatches low similarity; MineCLIP turns that similarity into a reward.</li>
+    <li><strong>LLM code generation</strong> — a model such as GPT-4 can emit executable code; Voyager uses this as its action interface through Mineflayer JavaScript APIs.</li>
+    <li><strong>Foundation model</strong> — a large pretrained model that transfers across prompts/tasks; the lecture uses text, video, multimodal, and reward-model versions of this idea.</li>
+    <li><strong>Curriculum / self-play</strong> — learning improves when tasks are sequenced from reachable to harder; Voyager asks an LLM to propose its own next quest.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>The open-world problem</h2>
+<p>Jim Fan opens with Held and Hein's 1963 kitten experiment: one kitten actively moved through the world; the other saw nearly the same visual stream but was passively carried. Only the active kitten developed a healthy visuomotor loop. The point is not that text models are useless. It is that <strong>passive observation alone leaves knowledge ungrounded</strong>.</p>
+
+<h3 id="s1a">1.1 From one scoreboard to endless quests</h3>
+<p>Classic game agents solved magnificent but closed objectives: win Go, win Dota, win StarCraft. A generalist agent needs a different contract: receive semantically rich language goals, draw on broad prior knowledge, and multitask across an effectively unbounded task space.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — fixed-task RL is too small a contract</span>
+  <p>$$J(\pi; g)=\mathbb{E}_{\pi}\left[\sum_{t=0}^{T}\gamma^t r_g(s_t,a_t)\right]$$</p>
+  <p>Here \(\pi\) is the policy, \(g\) is the goal, \(r_g\) is the reward for that goal, and \(\gamma\) discounts future reward. The open-ended setting asks: who writes \(g\), who supplies \(r_g\), and how does \(\pi\) keep improving across many goals?</p>
+</div>
+
+<h3 id="s1b">1.2 Why Minecraft is the lecture's low-fi Earth</h3>
+<p>Minecraft has no mandatory plot, no single opponent, and no one winning condition. Its procedural world lets players mine, craft, farm, fight, build redstone circuits, or recreate Hogwarts block by block. That makes it a useful laboratory for open-ended AI: the environment is rich enough to reward creativity, but cheap enough to run on research clusters.</p>
+<div class="box intuition">
+  <span class="lbl">The three ingredients Fan emphasizes</span>
+  <p>An open-ended agent needs <strong>an environment</strong> with many possible goals, <strong>internet-scale data</strong> as guidebooks and demonstrations, and <strong>foundation models</strong> that connect language, perception, reward, planning, and action.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why would a perfect Go agent still fail this lecture's test?</summary>
+<p>Because it is optimized for one board game objective. It does not invent new goals, transfer to unrelated environments, use broad internet knowledge, or accumulate reusable skills across open-ended tasks.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>MineDojo and MineCLIP: a world plus a learned quest judge</h2>
+<p>In the adventurer analogy, MineDojo builds the sandbox and stocks the library. It provides a Minecraft API, thousands of benchmark tasks, and a huge multimodal knowledge base harvested from how humans actually play and explain the game.</p>
+
+<h3 id="s2a">2.1 MineDojo as environment and internet-scale knowledge base</h3>
+<p>MineDojo combines a flexible simulator API, thousands of programmatic and creative tasks, and human knowledge: YouTube play videos with transcripts, Minecraft Wiki recipes/diagrams, and Reddit posts where players debug one another's builds.</p>
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["Minecraft open world<br/>terrain, mobs, crafting"] --> D["MineDojo benchmark<br/>programmatic and creative tasks"]
+    B["Human internet data<br/>YouTube, Wiki, Reddit"] --> E["Multimodal knowledge base<br/>strategies, recipes, examples"]
+    C["Language goals<br/>natural instructions"] --> F["Generalist agent training<br/>many goals, one world"]
+    D --> F
+    E --> F
+</div>
+<figcaption>MineDojo gives the adventurer both a world to act in and a library of human traces explaining what is worth doing.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 MineCLIP: reward without hand-coding every quest</h3>
+<p>The core reward-design problem is easy to feel. "Shear sheep to obtain wool" can be detected with inventory code. But "build a cozy house" or "make a beautiful underground temple" is not a tidy Boolean. MineCLIP trains a video-text contrastive model on Minecraft YouTube clips and narration, then scores whether the agent's recent video matches the language goal.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — MineCLIP learned reward</span>
+  <p>$$s(v,g)=\frac{f_V(v)\cdot f_T(g)}{\lVert f_V(v)\rVert_2\,\lVert f_T(g)\rVert_2},\qquad r_t=\sigma\!\left(\alpha(s(v_t,g)-\tau)\right)$$</p>
+  <p>\(v_t\) is the agent's recent video window, \(g\) is the text goal, \(f_V\) and \(f_T\) are video/text encoders, \(s\) is cosine similarity, \(\tau\) is a success threshold, and \(r_t\) becomes the reward for an RL algorithm.</p>
+</div>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Goal text<br/>&quot;chop a tree&quot;"] --> B["Text encoder"]
+    C["Agent video window<br/>8 to 16 seconds"] --> D["Video encoder"]
+    B --> E["Similarity score<br/>text-video match"]
+    D --> E
+    E --> F["Learned reward<br/>for RL update"]
+    F --> G["Policy improves<br/>toward matching clips"]
+</div>
+<figcaption>MineCLIP replaces thousands of hand-written quest judges with one open-vocabulary reward model.</figcaption>
+</figure>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>MineCLIP does not guarantee human-like understanding. It learns a useful alignment space between short video behavior and text descriptions, but can still be fooled by visual shortcuts or fail on long-horizon plans.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why does MineCLIP help with creative tasks more than a hand-coded reward?</summary>
+<p>A hand-coded reward needs explicit success rules. Creative tasks have fuzzy semantics: a house can look many ways. A video-text reward can use patterns learned from human examples and language, so the same model can score many open-vocabulary goals without new Python reward engineering each time.</p></details>
+<h2 id="s3"><span class="num">3.</span>Voyager: an LLM-powered lifelong Minecraft agent</h2>
+<p>MineCLIP helps judge short clips, but it does not plan for hours. Voyager tackles the long-horizon side by turning Minecraft into text and code. Mineflayer exposes nearby blocks, entities, inventory, and actions through JavaScript; GPT-4 proposes goals, writes code, reads errors, and stores successful skills.</p>
+
+<h3 id="s3a">3.1 Code skills are the adventurer's notebook</h3>
+<p>Voyager's crucial move is not only using GPT-4 to write one action script. It saves working JavaScript functions in a growing skill library. When a later task resembles an old one, Voyager retrieves the relevant code instead of relearning from scratch. The library becomes a compositional memory: craft an iron sword can support hunt pig; mining wood can support tool crafting; navigation can support exploration.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — retrieving a reusable skill</span>
+  <p>$$i^*=\arg\max_i\operatorname{sim}\big(e(q),e(d_i)\big)$$</p>
+  <p>\(q\) is a natural-language hint for the current task, \(d_i\) is the summary of skill \(i\), \(e(\cdot)\) embeds text into a vector, and the retrieved code for \(i^*\) becomes in-context help for the next program.</p>
+</div>
+
+<h3 id="s3b">3.2 The Voyager loop</h3>
+<p>Fan describes three GPT-4-driven components: a <strong>curriculum</strong> module that proposes the next goal, a <strong>coding</strong> module that writes JavaScript using Mineflayer, and a <strong>critic/self-reflection</strong> path that uses environment feedback, interpreter errors, and task-progress critique to refine the code.</p>
+<figure>
+<div class="mermaid">
+flowchart TD
+    A["Current state<br/>inventory, nearby world"] --> B["Curriculum GPT-4<br/>choose next reachable novelty"]
+    L["Skill library<br/>working JavaScript"] --> C["Retrieve relevant skills"]
+    B --> D["Code-generation GPT-4<br/>write Mineflayer program"]
+    C --> D
+    D --> E["Execute in Minecraft"]
+    E --> F["Feedback<br/>new items, errors, critic"]
+    F --> D
+    E --> G["On success<br/>save skill summary and code"]
+    G --> L
+</div>
+<figcaption>Voyager is a no-gradient architecture: the loop improves behavior by prompting, executing, critiquing, and saving code, not by fine-tuning GPT-4.</figcaption>
+</figure>
+<details class="check"><summary>✓ Check yourself — what does Voyager gain from storing code rather than only text memories?</summary>
+<p>Code is executable. A stored skill is not merely advice such as "get wood first"; it is a callable routine that can be composed into later routines and debugged through environment feedback.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Learning from video: VPT and the next data frontier</h2>
+<p>The lecture then zooms out: Minecraft videos are abundant, but passive video lacks action labels. A model can see that a player chopped a tree, but not which keyboard and mouse actions caused each frame transition. That missing action channel is the central obstacle to turning YouTube into embodied pretraining.</p>
+
+<h3 id="s4a">4.1 Video PreTraining: GPT for actions</h3>
+<p>OpenAI's VPT solves the label problem with a two-stage trick. First, collect a smaller high-quality dataset where humans play Minecraft and their actions are recorded. Train an <strong>inverse dynamics model</strong> to infer actions from consecutive observations. Then use that model to pseudo-label huge amounts of unlabeled online gameplay video and train an imitation policy at scale.</p>
+<div class="box eqn">
+  <span class="lbl">Key equation — pseudo-label actions from video</span>
+  <p>$$\hat a_t=h_\phi(o_t,o_{t+1}),\qquad \max_\theta\sum_t\log \pi_\theta(\hat a_t\mid o_{\le t})$$</p>
+  <p>\(h_\phi\) is the inverse dynamics model, \(o_t\) and \(o_{t+1}\) are neighboring video observations, \(\hat a_t\) is the guessed action, and \(\pi_\theta\) is the policy pretrained to imitate those guessed actions.</p>
+</div>
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Labeled human play<br/>video plus keyboard/mouse"] --> B["Inverse dynamics model<br/>predict action from frames"]
+    C["Unlabeled YouTube video<br/>cheap and massive"] --> D["Pseudo-actions<br/>not perfect, useful"]
+    B --> D
+    D --> E["Behavior cloning at scale<br/>pretrain action policy"]
+    E --> F["Fine-tune on tasks<br/>long-horizon Minecraft"]
+</div>
+<figcaption>VPT turns passive gameplay video into action supervision, much like language models turn raw text into next-token supervision.</figcaption>
+</figure>
+
+<h3 id="s4b">4.2 Beyond video: R3M, VIP, Eureka, VIMA, RT-2, RoboCat</h3>
+<p>Fan also surveys adjacent systems. <strong>R3M</strong> learns reusable visual features from videos. <strong>VIP</strong> learns similarity-based visual rewards. <strong>Eureka</strong> applies the Voyager-style code-refinement idea to robotics reward design: GPT-4 writes Python reward functions, RL trains controllers in a GPU simulator, and performance feedback guides the next reward candidates. <strong>VIMA</strong> uses multimodal prompts of text, images, and video demonstrations for robot manipulation, while RT-2 and RoboCat point toward internet-pretrained, multimodal, cross-embodiment robot policies.</p>
+<div class="box intuition">
+  <span class="lbl">The unifying theme</span>
+  <p>The field is trying to turn the internet into embodied priors: text tells the agent what humans care about, video shows what humans do, code gives reusable procedures, and multimodal models bind those signals to perception and action.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — why is watching video harder than reading text for pretraining an agent?</summary>
+<p>Text already contains its own token sequence. Video lacks the hidden motor commands that caused the pixels to change. Without action labels or grounding, the learner may imitate the wrong correlation, like Fan's example of a cat copying boxers' head-shaking without understanding the fighting policy.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Limits and research frontier</h2>
+<p>The lecture is optimistic, but not triumphalist. These systems are early active kittens, not human-level inventors. The open-world setting exposes failure modes that benchmark scores can hide.</p>
+<ul>
+  <li><strong>Grounding and hallucination:</strong> LLM code may call nonexistent APIs, misunderstand spatial geometry, or propose actions that sound plausible but fail in the simulator.</li>
+  <li><strong>Sim-only brittleness:</strong> Minecraft and Isaac Sim are powerful laboratories, but real robots face sensor noise, contact physics, safety constraints, and human environments.</li>
+  <li><strong>Evaluating open-endedness:</strong> counting unique items or traveled distance is useful, but it is not the same as measuring creativity, usefulness, or scientific discovery.</li>
+  <li><strong>Compute and data cost:</strong> VPT-style video pretraining, Eureka-style RL loops, and large multimodal models all demand substantial data, simulation, and GPU budgets.</li>
+</ul>
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>"Open-ended" does not mean "unmeasurable". It means no single reward captures the whole space. We still need probes, milestone tasks, diversity metrics, human evaluation, and failure analysis; we just should not pretend one scoreboard is intelligence.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — name one metric and one thing it misses for Voyager.</summary>
+<p>Unique items discovered is a good metric because it tracks exploration and tech-tree progress. It misses aesthetics, robustness, safety, whether skills are understandable, and whether the agent can transfer outside Minecraft.</p></details>
+
+<h2 id="worked"><span class="num">6.</span>Worked example — MineCLIP learned reward by hand</h2>
+<p>Suppose the goal text is <strong>"chop a tree"</strong>. The agent produces three short candidate video clips. MineCLIP returns CLIP-style similarity scores:</p>
+<table>
+  <tr><th>Clip</th><th>What it looks like</th><th>Similarity to goal</th></tr>
+  <tr><td>A</td><td>Agent punches a tree trunk</td><td class="tt">0.8</td></tr>
+  <tr><td>B</td><td>Agent swims in a river</td><td class="tt">0.2</td></tr>
+  <tr><td>C</td><td>Agent walks near a forest</td><td class="tt">0.5</td></tr>
+</table>
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>One simple dense reward is min-max normalization:</p>
+  <p>$$r_i=\frac{s_i-\min(s)}{\max(s)-\min(s)}$$</p>
+  <p>Here \(\min(s)=0.2\) and \(\max(s)=0.8\), so:</p>
+  <p>$$r_A=\frac{0.8-0.2}{0.8-0.2}=1.0$$</p>
+  <p>$$r_B=\frac{0.2-0.2}{0.8-0.2}=0.0$$</p>
+  <p>$$r_C=\frac{0.5-0.2}{0.8-0.2}=0.5$$</p>
+  <p>If we instead want a thresholded success signal at \(\tau=0.6\), then \(\mathbb{1}[s_i\ge \tau]\) gives:</p>
+  <p>$$[0.8,0.2,0.5]\rightarrow[1,0,0]$$</p>
+  <p>The RL algorithm can now prefer actions that produce clip A-like behavior without anyone hand-writing "detect tree block, detect axe swing, detect log drop" as a reward.</p>
+</div>
+<details class="check"><summary>✓ Check yourself — if clip C's score rose to 0.7, what are its normalized and thresholded rewards?</summary>
+<p>With the original min and max \(0.2,0.8\), the normalized reward is \((0.7-0.2)/(0.8-0.2)=0.5/0.6\approx0.83\). With threshold \(\tau=0.6\), clip C becomes a success: \(1\).</p></details>
+<details class="check"><summary>✓ Check yourself — why does this beat a sparse hand-designed reward for open-ended goals?</summary>
+<p>A sparse hand-designed reward only fires when a programmer anticipated the exact success condition. MineCLIP gives graded feedback for many language goals, including fuzzy ones, because it learned from human video-text pairs rather than from a separate reward program for each task.</p></details>
+<h2 id="trace"><span class="num">7.</span>End-to-end trace — one Voyager iteration</h2>
+<p>Now follow one concrete Voyager cycle. The agent is hungry, has a small skill library, and sees a pig nearby. Track the state, not just the components.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+  <tr><td>0 · current state + skill library</td><td>Mineflayer textualizes the world: low hunger, nearby pig, inventory includes iron; library contains <code>craftIronSword()</code>.</td><td class="tt">state text + skill summaries</td></tr>
+  <tr><td>1 · LLM proposes next goal</td><td>Curriculum GPT-4 chooses a reachable, useful goal: get food by hunting the pig rather than farming wheat.</td><td class="tt">goal = "hunt pig for food"</td></tr>
+  <tr><td>2 · LLM writes skill code</td><td>Code-generation GPT-4 retrieves sword-crafting skill and writes a Mineflayer routine to craft/equip sword, approach pig, attack, and collect drops.</td><td class="tt">JavaScript function draft</td></tr>
+  <tr><td>3 · execute in Minecraft</td><td>The bot runs the code in the environment; actions change the inventory and world state.</td><td class="tt">trajectory + logs</td></tr>
+  <tr><td>4 · environment feedback / error</td><td>If the code has an undefined variable, pathing failure, missing item, or incomplete task, the interpreter and world state report it.</td><td class="tt">error message or progress critique</td></tr>
+  <tr><td>5 · LLM self-refines code</td><td>GPT-4 patches the function using the error and current state, then executes again.</td><td class="tt">revised JavaScript</td></tr>
+  <tr><td>6 · on success, add skill</td><td>After food is collected, GPT-3.5 summarizes the code, the summary is embedded as a key, and the working program is saved as the value.</td><td class="tt">new skill: huntPig()</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">Why code skills enable lifelong learning</span>
+  <p>A code skill library is compositional memory. The adventurer does not merely remember "pigs are food"; it gains an executable routine that future quests can call, adapt, and combine with other routines. That is why Voyager's exploration accelerates instead of resetting at every task.</p>
+</div>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read first. Answer from memory; if one is shaky, jump back to the linked section.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why is Minecraft a better open-ended benchmark than Go for this lecture's question? <a class="ref" href="#s1">(§1)</a></li>
+    <li>How does MineCLIP turn a language goal and a video clip into a reward? <a class="ref" href="#s2">(§2)</a></li>
+    <li>What are Voyager's three main modules, and why does the skill library matter? <a class="ref" href="#s3">(§3)</a></li>
+    <li>How does VPT obtain action labels for unlabeled YouTube videos? <a class="ref" href="#s4">(§4)</a></li>
+    <li>In the worked example, why does clip A receive the largest reward? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>Teach it back: explain open-ended embodied learning to a beginner using the adventurer analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Open-ended world</td><td>An environment with many possible goals and no single final objective, such as Minecraft.</td></tr>
+  <tr><td>MineDojo</td><td>A Minecraft-based benchmark, API, and internet-scale knowledge base for training generalist agents.</td></tr>
+  <tr><td>MineCLIP</td><td>A video-text contrastive model that scores whether a Minecraft video clip matches a language goal.</td></tr>
+  <tr><td>Learned reward</td><td>A reward produced by a model rather than manually written as program logic for one task.</td></tr>
+  <tr><td>Voyager</td><td>An LLM-powered Minecraft agent that proposes goals, writes executable code, self-refines, and stores successful skills.</td></tr>
+  <tr><td>Skill library</td><td>Voyager's persistent store of working code skills, indexed by natural-language summaries for retrieval and reuse.</td></tr>
+  <tr><td>Inverse dynamics model</td><td>A model that predicts which action caused a transition from one observation to the next.</td></tr>
+  <tr><td>Video PreTraining (VPT)</td><td>OpenAI's method for pretraining Minecraft policies from large unlabeled gameplay videos by pseudo-labeling actions.</td></tr>
+  <tr><td>Eureka</td><td>An LLM-driven reward-design system where GPT-4 writes and iteratively improves reward code for robot RL.</td></tr>
+  <tr><td>Multimodal prompting</td><td>Specifying a task with mixed text, image, and video tokens, as in VIMA-style robot manipulation.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Jim Fan, CS25 guest lecture. <strong>Generalist Agents in Open-Ended Worlds.</strong> <a class="ref" href="https://www.youtube.com/watch?v=wwQ1LQA3RCU" target="_blank">video</a> — the source talk for these notes.</li>
+  <li>Fan et al. (2022). <strong>MineDojo: Building Open-Ended Embodied Agents with Internet-Scale Knowledge.</strong> <a class="ref" href="https://arxiv.org/abs/2206.08853" target="_blank">arXiv</a> · <a class="ref" href="https://minedojo.org/" target="_blank">project</a> — benchmark, simulator API, data, and MineCLIP.</li>
+  <li>Wang et al. (2023). <strong>Voyager: An Open-Ended Embodied Agent with Large Language Models.</strong> <a class="ref" href="https://arxiv.org/abs/2305.16291" target="_blank">arXiv</a> · <a class="ref" href="https://voyager.minedojo.org/" target="_blank">project</a> — GPT-4 curriculum, code generation, feedback, and skill library.</li>
+  <li>Baker et al. (2022). <strong>Video PreTraining (VPT): Learning to Act by Watching Unlabeled Online Videos.</strong> <a class="ref" href="https://arxiv.org/abs/2206.11795" target="_blank">arXiv</a> — inverse dynamics labels plus large-scale Minecraft imitation.</li>
+  <li>Ma et al. (2023). <strong>Eureka: Human-Level Reward Design via Coding Large Language Models.</strong> <a class="ref" href="https://eureka-research.github.io/" target="_blank">project</a> — GPT-4-generated reward functions refined by RL feedback.</li>
+  <li>Jiang et al. (2022). <strong>VIMA: General Robot Manipulation with Multimodal Prompts.</strong> <a class="ref" href="https://vimalabs.github.io/" target="_blank">project</a> — text/image/video prompts for robot manipulation.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Nair et al. (2022). <strong>R3M: A Universal Visual Representation for Robot Manipulation.</strong> <a class="ref" href="https://arxiv.org/abs/2203.12601" target="_blank">arXiv</a> — video-trained visual features for control.</li>
+  <li>Ma et al. (2022). <strong>VIP: Towards Universal Visual Reward and Representation via Value-Implicit Pre-Training.</strong> <a class="ref" href="https://arxiv.org/abs/2210.00030" target="_blank">arXiv</a> — similarity-style rewards from visual pretraining.</li>
+  <li>Brohan et al. (2023). <strong>RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control.</strong> <a class="ref" href="https://robotics-transformer2.github.io/" target="_blank">project</a> — web-scale VLMs adapted to robot actions.</li>
+  <li>DeepMind (2023). <strong>RoboCat: A self-improving robotic agent.</strong> <a class="ref" href="https://www.deepmind.com/blog/robocat-a-self-improving-robotic-agent" target="_blank">article</a> — multi-embodiment, self-improving robot policy direction.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="19-embodied-intelligence-foundation-models.html">◀ Previous note</a>
+  <a class="r" href="index.html">Index ▶</a>
+</div>
+
+<div class="foot">
+  CS25 Transformers United — study notes · Note 20 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

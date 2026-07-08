@@ -1,0 +1,523 @@
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 19 — Low-level Embodied Intelligence with Foundation Models</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · The low-level gap</a>
+  <a href="#s1a" class="sub">1.1 Moravec's paradox in the kitchen</a>
+  <a href="#s1b" class="sub">1.2 What counts as low-level?</a>
+  <a href="#s2">2 · Grounded high-level planning</a>
+  <a href="#s2a" class="sub">2.1 SayCan: words × affordances</a>
+  <a href="#s2b" class="sub">2.2 Feedback, code, and grounded decoding</a>
+  <a href="#worked">3 · Worked example</a>
+  <a href="#s4">4 · Vision-Language-Action models</a>
+  <a href="#s4a" class="sub">4.1 PaLM-E: embodied multimodal tokens</a>
+  <a href="#s4b" class="sub">4.2 RT-1 and RT-2: action tokens</a>
+  <a href="#trace">5 · End-to-end trace</a>
+  <a href="#s6">6 · Interfaces below language</a>
+  <a href="#s6a" class="sub">6.1 Language to rewards</a>
+  <a href="#s6b" class="sub">6.2 Pattern machines and clicker training</a>
+  <a href="#s7">7 · Limits and safety</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 4 · Note 4 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V3</div>
+  <h1>Low-level Embodied Intelligence with Foundation Models</h1>
+  <p class="lead">Fei Xia's central question: foundation models know an enormous amount about the world, but how do we make that knowledge move a gripper, choose a safe delta pose, or recover when the real kitchen changes?</p>
+  <div class="meta">
+    <span class="pill">🎓 Fei Xia, Google DeepMind</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=fz8wf9hN20c" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>LLMs and VLMs can answer questions like "what helps clean spilled Coke?" because web-scale training compresses language, images, procedures, and common sense. A home robot, however, must turn that answer into <strong>low-level physical behavior</strong>: where to put its wrist, how far to close the gripper, when a drawer is still open, and whether a planned action is possible right now. The lecture is about bridging that semantic-to-motor gap.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy — the chef and the hands</span>
+  <p>Think of a foundation model as a brilliant chef who has read every cookbook, repair manual, and kitchen blog. The robot body is a pair of hands in a messy kitchen. The chef can say "throw away the Coke and get a sponge," but the hands still need a <em>pantry check</em> for what is reachable, a <em>recipe-to-motion translator</em>, and a <em>closed-loop sense of touch and sight</em> after every move.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these before the systems; each is used immediately.</p>
+  <ul>
+    <li><strong>Foundation model / VLM</strong> — a large model trained on broad text, image, or image-text data; here it supplies the chef's semantic and common-sense knowledge.</li>
+    <li><strong>Policy \(\pi(a\mid o)\)</strong> — a controller mapping observation \(o\) to action \(a\); robotics asks for actions that change the physical state, not merely next words.</li>
+    <li><strong>Tokenization</strong> — converting continuous inputs or outputs into discrete symbols; VLA models can treat image patches, words, and action bins as one sequence.</li>
+    <li><strong>Affordance / value function</strong> — a learned estimate of what the robot can successfully do from the current state; it is the pantry check that grounds a language plan.</li>
+  </ul>
+</div>
+<h2 id="s1"><span class="num">1.</span>The low-level gap</h2>
+<p>Fei Xia opens with two uncomfortable robot videos: a robot asked to put a Coke can in the sink unexpectedly opens the tap, and another tucks its arm with a can upside down, risking a spill. Neither failure is a word problem. The missing ingredient is an understanding of action effects in a messy, physical world.</p>
+
+<h3 id="s1a">1.1 Moravec's paradox in the kitchen</h3>
+<p>The lecture names the paradox: tasks that feel intellectually hard to humans, like chess or Go, were conquered before tasks that feel bodily easy, like moving pieces, opening doors, or not spilling liquid. Evolution gave humans millions of years of sensorimotor priors; robots do not get those for free.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — embodied control loop</span>
+  <p>$$o_t \xrightarrow{\ \pi_\theta\ } a_t,\qquad s_{t+1}=f(s_t,a_t),\qquad o_{t+1}=g(s_{t+1})$$</p>
+  <p>Here \(o_t\) is what the robot observes, \(a_t\) is the action it executes, \(s_t\) is the hidden physical state, \(f\) is real-world dynamics, and \(g\) is perception. The hard part is that \(f\) includes friction, contacts, occlusions, liquids, joints, and other objects the web text may only describe indirectly.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Web-scale model<br/>language and images"] --> B["Semantic prior<br/>what usually makes sense"]
+    C["Robot sensors<br/>camera, proprioception, touch"] --> D["Physical grounding<br/>what is possible now"]
+    B --> E["Policy choice<br/>skill, action tokens, reward"]
+    D --> E
+    E --> F["Motor command<br/>delta pose or torque controller"]
+    F --> C
+</div>
+<figcaption>The lecture's bridge: combine broad semantic knowledge with current physical feasibility, then keep closing the loop.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"If the model understands the instruction, the robot understands the task."</strong> Language understanding is only the chef's recipe. Embodied understanding also asks whether the object is visible, graspable, safe to move, and changed by the last action.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why did chess need less robotics than cleaning a kitchen?</summary>
+<p>Chess has a clean state representation and discrete legal moves. A kitchen has continuous geometry, contact dynamics, partial observability, deformable or fragile objects, and safety constraints. The robot has to solve perception and control while planning.</p></details>
+
+<h3 id="s1b">1.2 What counts as low-level embodied intelligence?</h3>
+<p>In this talk, "low-level" does not mean unimportant. It means close to the body: predicting continuous or tokenized action dimensions, running at control-relevant frequency, connecting images to gripper poses, and surviving sim-to-real mismatch. Fei contrasts this with high-level planning, where the output might be a text skill such as "pick up the sponge."</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — instruction-conditioned policy</span>
+  <p>$$\pi_\theta(a_t\mid o_{t-k:t},x)=P_\theta(a_t\;\text{works now}\mid\text{recent observations},\text{instruction})$$</p>
+  <p>The instruction \(x\) gives intent, the observation history \(o_{t-k:t}\) gives physical context, and the policy must output an executable action \(a_t\), often a small end-effector displacement plus gripper command.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — name one thing text pretraining probably did not teach directly.</summary>
+<p>Examples: how much force closes a particular gripper, the exact wrist delta to clear a drawer edge, how a wet can slips, or how the camera view changes after moving 2 cm. Those are robot-data or simulator-data facts.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>Grounded high-level planning</h2>
+<p>Before going fully low-level, the robotics field found a powerful intermediate recipe: let an LLM propose sensible skills, but let the robot's learned affordance model veto what cannot be done. In the chef analogy, the chef proposes recipes; the pantry-and-body check says whether the ingredients and reachable tools exist now.</p>
+
+<h3 id="s2a">2.1 SayCan: words × affordances</h3>
+<p>PaLM-SayCan is the lecture's first anchor system. The language model scores which skill is semantically useful for the user command; an affordance or value model scores whether that skill is physically achievable from the current observation. Multiplying the two suppresses fluent but impossible plans.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — SayCan score</span>
+  <p>$$\operatorname{score}(k_i)=p_{\text{LLM}}(k_i\mid x,h)\;p_{\text{aff}}(k_i\mid o_t),\qquad k^*=\arg\max_i \operatorname{score}(k_i)$$</p>
+  <p>Skill \(k_i\) is a candidate low-level behavior, \(x\) is the instruction, \(h\) is the plan history, and \(o_t\) is the current observation. The first factor asks "would a chef choose this next?"; the second asks "can these hands do it now?"</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TD
+    U["User: spilled Coke<br/>need cleanup"] --> L["LLM proposes skills<br/>semantic likelihood"]
+    O["Current camera image<br/>robot state"] --> A["Affordance model<br/>success probability"]
+    L --> M["Multiply scores<br/>grounded decoding"]
+    A --> M
+    M --> K["Pick next skill<br/>reachable and useful"]
+    K --> P["Low-level policy<br/>execute skill"]
+    P --> O
+</div>
+<figcaption>SayCan grounds language by scoring candidate skills through both usefulness and feasibility.</figcaption>
+</figure>
+
+<p>In the lecture demo, the user says they spilled Coke and need help cleaning. The LLM's semantic prior suggests a sequence like throw away the can and bring something useful. The affordance score keeps the plan actionable for the robot's current scene and skill library.</p>
+
+<details class="check"><summary>✓ Check yourself — why multiply rather than ask the LLM alone?</summary>
+<p>An LLM alone can choose a linguistically plausible step that the robot cannot execute. Multiplication makes the score small when either semantic usefulness or physical feasibility is small.</p></details>
+
+<h3 id="s2b">2.2 Feedback, code, and grounded decoding</h3>
+<p>SayCan is part of a broader family of grounded LLM robotics systems. <strong>Inner Monologue</strong> closes the loop by feeding perception and success/failure feedback back into the language context. <strong>Code as Policies</strong> asks the LLM to write robot-control programs against an API. <strong>Grounded decoding</strong> constrains or reweights generation so invalid robot outputs are less likely. Fei's lecture then pushes this family downward: can the same foundation-model stack produce action tokens themselves?</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — closed-loop replanning</span>
+  <p>$$h_{t+1}=\bigl(h_t,\ k_t,\ \text{feedback}(o_{t+1})\bigr),\qquad k_{t+1}\sim P_{\text{grounded}}(\cdot\mid x,h_{t+1},o_{t+1})$$</p>
+  <p>The plan history \(h_t\) is updated with what the robot tried and what the world now shows. This matters because the human may move the chips back into the drawer, or a grasp may fail.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Unifying idea</span>
+  <p>All these methods are ways to stop treating text generation as an open-ended essay. They make it a control interface: propose only skills, code, rewards, or action tokens that a robot-side checker can parse and execute.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what information does closed-loop feedback add that the original instruction lacks?</summary>
+<p>It adds the current outcome: whether the object moved, whether a drawer is still open, whether the robot got blocked, or whether a human changed the scene. The next decision can then recover instead of blindly following the old plan.</p></details>
+<h2 id="worked"><span class="num">3.</span>Worked example — SayCan scores by hand</h2>
+<p>Numbers make the grounding mechanism visible. Suppose the robot considers three next skills after hearing a user request. The LLM thinks skill 1 sounds most natural, but the affordance model thinks skill 2 is much more doable right now.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real numbers</span>
+  <p>Given</p>
+  <p>$$p_{\text{LLM}}=[0.5,\ 0.3,\ 0.2],\qquad p_{\text{aff}}=[0.1,\ 0.9,\ 0.4]$$</p>
+  <p>multiply elementwise:</p>
+  <p>$$\begin{aligned}
+  s_1&=0.5\cdot0.1=0.05\\
+  s_2&=0.3\cdot0.9=0.27\\
+  s_3&=0.2\cdot0.4=0.08
+  \end{aligned}$$</p>
+  <p>normalize by the total \(Z=0.05+0.27+0.08=0.40\):</p>
+  <p>$$\hat{s}=\left[\frac{0.05}{0.40},\frac{0.27}{0.40},\frac{0.08}{0.40}\right]=[0.125,\ 0.675,\ 0.200]$$</p>
+  <p>The winner is <strong>skill 2</strong>. Skill 1 sounded best to the LLM, but its low affordance suppressed it; the grounded robot chooses the feasible useful skill.</p>
+</div>
+
+<table>
+  <tr><th>Candidate skill</th><th>Language score</th><th>Affordance score</th><th>Product</th><th>Normalized</th></tr>
+  <tr><td>Skill 1</td><td class="tt">0.5</td><td class="tt">0.1</td><td class="tt">0.05</td><td class="tt">0.125</td></tr>
+  <tr><td>Skill 2</td><td class="tt">0.3</td><td class="tt">0.9</td><td class="tt">0.27</td><td class="tt">0.675</td></tr>
+  <tr><td>Skill 3</td><td class="tt">0.2</td><td class="tt">0.4</td><td class="tt">0.08</td><td class="tt">0.200</td></tr>
+</table>
+
+<details class="check"><summary>✓ Check yourself — what happens if an affordance is 0?</summary>
+<p>The product becomes 0 no matter how high the LLM score is. If skill 1 had \(p_{\text{aff}}=0\), then \(s_1=0.5\cdot0=0\). This is the desired behavior when the robot cannot execute that skill in the current state.</p></details>
+
+<h2 id="s4"><span class="num">4.</span>Vision-Language-Action models</h2>
+<p>Fei then moves from <em>choosing named skills</em> to <em>generating executable actions</em>. A Vision-Language-Action model treats robot actions as another output language. The chef no longer only says "pick up the sponge"; the chef emits a compact string that the hands can detokenize into motion.</p>
+
+<h3 id="s4a">4.1 PaLM-E: embodied multimodal tokens</h3>
+<p>PaLM-E shows how a large language model can accept non-word tokens. Vision tokens from a ViT, object-centric scene tokens, and robot sensory tokens are projected into the same embedding space as text tokens. The model can then do embodied planning, visual question answering, counting, and replanning in one checkpoint.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — map non-text into the language stream</span>
+  <p>$$e^{\text{robot}}_j=Wz_j+b,\qquad [e^{\text{text}}_1,\ldots,e^{\text{robot}}_j,\ldots]\rightarrow\text{PaLM-E}$$</p>
+  <p>Here \(z_j\) is a visual or robot-sensor feature, \(W\) and \(b\) project it into the language embedding space, and the resulting token can sit beside words. This lets the model reason over what the robot sees, not only what the prompt says.</p>
+</div>
+
+<p>In the lecture, PaLM-E handles planning tasks such as taking rice chips from a drawer even when a human adversarially puts the chips back. It can also use the same checkpoint for block sorting and general VQA-style reasoning, illustrating <strong>positive transfer</strong>: mixed web-scale vision-language data regularizes and enriches robotics behavior.</p>
+
+<details class="check"><summary>✓ Check yourself — why are object-centric tokens useful for planning?</summary>
+<p>A grid of ViT patches knows pixels. Object-centric tokens can represent "the chip bag," "the drawer," and their relations more directly, which helps decide whether the task is finished or which object remains to move.</p></details>
+
+<h3 id="s4b">4.2 RT-1 and RT-2: action tokens</h3>
+<p>RT-1 showed that a transformer trained on many robot demonstrations can map camera images and instructions to robot actions across hundreds of tasks. RT-2 starts from a web-trained VLM such as PaLI-X or PaLM-E, co-fine-tunes on robot action data plus vision-language data, and outputs action tokens. This is the lecture's main low-level consolidation step.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — discretize continuous actions</span>
+  <p>$$b_j=\left\lfloor 255\cdot\frac{a_j-a_j^{\min}}{a_j^{\max}-a_j^{\min}}\right\rfloor,\qquad b_j\in\{0,\ldots,255\}$$</p>
+  <p>Each continuous action dimension \(a_j\), such as \(\Delta x\), \(\Delta y\), \(\Delta z\), rotation, gripper, or termination, becomes a bin \(b_j\). The transformer can now emit a string of numbers, and the robot detokenizes them back to motion commands.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    I["Camera image<br/>current scene"] --> T["Image tokenizer<br/>patches or learned tokens"]
+    X["Language instruction<br/>pick up extinct animal"] --> W["Text tokens"]
+    T --> V["VLM or VLA transformer"]
+    W --> V
+    V --> A["Action tokens<br/>Delta x, Delta y, Delta z, gripper"]
+    A --> D["Detokenize<br/>robot command"]
+    D --> R["Robot executes<br/>next observation"]
+    R --> I
+</div>
+<figcaption>VLA models make image, text, and action live in one token-processing architecture.</figcaption>
+</figure>
+
+<p>RT-2's striking examples are semantic: "pick up the extinct animal" selects the dinosaur toy, "move the banana to Germany" uses flag knowledge, and "bring me a drink" can reason toward the 7UP can. The low-level action data alone did not contain those concepts; the web-trained VLM supplies them, while robot fine-tuning teaches how to act.</p>
+
+<div class="box eqn">
+  <span class="lbl">Training objective — behavior cloning as token prediction</span>
+  <p>$$\mathcal{L}(\theta)=-\sum_{t}\sum_{j}\log P_\theta\bigl(b_{t,j}\mid o_{t-k:t},x,b_{t,<j}\bigr)$$</p>
+  <p>The model predicts the demonstrated action bins \(b_{t,j}\) from recent observations, instruction \(x\), and previously generated bins. Constraint decoding helps ensure the output has the expected number of action tokens.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">Why RT-2 is more than a bigger RT-1</span>
+  <p>RT-1 learns robot behavior from robot demonstrations. RT-2 asks: if a VLM already knows dinosaurs, flags, tools, and categories from the internet, can a modest amount of robot data teach it to express that knowledge as motion? The answer in the lecture is a strong sign of life.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why co-fine-tune with VQA or web data instead of robot data only?</summary>
+<p>Robot data is small and narrow. Fine-tuning only on it can overfit and forget visual-language knowledge. Mixing VQA or web-scale data preserves the semantic representations that make unseen-object and reasoning tasks possible.</p></details>
+<h2 id="trace"><span class="num">5.</span>End-to-end trace — one RT-2 control decision</h2>
+<p>Follow one concrete command through a VLA controller. The example is "pick up the extinct animal" with a camera view containing a dinosaur toy among other objects.</p>
+
+<table>
+  <tr><th>Step</th><th>What happens</th><th>Shape/Output</th></tr>
+  <tr><td>0 · observation</td><td>Robot receives a camera image plus the natural-language instruction.</td><td class="tt">image + "pick up the extinct animal"</td></tr>
+  <tr><td>1 · tokenize</td><td>The image becomes patches or learned visual tokens; the instruction becomes text tokens.</td><td class="tt">image patches + text tokens</td></tr>
+  <tr><td>2 · transform</td><td>The VLM/VLA transformer attends across scene, language, and history, linking "extinct animal" to the dinosaur object.</td><td class="tt">hidden token states</td></tr>
+  <tr><td>3 · decode action tokens</td><td>The model autoregressively emits discretized robot action dimensions.</td><td class="tt">[Δx, Δy, Δz, Δroll, Δpitch, Δyaw, gripper, stop]</td></tr>
+  <tr><td>4 · detokenize</td><td>Bins are mapped back to continuous deltas and a gripper command.</td><td class="tt">end-effector command</td></tr>
+  <tr><td>5 · execute</td><td>The robot controller moves the arm and gripper; lower-level servo loops handle hardware timing.</td><td class="tt">physical motion</td></tr>
+  <tr><td>6 · next observation</td><td>A new image is captured and the loop repeats until a termination token is produced.</td><td class="tt">closed-loop next image</td></tr>
+</table>
+
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>Tokenizing actions lets one transformer use the same machinery for perception, language, and control: attend to the image, interpret the words, and emit the next action symbols. The catch is that a robot still needs fast execution, safety checks, and feedback because the world changes after every token.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where does physical grounding enter this trace?</summary>
+<p>It enters through the current image and history, the robot action data used during fine-tuning, the detokenization into valid robot commands, and the closed-loop next observation. Without those, the model would only talk about dinosaurs.</p></details>
+
+<h2 id="s6"><span class="num">6.</span>Interfaces below language</h2>
+<p>The second half of the lecture asks whether direct action-token generation is the only interface. Fei argues that sometimes a better bridge is not an action but a <strong>reward</strong>: describe what success means, then let an optimizer or model predictive controller find the detailed motion.</p>
+
+<h3 id="s6a">6.1 Language to rewards</h3>
+<p>For a quadruped or dexterous hand, asking an LLM for exact joint angles is like asking the chef to micromanage every finger muscle. The lecture's alternative is a two-stage translator: first generate a motion description, then generate reward code. A controller such as MuJoCo MPC optimizes that reward into motion.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — reward as the interface</span>
+  <p>$$a_{0:H}^{*}=\arg\max_{a_{0:H}}\sum_{t=0}^{H}R_\phi(s_t,a_t,\text{goal}),\qquad s_{t+1}=f(s_t,a_t)$$</p>
+  <p>The LLM helps define \(R_\phi\), the reward function for the desired skill. The optimizer searches action sequences \(a_{0:H}\) under dynamics \(f\). This can produce smoother, faster, and more dexterous motions than directly decoding a few action bins.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    G["Language goal<br/>moonwalk"] --> M["Motion description<br/>walk backward while feet swing forward"]
+    M --> C["Reward coder<br/>Python reward terms"]
+    C --> O["MPC or RL optimizer<br/>search action trajectory"]
+    O --> Q["Quadruped or hand<br/>smooth low-level motion"]
+    Q --> F["Feedback or compile error<br/>coach and repair"]
+    F --> C
+</div>
+<figcaption>Language-to-reward uses language for goals and constraints, while robotics optimization handles the detailed body motion.</figcaption>
+</figure>
+
+<p>The lecture's examples include a robot dog standing on two feet, being coached into a moonwalk, and dexterous manipulation transferred from simulation toward real hardware. The key teaching pattern is intermediate representation: when direct language-to-action is too far, insert a representation the LLM can describe and the robot can optimize.</p>
+
+<details class="check"><summary>✓ Check yourself — why can reward code be safer than raw action text?</summary>
+<p>Reward code can include constraints, penalties, and checks, and it must compile against a known API before an optimizer uses it. Direct action text may be harder to validate and may not expose safety constraints explicitly.</p></details>
+
+<h3 id="s6b">6.2 Pattern machines and clicker training</h3>
+<p>Fei also mentions <em>Large Language Models as General Pattern Machines</em>. Instead of using only semantic knowledge, a prompt can contain state-action-reward sequences; the model completes the pattern with better actions for higher reward. This resembles decision-transformer or reinforcement-learning behavior inside the context window.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — in-context sequence improvement</span>
+  <p>$$\bigl(s_1,a_1,r_1;\ldots;s_n,a_n,r_n;\ r_{n+1}^{\text{target}}\bigr)\ \longrightarrow\ a_{n+1}$$</p>
+  <p>The prompt says, in effect, "here are attempts and rewards; now produce an action that matches a better reward." In the lecture's clicker-training example, human reward clicks shape a robot's behavior over repeated attempts.</p>
+</div>
+
+<div class="box analogy">
+  <span class="lbl">Back to the chef analogy</span>
+  <p>SayCan is the chef checking the pantry. RT-2 is the chef learning a compact hand-language. Language-to-reward is the chef writing judging criteria for a skilled sous-chef optimizer. Pattern-machine training is the chef watching scorecards and inferring which move should come next.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is the difference between an action interface and a reward interface?</summary>
+<p>An action interface says what to do next, such as a delta pose or gripper command. A reward interface says what should be true or valuable, then lets a controller search for actions that make it happen.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>Limits, bottlenecks, and safety</h2>
+<p>The talk is optimistic but not magical. Robotics data remains expensive: Fei mentions roughly 100,000 demonstrations collected over many months by many robots, tiny compared with trillion-token language corpora. RT-X and Open X-Embodiment attack this by pooling data across embodiments, labs, and skills, but scaling robot data is still much harder than scraping text.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — positive transfer hypothesis</span>
+  <p>$$\text{robot performance}\approx F(\text{robot data},\ \text{model scale},\ \text{web VLM data},\ \text{embodiment diversity})$$</p>
+  <p>This is not a derived law; it is the lecture's research thesis. If robotics cannot yet scale robot episodes like language tokens, scale adjacent data and model capacity while improving robot data diversity.</p>
+</div>
+
+<ul>
+  <li><strong>Latency and frequency.</strong> Large VLA policies may query accelerators and run around a few to 10 Hz; inner-loop motor controllers often need faster stabilization.</li>
+  <li><strong>Grounding errors.</strong> A model may know a concept but bind it to the wrong object, misunderstand the current state, or hallucinate an invalid format.</li>
+  <li><strong>Data cost.</strong> Demonstrations require hardware, resets, teleoperation, and careful coverage of failures.</li>
+  <li><strong>Safety.</strong> Physical agents can damage themselves, the environment, or people; software filters, hardware limits, and supervisor models are necessary, not optional.</li>
+  <li><strong>Generalization.</strong> Web knowledge helps with dinosaurs and flags, but contact-rich manipulation, liquids, deformables, and out-of-distribution bodies remain hard.</li>
+</ul>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p><strong>"Scaling web data solves robotics by itself."</strong> The lecture's actual message is subtler: web-scale VLMs create positive transfer, but robots still need embodied data, affordance grounding, closed-loop control, and safety layers.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why does sim-to-real still matter if we have foundation models?</summary>
+<p>Foundation models supply semantics, but simulators and real robot data teach dynamics, contacts, and failure modes. Sim-to-real matters because a policy trained or optimized in simulation must survive sensor noise, friction, calibration errors, and hardware limits.</p></details>
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Don't re-read. Answer from memory; jump back only if one feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>What is the difference between a high-level skill name and a low-level action? <a class="ref" href="#s1">(§1)</a></li>
+    <li>Why does SayCan multiply language likelihood by affordance? <a class="ref" href="#s2">(§2)</a></li>
+    <li>Redo the three-skill product-and-normalize computation without looking. Which skill wins? <a class="ref" href="#worked">(worked example)</a></li>
+    <li>How does RT-2 transfer web knowledge into robot control? <a class="ref" href="#s4">(§4)</a></li>
+    <li>Trace one VLA decision from image and instruction to next observation. <a class="ref" href="#trace">(trace)</a></li>
+    <li>When would a reward interface be preferable to direct action tokens? <a class="ref" href="#s6">(§6)</a></li>
+    <li>Teach it back: explain "foundation models for low-level embodied intelligence" to a beginner in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Embodied intelligence</td><td>Intelligence that acts through a body in a physical environment, not only through text or images.</td></tr>
+  <tr><td>Low-level control</td><td>Body-close actions such as wrist deltas, joint torques, gripper commands, or reward-optimized trajectories.</td></tr>
+  <tr><td>Affordance</td><td>What an environment currently lets the robot do, such as whether a mug is reachable and graspable.</td></tr>
+  <tr><td>Value function</td><td>A learned estimate of future success or reward; in SayCan it approximates whether a skill can succeed from the current state.</td></tr>
+  <tr><td>SayCan</td><td>A grounded planning method that combines LLM skill likelihood with robot affordance scores.</td></tr>
+  <tr><td>PaLM-E</td><td>An embodied multimodal language model that feeds visual and robot tokens into a large language model.</td></tr>
+  <tr><td>RT-1</td><td>A robotics transformer trained from robot demonstrations to map images and language instructions to action tokens.</td></tr>
+  <tr><td>RT-2</td><td>A Vision-Language-Action model that co-fine-tunes web-trained VLMs with robot action data to output executable actions.</td></tr>
+  <tr><td>Action token</td><td>A discrete symbol representing one bin of a robot action dimension, such as \(\Delta x\) or gripper close.</td></tr>
+  <tr><td>Grounded decoding</td><td>Constraining or reweighting model outputs using robot-side validity, feasibility, or format checks.</td></tr>
+  <tr><td>Model predictive control</td><td>An optimizer that repeatedly searches short-horizon action sequences using a dynamics model and reward.</td></tr>
+  <tr><td>Positive transfer</td><td>Improvement on robotics tasks caused by training jointly with diverse vision, language, or multi-robot data.</td></tr>
+  <tr><td>Sim-to-real</td><td>Training or optimizing in simulation, then transferring behavior to physical hardware despite mismatch.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named in the lecture</h4>
+<ol class="refs">
+  <li>Ahn et al. (2022). <strong>Do As I Can, Not As I Say: Grounding Language in Robotic Affordances.</strong> <a class="ref" href="https://say-can.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2204.01691">arXiv</a> — PaLM-SayCan's language × affordance planner.</li>
+  <li>Driess et al. (2023). <strong>PaLM-E: An Embodied Multimodal Language Model.</strong> <a class="ref" href="https://palm-e.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2303.03378">arXiv</a> — multimodal tokens inside a large language model for embodied planning.</li>
+  <li>Brohan et al. (2022). <strong>RT-1: Robotics Transformer for Real-World Control at Scale.</strong> <a class="ref" href="https://robotics-transformer1.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2212.06817">arXiv</a> — large demonstration-trained transformer policy.</li>
+  <li>Brohan et al. (2023). <strong>RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control.</strong> <a class="ref" href="https://robotics-transformer2.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2307.15818">arXiv</a> — VLMs fine-tuned to emit action tokens.</li>
+  <li>Padalkar et al. (2023). <strong>Open X-Embodiment and RT-X.</strong> <a class="ref" href="https://robotics-transformer-x.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2310.08864">arXiv</a> — pooled multi-embodiment robot data and positive transfer.</li>
+  <li>Yu et al. (2023). <strong>Language to Rewards for Robotic Skill Synthesis.</strong> <a class="ref" href="https://language-to-reward.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2306.08647">arXiv</a> — LLM-generated reward code plus optimization for low-level skills.</li>
+  <li>Xia et al. (2020). <strong>iGibson: Interactive Simulation of Large-Scale Virtualized Scenes.</strong> <a class="ref" href="https://svl.stanford.edu/igibson/">project</a> · <a class="ref" href="https://arxiv.org/abs/2012.02924">arXiv</a> — interactive simulation environments for embodied agents.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Huang et al. (2022). <strong>Inner Monologue: Embodied Reasoning through Planning with Language Models.</strong> <a class="ref" href="https://innermonologue.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2207.05608">arXiv</a> — closed-loop language feedback for robot plans.</li>
+  <li>Liang et al. (2022). <strong>Code as Policies: Language Model Programs for Embodied Control.</strong> <a class="ref" href="https://code-as-policies.github.io/">project</a> · <a class="ref" href="https://arxiv.org/abs/2209.07753">arXiv</a> — LLMs writing control code against robot APIs.</li>
+  <li>MuJoCo documentation. <strong>Model predictive control and physics simulation context.</strong> <a class="ref" href="https://mujoco.readthedocs.io/">docs</a> — useful background for the optimizer side of language-to-reward systems.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="18-neuroscience-inspired-ai.html">◀ Previous note</a>
+  <a class="r" href="20-generalist-agents-open-worlds.html">Next note ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 19 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Fonts/JS load from CDN; print this page to export a PDF.
+</div>
+
+</article>
+</div>
+</body>
+</html>

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS25 · Notes 06 — Perceiver & Perceiver IO</title>
+
+<!-- Fonts: Atkinson Hyperlegible (body, max legibility) + Caveat (distinctive headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- MathJax (equations) -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+                     svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<!-- Mermaid (diagrams) — neutral theme so diagrams sit on light "paper" cards -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+      themeVariables: { fontFamily: 'Atkinson Hyperlegible, sans-serif', fontSize: '15px' } });
+  });
+</script>
+
+<style>
+  :root{
+    --ink:#e9e6dc; --muted:#9aa6b8; --line:#333a46; --bg:#14161b; --soft:#1f232d;
+    --accent:#6ea8fe; --accent2:#c8a2ff;
+    --ok:#5fd48a; --warn:#f2b45c; --danger:#f5837f; --info:#6ea8fe; --think:#c8a2ff;
+    --paper:#f7f2e6; --paperink:#2b2721; --paperline:#dccfb4;
+    --hand:'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif; --head:'Caveat', cursive;
+    --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size:100% 32px;
+    font-family:var(--hand);line-height:1.7;font-size:18px;-webkit-font-smoothing:antialiased}
+  .wrap{display:grid;grid-template-columns:262px minmax(0,var(--maxw));gap:48px;
+    max-width:1200px;margin:0 auto;padding:32px 28px 120px}
+  nav.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);
+    overflow:auto;font-size:15px;border-right:1px solid var(--line);padding-right:16px}
+  nav.toc .kicker{font-family:var(--head);font-size:19px;letter-spacing:.02em;color:var(--accent2);
+    font-weight:700;margin:0 0 8px;text-transform:none}
+  nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:3px 0;border-radius:6px}
+  nav.toc a:hover{color:var(--accent)}
+  nav.toc a.sub{padding-left:14px;font-size:14px}
+  nav.toc .prog{margin-top:18px;font-size:13.5px;color:var(--muted)}
+  article{min-width:0}
+  .hero{border:1px solid var(--line);border-radius:16px;padding:26px 30px;
+    background:linear-gradient(135deg,#242b40,#2e2442);margin-bottom:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .series{font-family:var(--hand);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  h1{font-family:var(--head);font-size:47px;line-height:1.03;margin:8px 0 6px;font-weight:700}
+  .meta{color:var(--muted);font-size:15px;margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .meta a{color:var(--accent);text-decoration:none}
+  .meta .pill{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:3px 12px}
+  h2{font-family:var(--head);font-size:36px;margin:46px 0 4px;padding-top:14px;font-weight:700;border-top:1px solid var(--line)}
+  h2 .num{color:var(--accent);margin-right:8px}
+  h3{font-family:var(--head);font-size:28px;margin:26px 0 4px;color:#e7ebf3;font-weight:700}
+  h4{font-family:var(--hand);font-size:15px;margin:18px 0 4px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+  p{margin:11px 0}
+  ul,ol{margin:11px 0;padding-left:24px} li{margin:6px 0}
+  code{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:15px;color:#e7d8b8}
+  pre{background:#0c0f16;color:#e6edf7;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;
+    font-family:"SF Mono",Consolas,Menlo,monospace;font-size:14px;line-height:1.55}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .lead{font-size:21px;color:#d7d3c8}
+  strong{color:#fff;font-weight:700}
+  a.ref{color:var(--accent);text-decoration:none;font-weight:700}
+  a.ref:hover{text-decoration:underline}
+  .box{border-left:4px solid var(--info);background:var(--soft);border-radius:0 12px 12px 0;
+    padding:15px 20px;margin:20px 0}
+  .box .lbl{font-family:var(--head);font-size:17px;letter-spacing:.02em;font-weight:700;margin-bottom:2px;display:block;text-transform:none}
+  .box p:first-of-type{margin-top:2px} .box p:last-child{margin-bottom:0}
+  .box.why{border-color:var(--accent);background:#182338}       .box.why .lbl{color:#8fc0ff}
+  .box.intuition{border-color:var(--think);background:#241a36}  .box.intuition .lbl{color:#d3b3ff}
+  .box.analogy{border-color:#43cdd4;background:#122e31}         .box.analogy .lbl{color:#6fe0e6}
+  .box.check{border-color:var(--ok);background:#132c1e}         .box.check .lbl{color:#7fe6a4}
+  .box.pitfall{border-color:var(--danger);background:#331b1b}   .box.pitfall .lbl{color:#ff9b97}
+  .box.eqn{border-color:var(--warn);background:#302616}         .box.eqn .lbl{color:#ffc978}
+  .box.prereq{border-color:#8b9bb4;background:#1b2029}          .box.prereq .lbl{color:#c2ccdb}
+  details.check{margin-top:8px} details.check summary{cursor:pointer;color:#7fe6a4;font-weight:700;font-size:16px}
+  details.check[open] summary{margin-bottom:6px}
+  figure{margin:24px 0;text-align:center;background:var(--paper);color:var(--paperink);
+    border:1px solid var(--paperline);border-radius:14px;padding:18px 18px 14px;
+    box-shadow:0 2px 0 rgba(0,0,0,.4),0 12px 30px rgba(0,0,0,.4)}
+  figure .mermaid{display:flex;justify-content:center;background:transparent}
+  figcaption{font-family:var(--hand);font-size:15px;color:#6d6555;margin-top:10px;font-style:italic}
+  .svgcard{background:var(--paper);color:var(--paperink);border:1px solid var(--paperline);border-radius:14px;padding:18px}
+  figure .svgcard{background:transparent;border:none;padding:0;box-shadow:none}
+  table{border-collapse:collapse;width:100%;margin:20px 0;font-size:16px}
+  th,td{border:1px solid var(--line);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:700;color:#fff}
+  .tt{color:var(--accent);font-weight:700;white-space:nowrap}
+  ol.refs{font-size:16px} ol.refs li{margin:10px 0}
+  .foot{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+  .navbtns{display:flex;justify-content:space-between;margin-top:32px;gap:12px}
+  .navbtns a{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 16px;text-decoration:none;color:var(--ink);background:var(--soft)}
+  .navbtns a:hover{border-color:var(--accent);color:var(--accent)}
+  .navbtns .r{text-align:right}
+  @media print{
+    nav.toc,.navbtns{display:none}
+    .wrap{display:block;max-width:none;padding:0}
+    body{background:#fff;color:#141414;font-size:12pt;line-height:1.5;background-image:none;
+      font-family:'Atkinson Hyperlegible', system-ui, sans-serif}
+    h1,h2,h3{color:#111} h2{border-top:1px solid #ccc}
+    .hero{background:none;border:none;box-shadow:none;padding:0}
+    .lead{color:#333} strong{color:#000}
+    .box{background:#f3f3f3 !important;color:#141414;break-inside:avoid}
+    .box .lbl{color:#333 !important}
+    figure{box-shadow:none;break-inside:avoid;border-color:#ccc}
+    th{color:#000} td,th{border-color:#bbb}
+    pre{white-space:pre-wrap;background:#f0f0f0;color:#111;border-color:#ccc}
+    code{color:#333}
+    a,a.ref{color:#000;text-decoration:underline}
+  }
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0} nav.toc{position:static;border-right:none;max-height:none;margin-bottom:24px}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <p class="kicker">On this page</p>
+  <a href="#hook">Why this matters</a>
+  <a href="#prereq">Prerequisites (30-sec)</a>
+  <a href="#s1">1 · Why Perceiver exists</a>
+  <a href="#s1a" class="sub">1.1 The scaling wall</a>
+  <a href="#s2">2 · The latent bottleneck</a>
+  <a href="#s2a" class="sub">2.1 Cross-attend in</a>
+  <a href="#s2b" class="sub">2.2 Process cheaply</a>
+  <a href="#s3">3 · Position without modality wiring</a>
+  <a href="#s3a" class="sub">3.1 Fourier features</a>
+  <a href="#worked">4 · Worked numeric micro-example</a>
+  <a href="#s5">5 · Perceiver IO</a>
+  <a href="#s5a" class="sub">5.1 Query the output</a>
+  <a href="#trace">6 · End-to-end trace</a>
+  <a href="#s7">7 · Results and limitations</a>
+  <a href="#recap">Recap (as questions)</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#refs">References</a>
+  <p class="prog">CS25 Batch 2 · Note 2 of 5</p>
+</nav>
+
+<article>
+
+<div class="hero">
+  <div class="series">STANFORD CS25 · TRANSFORMERS UNITED · V1 — LECTURE 6</div>
+  <h1>DeepMind's Perceiver &amp; Perceiver IO: A General-Purpose Architecture</h1>
+  <p class="lead">Perceiver asks: can one transformer-like backbone ingest pixels, audio, point clouds, language bytes, and multimodal streams without paying full quadratic attention over the raw input?</p>
+  <div class="meta">
+    <span class="pill">🎓 Andrew “Drew” Jaegle, DeepMind</span>
+    <span class="pill">⏱ ~50 min</span>
+    <a class="pill" href="https://www.youtube.com/watch?v=wTZ3o36lXoQ" target="_blank">▶ Watch</a>
+  </div>
+</div>
+
+<section id="hook">
+<div class="box why">
+  <span class="lbl">Why this matters</span>
+  <p>A vanilla transformer can compare every input item with every other input item. That is wonderful for generality, but brutal for high-bandwidth data: a 224×224 RGB image has 50,176 pixel locations, audio has long temporal streams, point clouds have unordered sets, and multimodal sensors mix incompatible shapes. Full self-attention over raw inputs costs \(O(N^2)\) in input length \(N\), so a “general” architecture becomes unusable exactly where perception is richest.</p>
+</div>
+<div class="box analogy">
+  <span class="lbl">Running analogy</span>
+  <p>Think of a giant evidence warehouse. A standard transformer asks every crate to talk to every other crate. Perceiver sends in a small team of trained investigators — the <strong>latents</strong> — who interview all crates, meet privately many times, and later answer whatever report format you request. The warehouse can grow; the investigator team stays manageable.</p>
+</div>
+</section>
+
+<div class="box prereq" id="prereq">
+  <span class="lbl">Prerequisites — 30-second refresher</span>
+  <p>Skim these once; they are the whole mechanical substrate of the note.</p>
+  <ul>
+    <li><strong>Self-attention</strong> — every item supplies \(Q,K,V\) and attends to the same array; here, that creates an \(N\times N\) attention map.</li>
+    <li><strong>Cross-attention</strong> — queries come from one array, keys/values from another; Perceiver uses latent queries to read the large input.</li>
+    <li><strong>Q/K/V</strong> — a query asks, a key says “what I match,” and a value says “what information I carry.” Attention mixes values by query-key similarity.</li>
+    <li><strong>Attention complexity</strong> — forming \(QK^\top\) for \(N\) queries and \(N\) keys costs \(O(N^2)\); replacing queries with \(M\ll N\) latents gives \(O(NM)\).</li>
+    <li><strong>Positional encoding</strong> — attention alone is permutation-invariant; Fourier position features tell the model where pixels, samples, or points live.</li>
+  </ul>
+</div>
+
+<h2 id="s1"><span class="num">1.</span>Why Perceiver exists: generality is not enough</h2>
+<p>Imagine feeding an image as raw pixels rather than 16×16 patches. You get one row per pixel location. A normal transformer can, in principle, notice a relation between the top-left pixel and the bottom-right pixel in one layer — a non-local inductive bias. But it must also store and compute the full all-pairs table. For ImageNet-scale pixels, the all-pairs table is already billions of entries before depth, heads, batches, or channels are considered.</p>
+
+<h3 id="s1a">1.1 The scaling wall</h3>
+<p>The lecture frames the design pressure as a trade-off. Convnets are efficient and strong on grids, but they bake in locality and grid-specific assumptions. Transformers are more input-agnostic, but raw-input self-attention is quadratic. Perceiver tries to sit between them: retain transformer-like generality while making input cost linear in \(N\).</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — full self-attention cost</span>
+  <p>$$
+  \operatorname{Attn}(X)=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V,
+  \qquad Q,K,V\in\mathbb{R}^{N\times d_k}
+  $$</p>
+  <p>The score matrix \(QK^\top\) has shape \(N\times N\). Here \(N\) is the number of input elements — tokens, pixels, audio frames, point-cloud points — and \(d_k\) is the attention key dimension. The matrix is the expensive warehouse-wide “everyone talks to everyone” meeting.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    A["Raw input array<br/>N elements"] --> B["Full self-attention<br/>N by N scores"]
+    B --> C["Deep transformer<br/>cost grows with N squared"]
+    D["Convolutional model"] --> E["Efficient on grids<br/>but modality-specific"]
+    A --> F["Perceiver goal<br/>general inputs plus tractable compute"]
+    style B fill:#fff0f0,stroke:#cc3d3d,stroke-width:2px
+    style F fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>Perceiver is motivated by the gap between efficient but specialized convnets and general but expensive transformers.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“The problem is only the quadratic attention matrix.” Not quite. Jaegle also emphasizes that standard transformers keep computation proportional to the large input size at every layer. Even linear-in-\(N\) work becomes heavy when \(N\) is tens of thousands and the network is deep.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why not just use image patches?</summary>
+<p>Patches reduce \(N\), but they inject a 2D grid-specific preprocessing assumption. That may be excellent for images, yet less natural for bytes, point clouds, event cameras, multimodal arrays, or scientific measurements with unknown structure.</p></details>
+
+<h2 id="s2"><span class="num">2.</span>The Perceiver core: interview the input with a small latent array</h2>
+<p>Perceiver introduces \(M\) learned latent units, with \(M\ll N\). These latents are not input tokens. They are trainable abstract slots, like the investigator team in the warehouse analogy. The first step is not self-attention over the huge input; it is <strong>cross-attention from latents to input</strong>.</p>
+
+<h3 id="s2a">2.1 Cross-attend in: \(Q=\) latents, \(K,V=\) input</h3>
+<p>Let \(X\in\mathbb{R}^{N\times D}\) be the input array after content and position features, and \(Z\in\mathbb{R}^{M\times C}\) be the learned latent array. A cross-attention layer computes queries from \(Z\), keys and values from \(X\), then returns \(M\) updated latent rows.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — asymmetric input attention</span>
+  <p>$$
+  Q=ZW_Q\in\mathbb{R}^{M\times d},\quad
+  K=XW_K\in\mathbb{R}^{N\times d},\quad
+  V=XW_V\in\mathbb{R}^{N\times d_v}
+  $$</p>
+  <p>$$
+  Z' = \operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt d}\right)V,
+  \qquad QK^\top\in\mathbb{R}^{M\times N}
+  $$</p>
+  <p>The attention map is rectangular. Each latent query asks all input elements for evidence, but the output length is \(M\), not \(N\).</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    X["Input byte or feature array<br/>N rows"] --> KV["Keys and values<br/>K,V from input"]
+    Z["Learned latent array<br/>M rows"] --> Q["Queries<br/>Q from latents"]
+    Q --> CA["Cross-attention<br/>M by N map"]
+    KV --> CA
+    CA --> L["Latent array<br/>M rows"]
+    L --> LT["Latent self-attention x L<br/>M by M maps"]
+    LT --> RC["Optional re-cross-attend<br/>look back at input"]
+    RC --> OUT["Task head or IO decoder"]
+    style CA fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+    style LT fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+</div>
+<figcaption>The Perceiver encoder: a large input is projected into a fixed-size latent workspace, then processed deeply there.</figcaption>
+</figure>
+
+<h3 id="s2b">2.2 Process cheaply: the latent transformer</h3>
+<p>Once the input has been distilled into \(M\) latent rows, Perceiver runs a normal transformer stack in latent space. This preserves the useful all-to-all comparison, but only among the investigators, not among every crate in the warehouse.</p>
+<p>The original Perceiver can iterate this pattern: cross-attend into latents, process with latent self-attention, optionally cross-attend back to the input, and repeat. Jaegle notes that weight sharing across depth can help on limited-data settings, making the repeated blocks feel like an RNN unrolled through computation time.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — total Perceiver encoder scaling</span>
+  <p>$$
+  \text{input cross-attention: }O(NM),\qquad
+  \text{latent self-attention per layer: }O(M^2),\qquad M\ll N.
+  $$</p>
+  <p>For fixed \(M\), the input-facing part is linear in \(N\). Depth mostly compounds the cheaper \(M\times M\) latent computation.</p>
+</div>
+
+<div class="box intuition">
+  <span class="lbl">What the latent bottleneck buys</span>
+  <p>The architecture chooses <em>where to spend quadratic attention</em>. It does not eliminate attention; it moves the deep all-to-all processing into a controllable latent workspace whose size is a hyperparameter.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what changes shape from square to rectangle?</summary>
+<p>The attention score matrix. In full self-attention, \(QK^\top\) is \(N\times N\). In Perceiver input cross-attention, there are only \(M\) latent queries, so \(QK^\top\) is \(M\times N\).</p></details>
+
+<h2 id="s3"><span class="num">3.</span>Position without hard-wiring a modality</h2>
+<p>Attention treats an array as a set unless positions are supplied. If two identical red pixels are swapped, content alone cannot tell which came from the sky and which came from the jacket. Perceiver avoids image-specific convolutions, but it still needs spatial or temporal coordinates as features.</p>
+
+<h3 id="s3a">3.1 Fourier position features</h3>
+<p>The Perceiver papers often concatenate content features with Fourier encodings of position. For images, positions are 2D; for audio, 1D; for video, 3D. In the lecture, Jaegle notes that dense frequency bands up to the Nyquist frequency helped, and concatenation often beat addition for pixels.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — Fourier features for a coordinate</span>
+  <p>For a coordinate \(p\), a simple Fourier feature map is</p>
+  <p>$$
+  \gamma(p)=\big[\sin(2\pi f_1p),\cos(2\pi f_1p),\ldots,
+  \sin(2\pi f_Bp),\cos(2\pi f_Bp)\big].
+  $$</p>
+  <p>For 2D pixels, apply this to \(x\) and \(y\) coordinates and concatenate with RGB or other content channels. Frequencies let nearby and far-apart positions be distinguishable at multiple scales.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart TB
+    P["Position coordinate<br/>x,y or time t"] --> F["Fourier features<br/>sin and cos bands"]
+    C["Content feature<br/>RGB, audio value, point feature"] --> CAT["Concatenate"]
+    F --> CAT
+    CAT --> ROW["Input row X_i<br/>content plus where"]
+    ROW --> ATT["Attention can use<br/>what and where"]
+    style F fill:#fff7ec,stroke:#d9822b,stroke-width:2px
+    style ATT fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>Fourier features add “where” as data, rather than as a convolutional wiring constraint.</figcaption>
+</figure>
+
+<div class="box pitfall">
+  <span class="lbl">Common misconception</span>
+  <p>“No modality-specific assumptions” does not mean “no positional information.” The cleanest version can learn anonymous position embeddings, but practical high-performing models often benefit from truthful structure such as 2D image coordinates or modality tags.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — why can permuting pixels be harmless for Perceiver?</summary>
+<p>If the 2D position features stay attached to each pixel row, the array order is irrelevant: attention sees a set of rows containing both content and coordinates. A convnet, by contrast, relies on neighboring memory layout and loses its built-in locality when pixels are shuffled.</p></details>
+
+<h2 id="worked"><span class="num">4.</span>Worked numeric micro-example — attention matrices by hand</h2>
+<p>Use the exact scale requested: \(N=1000\) input elements, \(M=32\) latents, and \(D=C=64\). The goal is not to compute learned weights; it is to see the shape and compute reduction that makes the architecture plausible.</p>
+
+<div class="box eqn">
+  <span class="lbl">Step-by-step with real shapes</span>
+  <p>Input and latent arrays:</p>
+  <p>$$
+  X\in\mathbb{R}^{1000\times 64},\qquad Z\in\mathbb{R}^{32\times 64}.
+  $$</p>
+  <p>Choose one attention head with projected size \(d=64\). Then:</p>
+  <p>$$
+  Q=ZW_Q\in\mathbb{R}^{32\times64},\quad
+  K=XW_K\in\mathbb{R}^{1000\times64},\quad
+  V=XW_V\in\mathbb{R}^{1000\times64}.
+  $$</p>
+  <p>The cross-attention score table is</p>
+  <p>$$
+  QK^\top:(32\times64)(64\times1000)=32\times1000,
+  $$</p>
+  <p>so it has \(32\cdot1000=32{,}000\) scores. Full input self-attention would use</p>
+  <p>$$
+  1000\times1000=1{,}000{,}000\text{ scores}.
+  $$</p>
+  <p>The reduction is</p>
+  <p>$$
+  \frac{1{,}000{,}000}{32{,}000}=31.25.
+  $$</p>
+  <p>So the input-facing attention map is about <strong>31× smaller</strong>. More importantly, if \(M=32\) stays fixed, the cross-attention score count grows as \(32N\), not \(N^2\).</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — if N doubles to 2000 and M stays 32, what happens?</summary>
+<p>Cross-attention becomes \(32\times2000=64{,}000\) scores: it doubles. Full self-attention becomes \(2000\times2000=4{,}000{,}000\) scores: it quadruples. The new reduction is \(4{,}000{,}000/64{,}000=62.5\times\).</p></details>
+
+<details class="check"><summary>✓ Check yourself — if M doubles to 64 while N=1000, what is the cross-attention table?</summary>
+<p>It is \(64\times1000=64{,}000\) scores. That is still far below \(1{,}000{,}000\), but the bottleneck is less tight and the latent transformer also becomes costlier because \(M^2\) changes from \(32^2=1024\) to \(64^2=4096\) per latent layer.</p></details>
+
+<h2 id="s5"><span class="num">5.</span>Perceiver IO: generalize the output too</h2>
+<p>The original Perceiver is strongest as an encoder for classification or regression: big arbitrary input in, compact latent state out, task head on top. Perceiver IO extends the same asymmetry to the decoder. Instead of forcing one fixed output, it lets a learned or constructed <strong>output query array</strong> ask the final latents for exactly the outputs needed.</p>
+
+<h3 id="s5a">5.1 Query the output you want</h3>
+<p>For image classification, the output query can be one row asking for class evidence. For dense optical flow, there can be one query per pixel asking, “what is the motion at this location?” For masked language modeling, each query can encode a masked byte or character position. The decoder cross-attends from output queries to the final latents.</p>
+
+<div class="box eqn">
+  <span class="lbl">Key equation — IO decoder cross-attention</span>
+  <p>Let \(Y\in\mathbb{R}^{O\times C_y}\) be \(O\) output queries and \(H\in\mathbb{R}^{M\times C}\) be final latents.</p>
+  <p>$$
+  Q_{out}=YW_Q,\quad K_{lat}=HW_K,\quad V_{lat}=HW_V,
+  $$</p>
+  <p>$$
+  \operatorname{Decoder}(Y,H)=\operatorname{softmax}\!\left(\frac{Q_{out}K_{lat}^{\top}}{\sqrt d}\right)V_{lat},
+  \qquad Q_{out}K_{lat}^{\top}\in\mathbb{R}^{O\times M}.
+  $$</p>
+  <p>Now output cost scales linearly with the number of requested outputs \(O\), while the expensive memory being queried remains the fixed-size latent array.</p>
+</div>
+
+<figure>
+<div class="mermaid">
+flowchart LR
+    IN["Arbitrary input<br/>pixels, bytes, audio, points"] --> ENC["Perceiver encoder<br/>cross-attend into latents"]
+    ENC --> H["Final latent state<br/>M rows"]
+    Q1["Class query<br/>one output"] --> DEC["Output cross-attention<br/>queries read latents"]
+    Q2["Pixel queries<br/>dense output"] --> DEC
+    Q3["Masked-token queries<br/>language output"] --> DEC
+    H --> DEC
+    DEC --> O["Structured outputs<br/>logits, pixels, flow, labels"]
+    style H fill:#f4efff,stroke:#7b3fe4,stroke-width:2px
+    style DEC fill:#eef4ff,stroke:#2f6df6,stroke-width:2px
+</div>
+<figcaption>Perceiver IO makes the output interface as flexible as the input interface: change the queries, change the output structure.</figcaption>
+</figure>
+
+<div class="box intuition">
+  <span class="lbl">The IO move in the warehouse analogy</span>
+  <p>The investigator team finishes its private meeting. A report request arrives: one executive summary, 50,000 pixel-level labels, or several task-specific answers. Each report line asks the investigators a targeted question; the warehouse does not need to be reread from scratch.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — what is an output query?</summary>
+<p>It is a feature vector describing one requested output element. For classification, it can be a learned “class summary” query. For dense prediction, it often includes the position and output semantics for one pixel, point, or time step.</p></details>
+
+<h2 id="trace"><span class="num">6.</span>End-to-end trace — one ImageNet-style example</h2>
+<p>Follow a single raw-pixel image through Perceiver IO. The exact channel widths vary by implementation; this trace uses the requested representative shapes and marks where the \(O(N^2)\) input attention is avoided.</p>
+<table>
+  <tr><th>Step</th><th>What happens</th><th>State / shape / value</th></tr>
+  <tr><td>0 · raw image</td><td>Flatten a 224×224 RGB image into one row per pixel location.</td><td class="tt">224×224 pixels × 3 channels = 50,176×3</td></tr>
+  <tr><td>1 · add where</td><td>Concatenate Fourier position features so each row carries content plus coordinates.</td><td class="tt">50,176×(3 + pos)</td></tr>
+  <tr><td>2 · input cross-attention</td><td>Learned latent queries read all pixel rows; keys/values come from the input. This uses an attention map of size \(512×50{,}176\), not \(50{,}176×50{,}176\).</td><td class="tt">latents: 512×256</td></tr>
+  <tr><td>3 · latent transformer ×L</td><td>Deep self-attention and MLP blocks run only over latent rows.</td><td class="tt">512×256 throughout</td></tr>
+  <tr><td>4 · output query</td><td>For classification, one learned query asks the latents for image-level class evidence.</td><td class="tt">1×256 query</td></tr>
+  <tr><td>5 · decoder cross-attention</td><td>The output query cross-attends to the 512 latent rows.</td><td class="tt">attention: 1×512</td></tr>
+  <tr><td>6 · classifier head</td><td>The decoded output vector is mapped to ImageNet class logits.</td><td class="tt">logits: 1000</td></tr>
+</table>
+<div class="box intuition">
+  <span class="lbl">What the trace reveals</span>
+  <p>The model never forms a pixel-by-pixel \(50{,}176^2\) attention table. It spends one linear pass reading the image into 512 latents, then performs deep reasoning in a fixed-size workspace.</p>
+</div>
+
+<details class="check"><summary>✓ Check yourself — where exactly is the quadratic-in-pixels cost avoided?</summary>
+<p>At step 2. The queries are 512 latents rather than 50,176 pixels, so the input score table is \(512×50{,}176\), not \(50{,}176×50{,}176\). Later self-attention is quadratic only in 512 latent rows.</p></details>
+
+<h2 id="s7"><span class="num">7.</span>What worked, what it costs, and where it is fragile</h2>
+<p>The lecture's empirical message is not “Perceiver beats every specialist everywhere.” It is stronger in a different way: one attention-based backbone can be competitive across very different modalities with far fewer hand-built assumptions.</p>
+
+<h3 id="s7a">7.1 Results across modalities</h3>
+<ul>
+  <li><strong>ImageNet from pixels.</strong> Perceiver reached competitive accuracy without 2D convolutions, and the architecture is insensitive to row order when positions remain attached.</li>
+  <li><strong>Audio and video.</strong> Multimodal arrays can be concatenated after padding/tagging modality features, so audio and video become one large input table.</li>
+  <li><strong>Point clouds and 3D data.</strong> The set-like interface is a natural fit when no regular image grid exists.</li>
+  <li><strong>Language bytes.</strong> Perceiver IO can work without tokenization by modeling bytes/characters and querying masked positions.</li>
+  <li><strong>Optical flow.</strong> Perceiver IO produced strong dense predictions by decoding one output per pixel, competing with heavily engineered vision systems.</li>
+</ul>
+
+<h3 id="s7b">7.2 Limitations to keep in your mental model</h3>
+<div class="box pitfall">
+  <span class="lbl">Bottleneck is a feature and a risk</span>
+  <p>The latent array makes compute tractable by compressing the input. If \(M\) is too small, fine details can be lost. Perceiver IO's dense decoder helps recover structured outputs, but it can only query information that survived in the latents.</p>
+</div>
+<ul>
+  <li><strong>Position features matter.</strong> Fourier frequency range, density, concatenation vs addition, and learned alternatives can change performance substantially.</li>
+  <li><strong>Generality trades off with domain speed.</strong> Convnet or hybrid vision models may be faster or better when the right inductive bias is known.</li>
+  <li><strong>Repeated cross-attention is heavy.</strong> The first Perceiver found iterative input re-attention useful, but the lecture notes that repeated cross-attends are expensive and not always recommended as best practice.</li>
+  <li><strong>Small-data settings are hard.</strong> If the model must learn an inductive bias from limited data, specialized structure can still be valuable.</li>
+</ul>
+
+<details class="check"><summary>✓ Check yourself — why might a specialist model still win?</summary>
+<p>If the domain structure is known and valuable — for example, local translation structure in images — a convnet or hybrid transformer can exploit that bias efficiently. Perceiver is attractive when inputs are huge, heterogeneous, or poorly matched to known architectural biases.</p></details>
+
+<h2 id="recap">Recap — rebuild it yourself</h2>
+<p>Do not re-read first. Answer from memory; then jump back to the section if a link feels shaky.</p>
+<div class="box check">
+  <span class="lbl">Reconstruct the chain</span>
+  <ol>
+    <li>Why does raw-input self-attention become infeasible for pixels, audio, and multimodal streams? <a class="ref" href="#s1">(§1)</a></li>
+    <li>In Perceiver input cross-attention, which array supplies \(Q\), and which supplies \(K,V\)? <a class="ref" href="#s2a">(§2.1)</a></li>
+    <li>Why does the complexity change from \(O(N^2)\) to \(O(NM)+O(M^2)\)? <a class="ref" href="#s2b">(§2.2)</a></li>
+    <li>What information do Fourier position features provide, and why is attention unable to infer it from row order alone? <a class="ref" href="#s3">(§3)</a></li>
+    <li>Redo the \(N=1000,M=32\) score-count comparison without looking. <a class="ref" href="#worked">(worked example)</a></li>
+    <li>What new capability does Perceiver IO add beyond the original Perceiver encoder? <a class="ref" href="#s5">(§5)</a></li>
+    <li>Teach it back: explain Perceiver to a beginner using the warehouse-and-investigators analogy in three sentences.</li>
+  </ol>
+</div>
+
+<h2 id="glossary">Glossary</h2>
+<table>
+  <tr><th>Term</th><th>Plain meaning</th></tr>
+  <tr><td>Latent array</td><td>A fixed-size learned set of hidden vectors that reads and stores information from the large input.</td></tr>
+  <tr><td>Input element \(N\)</td><td>One row of the input array: a token, pixel, audio frame, point-cloud point, byte, or modality feature.</td></tr>
+  <tr><td>Latent count \(M\)</td><td>The number of latent vectors. It is chosen by the model designer and is much smaller than \(N\).</td></tr>
+  <tr><td>Cross-attention</td><td>Attention where queries come from one array and keys/values from another.</td></tr>
+  <tr><td>Latent transformer</td><td>A standard self-attention transformer stack applied to the latent array, so its quadratic cost is \(M^2\).</td></tr>
+  <tr><td>Fourier position features</td><td>Sine and cosine features of coordinates that give attention access to spatial or temporal location.</td></tr>
+  <tr><td>Output query</td><td>A vector describing one requested output item in Perceiver IO, such as a class summary or one pixel's flow.</td></tr>
+  <tr><td>Dense prediction</td><td>A task that returns many structured outputs, often one per input location, such as segmentation or optical flow.</td></tr>
+  <tr><td>Latent bottleneck</td><td>The compression from a huge input array to a smaller latent array; it saves compute but can discard detail.</td></tr>
+</table>
+
+<h2 id="refs">References &amp; further study</h2>
+<h4>Sources named or directly relevant to the lecture</h4>
+<ol class="refs">
+  <li>Jaegle et al. (2021). <strong>Perceiver: General Perception with Iterative Attention.</strong> <a class="ref" href="https://arxiv.org/abs/2103.03206">arXiv:2103.03206</a> — the original latent cross-attention architecture.</li>
+  <li>Jaegle et al. (2021). <strong>Perceiver IO: A General Architecture for Structured Inputs &amp; Outputs.</strong> <a class="ref" href="https://arxiv.org/abs/2107.14795">arXiv:2107.14795</a> — output queries and dense/multitask decoding.</li>
+  <li>Vaswani et al. (2017). <strong>Attention Is All You Need.</strong> <a class="ref" href="https://arxiv.org/abs/1706.03762">arXiv:1706.03762</a> — the transformer attention equation Perceiver modifies.</li>
+  <li>Dosovitskiy et al. (2020). <strong>An Image is Worth 16×16 Words: Transformers for Image Recognition at Scale.</strong> <a class="ref" href="https://arxiv.org/abs/2010.11929">arXiv:2010.11929</a> — the ViT patching contrast discussed in the talk.</li>
+  <li>Carion et al. (2020). <strong>End-to-End Object Detection with Transformers.</strong> <a class="ref" href="https://arxiv.org/abs/2005.12872">arXiv:2005.12872</a> — DETR, an influential encoder-decoder cross-attention vision model.</li>
+  <li>Teed and Deng (2020). <strong>RAFT: Recurrent All-Pairs Field Transforms for Optical Flow.</strong> <a class="ref" href="https://arxiv.org/abs/2003.12039">arXiv:2003.12039</a> — the strong specialist optical-flow baseline contrasted with Perceiver IO.</li>
+</ol>
+<h4>Best next things to watch / read</h4>
+<ol class="refs">
+  <li>Tancik et al. (2020). <strong>Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains.</strong> <a class="ref" href="https://arxiv.org/abs/2006.10739">arXiv:2006.10739</a> — why sinusoidal coordinate features help represent high-frequency structure.</li>
+  <li>Mildenhall et al. (2020). <strong>NeRF: Representing Scenes as Neural Radiance Fields.</strong> <a class="ref" href="https://arxiv.org/abs/2003.08934">arXiv:2003.08934</a> — a canonical use of Fourier-style positional encodings.</li>
+</ol>
+
+<div class="navbtns">
+  <a href="05-mixture-of-experts.html">◀ Previous: Mixture of Experts</a>
+  <a class="r" href="07-non-parametric-transformers.html">Next: Non-parametric Transformers ▶</a>
+</div>
+
+<div class="foot">
+  Stanford CS25 — study notes · Note 2 of 5 · Built for learning (WHY→HOW · worked example · trace · check-yourself).
+  Diagrams: Mermaid · Equations: MathJax · Print this page to export a PDF. CDN fonts/scripts require internet when rendering.
+</div>
+
+</article>
+</div>
+</body>
+</html>
